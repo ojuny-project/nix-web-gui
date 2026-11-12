@@ -1,9 +1,8 @@
-# Ignore build outputs from performing a nix-build or `nix build` command
+target
 result
 result-*
-
-# Ignore automatically generated direnv output
 .direnv
-
-# Ignore NixOS interactive test driver history
+node_modules
+frontend/node_modules
+frontend/packages/*/dist
 **/.nixos-test-history

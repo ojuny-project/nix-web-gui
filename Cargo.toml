@@ -1,0 +1,9 @@
+[workspace]
+members = ["engine", "server"]
+resolver = "2"
+
+[profile.release]
+opt-level = 1
+codegen-units = 256
+panic = "abort"
+debug = false

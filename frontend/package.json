@@ -1,0 +1,14 @@
+{
+  "name": "nix-web-gui-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @nix-web-gui/app",
+    "check": "npm run check -w @nix-web-gui/app",
+    "dev": "npm run dev -w @nix-web-gui/app"
+  }
+}

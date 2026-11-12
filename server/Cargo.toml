@@ -1,0 +1,38 @@
+[package]
+name = "nix-web-gui-server"
+version = "0.1.0"
+edition = "2021"
+description = "HTTP server for the nix-web-gui browser frontend"
+license = "GPL-3.0-or-later"
+
+[[bin]]
+name = "nix-web-gui"
+path = "src/main.rs"
+
+[features]
+default = ["pam", "ojuny-widgets"]
+pam = ["dep:pam-client"]
+ojuny-widgets = ["nix-web-gui-engine/ojuny-widgets"]
+
+[dependencies]
+async-stream = "0.3"
+nix-web-gui-engine = { path = "../engine" }
+axum = { version = "0.8", features = ["json"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
+clap = { version = "4", features = ["derive"] }
+futures = "0.3"
+hex = "0.4"
+libc = "0.2"
+notify = "7"
+pam-client = { version = "0.5", optional = true }
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "fs", "time", "sync"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["compression-gzip", "fs", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uzers = "0.12"

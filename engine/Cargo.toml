@@ -1,0 +1,17 @@
+[package]
+name = "nix-web-gui-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Reusable settings engine for nix-web-gui and nix-fleet-manager"
+license = "GPL-3.0-or-later"
+
+[features]
+default = []
+ojuny-widgets = ["nix-settings-gui/ojuny-widgets"]
+
+[dependencies]
+nix-settings-gui = { path = "../../../nix-settings-gui", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["sync"] }
