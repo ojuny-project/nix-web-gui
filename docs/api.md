@@ -70,6 +70,8 @@ configured allowed groups are enforced when the list is non-empty.
 | `secureboot.status` | implemented |
 | `secureboot.config` | implemented |
 | `users.hashPassword` | implemented |
+| `preview.list` | implemented |
+| `preview.read` | implemented |
 | `config.get` | implemented |
 | `config.set` | implemented |
 | `echo` | test helper |
@@ -89,6 +91,7 @@ The contract is filled in as the engine slices land.
 | Apply | streamed rebuild output and cancellation |
 | Secure Boot | `secureboot.status`, `secureboot.setup`, `secureboot.repair` |
 | Users | the account-card UI |
+| Previews | wallpaper and file media picker; icon upload is pending |
 | Previews | `preview.wallpaper`, `preview.icon`, `preview.style`, `preview.font`, `preview.cursor` |
 | Catalogs | `catalog.themes`, `catalog.fonts`, `catalog.icons`, `catalog.cursors`, `catalog.styles`, `plugins.registry`, `plugins.settings`, `facter.detect`, `monitors.detect` |
 | Config | the settings panel UI |

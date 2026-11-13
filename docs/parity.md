@@ -72,6 +72,7 @@ Implemented end to end:
   it into an existing `hashedPassword` field.
 - A media picker for wallpaper and file widgets. It lists files in the widget
   directory, shows image previews, and stages the selected relative value.
+- A root-parent and per-user worker boundary with runtime PATH tooling.
 - Global search over menus and controls.
 - A system-only filter with a host selector backed by the scan import graph.
 - `visibleWhen` visibility gates, imported-from origins, live-apply config
@@ -89,10 +90,10 @@ Implemented end to end:
 Not yet implemented:
 
 - Table row labels, hidden rows, icon columns, and dropdown columns are not yet
-  rendered in the web table editor. Dedicated keybind, monitor, user, wallpaper,
-  file, icon, and Ojuny renderers are still pending. Secure Boot setup actions
-  still need the privileged re-auth flow. The generic nested editor and raw
-  fallback are placeholders, not full parity.
+  rendered in the web table editor. Dedicated keybind, monitor, user-card,
+  wallpaper upload, icon upload, and Ojuny renderers are still pending. Secure
+  Boot setup actions still need the privileged re-auth flow. The generic nested
+  editor and raw fallback are placeholders, not full parity.
 - Automated parity tests for the rows above.
 - Worker isolation and the remaining auth hardening.
 - Playwright tests. The NixOS VM auth test exists and checks service startup,
