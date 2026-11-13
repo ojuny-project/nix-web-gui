@@ -276,3 +276,9 @@ export type SecureBootStatus = {
   state: SecureBootState;
   stage: { title: string; detail: string };
 };
+
+export type PreviewFile = {
+  name: string;
+  value: string;
+  path: string;
+};

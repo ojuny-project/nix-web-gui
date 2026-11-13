@@ -435,6 +435,27 @@ mod tests {
     }
 
     #[test]
+    fn gate_all_or_nothing_save() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-all-or-nothing-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules")).unwrap();
+        let file = root.join("modules/system.nix");
+        let original = "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"text\"; label = \"Hostname\"; */\n  networking.hostName = \"ok\";\n}\n";
+        std::fs::write(&file, original).unwrap();
+
+        let mut session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        session
+            .set("networking.hostName", "\"unterminated")
+            .unwrap();
+        assert!(session.apply().is_err());
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), original);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn describes_submodule_children() {
         let root = format!(
             "{}/../tests/fixtures/plain-flake",

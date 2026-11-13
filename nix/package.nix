@@ -54,6 +54,7 @@ rustPlatform.buildRustPackage {
   nativeBuildInputs = [
     pkg-config
     rustPlatform.bindgenHook
+    pkgs.makeWrapper
   ];
   buildInputs = [
     openssl
@@ -71,6 +72,24 @@ rustPlatform.buildRustPackage {
   postInstall = ''
     mkdir -p $out/share/nix-web-gui
     cp -r ${frontend}/dist $out/share/nix-web-gui/dist
+  '';
+
+  postFixup = ''
+    wrapProgram $out/bin/nix-web-gui \
+      --prefix PATH : ${
+        lib.makeBinPath [
+          pkgs.nix
+          pkgs.nixd
+          pkgs.nixfmt
+          pkgs.git
+          pkgs.curl
+          pkgs.libxcrypt
+          pkgs.openssl
+          pkgs.sbctl
+          pkgs.systemd
+          pkgs.wlr-randr
+        ]
+      }
   '';
 
   meta = with lib; {

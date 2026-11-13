@@ -7,6 +7,7 @@
     type ControlDescriptor,
     type ControlValue,
   } from "@nix-web-gui/ui";
+  import MediaPicker from "./MediaPicker.svelte";
   import SecureBootPanel from "./SecureBootPanel.svelte";
   import {
     getState,
@@ -876,6 +877,39 @@
     }
   }
 
+  async function setPassword(record: ScanRecord) {
+    const password = prompt("New password");
+    if (!password) return;
+    const confirmation = prompt("Confirm password");
+    if (confirmation !== password) {
+      error = "Passwords do not match";
+      return;
+    }
+    error = "";
+    try {
+      const result = await rpc<{ hash: string }>(
+        "users.hashPassword",
+        { password },
+        user.csrf,
+      );
+      await rpc(
+        "control.setTyped",
+        {
+          path: record.path,
+          widget: record.widget ?? "text",
+          value: result.hash,
+        },
+        user.csrf,
+      );
+      values = { ...values, [record.path]: result.hash };
+      dirty = new Set(dirty).add(record.path);
+      status = "Password hash staged";
+    } catch (cause) {
+      error =
+        cause instanceof Error ? cause.message : "Cannot generate password hash";
+    }
+  }
+
   async function saveAndRebuild() {
     if (!(await save())) return;
     busy = true;
@@ -1108,6 +1142,20 @@
                 onchange={onChange}
                 expandDetails={expandDetailsDefault}
               />
+              {#if record.widget === "wallpaper" || record.widget === "file" || record.widget === "icon"}
+                <MediaPicker
+                  {record}
+                  csrf={user.csrf}
+                  onchange={onChange}
+                />
+              {/if}
+              {#if record.path.endsWith(".hashedPassword")}
+                <div class="password-action">
+                  <button class="ghost" onclick={() => setPassword(record)}>
+                    Set password
+                  </button>
+                </div>
+              {/if}
             {/if}
           {/each}
         {/each}

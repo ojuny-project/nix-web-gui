@@ -16,6 +16,7 @@ let
 
   allowedGroupArgs = concatMapStringsSep " " (group: "--allowed-group ${escapeShellArg group}") cfg.allowedGroups;
   flakeArg = optionalString (cfg.flakePath != null) "--flake ${escapeShellArg cfg.flakePath}";
+  pageArg = optionalString (cfg.startupPage != null) "--page ${escapeShellArg cfg.startupPage}";
 in
 {
   options.services.nix-web-gui = {
@@ -74,6 +75,13 @@ in
       default = null;
       example = "/home/den/repos/nixos-configs/dendrite";
       description = "Default flake or configuration directory offered to a signed-in browser.";
+    };
+
+    startupPage = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "Theme";
+      description = "Optional regex for the first menu selected after a flake opens.";
     };
 
     theme = mkOption {

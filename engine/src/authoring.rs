@@ -80,6 +80,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn rejects_new_files_outside_the_root() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-authoring-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let error = write_new(root.to_str().unwrap(), "../escape.nix", "{}").unwrap_err();
+        assert!(error.contains("outside"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn writes_kind_specific_templates() {
         let path = Path::new("/tmp/audio.nix");
         let raw = template_for("audio", "raw", "", path);

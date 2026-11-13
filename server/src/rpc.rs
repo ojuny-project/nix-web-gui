@@ -7,9 +7,11 @@ use nix_web_gui_engine::catalog;
 use nix_web_gui_engine::config::WebConfig;
 use nix_web_gui_engine::flake;
 use nix_web_gui_engine::git;
+use nix_web_gui_engine::preview;
 use nix_web_gui_engine::render;
 use nix_web_gui_engine::secureboot;
 use nix_web_gui_engine::session::SettingsSession;
+use nix_web_gui_engine::users;
 use serde_json::{json, Value};
 
 pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
@@ -183,6 +185,20 @@ pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
             Ok(secureboot::status(configured))
         }
         "secureboot.config" => Ok(json!({ "block": secureboot::config_block() })),
+        "preview.list" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            preview::list(settings, &path).map_err(|error| (-32011, error))
+        }),
+        "preview.read" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            preview::read(settings, &path).map_err(|error| (-32011, error))
+        }),
+        "users.hashPassword" => {
+            let password = string_param(&params, "password");
+            users::hash_password(&password)
+                .map(|hash| json!({ "hash": hash }))
+                .map_err(|error| (-32012, error))
+        }
         "config.get" => serde_json::to_value(WebConfig::load())
             .map_err(|error| (-32012, error.to_string())),
         "config.set" => (|| {

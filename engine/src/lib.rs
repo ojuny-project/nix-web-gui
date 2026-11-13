@@ -13,9 +13,11 @@ pub mod config;
 pub mod flake;
 pub mod git;
 pub mod paths;
+pub mod preview;
 pub mod render;
 pub mod secureboot;
 pub mod session;
+pub mod users;
 pub mod theme;
 
 /// Version of the request/response contract exposed to frontends.

@@ -68,6 +68,10 @@ Implemented end to end:
   Lanzaboote state, signed files, Windows, BitLocker, ESP space, and warnings.
 - A basic `table-attrset` and `table-list` editor with columns, typed cells,
   row add and remove, and key editing.
+- A user password action that generates a yescrypt or SHA-512 hash and stages
+  it into an existing `hashedPassword` field.
+- A media picker for wallpaper and file widgets. It lists files in the widget
+  directory, shows image previews, and stages the selected relative value.
 - Global search over menus and controls.
 - A system-only filter with a host selector backed by the scan import graph.
 - `visibleWhen` visibility gates, imported-from origins, live-apply config

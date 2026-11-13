@@ -135,6 +135,7 @@ pub fn serialize(record: &Record, widget: WidgetKind, value: &Value) -> Result<S
         WidgetKind::Package => Ok(package_literal(string_value(value)?)),
         WidgetKind::List => Ok(list_literal(&string_list(value)?, false)),
         WidgetKind::Packages => Ok(list_literal(&string_list(value)?, true)),
+        WidgetKind::Wallpaper | WidgetKind::File => Ok(path_literal(string_value(value)?)),
         WidgetKind::TableAttrset => serialize_table(record, false, value),
         WidgetKind::TableList => serialize_table(record, true, value),
         WidgetKind::Raw => Ok(string_value(value)?.to_string()),

@@ -1,19 +1,4 @@
 { self, pkgs, system }:
-let
-  fixture = pkgs.runCommand "nix-web-gui-auth-fixture" { } ''
-    mkdir -p $out/modules
-    cp ${pkgs.writeText "flake.nix" ''
-      { outputs = { self, nixpkgs }: { }; }
-    ''} $out/flake.nix
-    cp ${pkgs.writeText "system.nix" ''
-      /* @menu displayname = "Test"; */
-      { ... }: {
-        /* @option widget = "text"; label = "Hostname"; */
-        networking.hostName = "vm";
-      }
-    ''} $out/modules/system.nix
-  '';
-in
 pkgs.testers.nixosTest {
   name = "nix-web-gui-auth";
 
@@ -43,12 +28,26 @@ pkgs.testers.nixosTest {
   };
 
   testScript = ''
+    import json
+
     machine.wait_for_unit("nix-web-gui.service")
     machine.wait_for_open_port(8787)
 
     machine.succeed("curl -fsS http://127.0.0.1:8787/api/health")
 
-    machine.succeed("cp -r ${fixture} /tmp/nwg-flake")
+    machine.succeed("mkdir -p /tmp/nwg-flake/modules")
+    machine.succeed("""cat > /tmp/nwg-flake/flake.nix <<'EOF'
+{ outputs = { self, nixpkgs }: { }; }
+EOF
+""")
+    machine.succeed("""cat > /tmp/nwg-flake/modules/system.nix <<'EOF'
+/* @menu displayname = "Test"; */
+{ ... }: {
+  /* @option widget = "text"; label = "Hostname"; */
+  networking.hostName = "vm";
+}
+EOF
+""")
     machine.succeed("chmod -R 777 /tmp/nwg-flake")
 
     csrf = machine.succeed(
@@ -68,32 +67,35 @@ pkgs.testers.nixosTest {
         "| jq -e '.result.ok'"
     )
 
-    machine.succeed(
+    opened = machine.succeed(
         f"curl -fsS -b /tmp/alice.cookies "
         "-X POST http://127.0.0.1:8787/api/rpc "
         "-H 'content-type: application/json' "
         f"-H 'x-csrf-token: {csrf}' "
-        "-d '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"session.open\",\"params\":{\"root\":\"/tmp/nwg-flake\"}}' "
-        "| jq -e '.result.menus >= 1'"
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"session.open\",\"params\":{\"root\":\"/tmp/nwg-flake\"}}'"
     )
+    machine.log(opened)
+    assert json.loads(opened)["result"]["menus"] >= 1
 
-    machine.succeed(
+    staged = machine.succeed(
         f"curl -fsS -b /tmp/alice.cookies "
         "-X POST http://127.0.0.1:8787/api/rpc "
         "-H 'content-type: application/json' "
         f"-H 'x-csrf-token: {csrf}' "
-        "-d '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"control.setTyped\",\"params\":{\"path\":\"networking.hostName\",\"widget\":\"text\",\"value\":\"vm2\"}}' "
-        "| jq -e '.result.staged'"
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"control.setTyped\",\"params\":{\"path\":\"networking.hostName\",\"widget\":\"text\",\"value\":\"vm2\"}}'"
     )
+    machine.log(staged)
+    assert json.loads(staged)["result"]["staged"]
 
-    machine.succeed(
+    applied = machine.succeed(
         f"curl -fsS -b /tmp/alice.cookies "
         "-X POST http://127.0.0.1:8787/api/rpc "
         "-H 'content-type: application/json' "
         f"-H 'x-csrf-token: {csrf}' "
-        "-d '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"edits.apply\",\"params\":{}}' "
-        "| jq -e '.result.files == 1'"
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"edits.apply\",\"params\":{}}'"
     )
+    machine.log(applied)
+    assert json.loads(applied)["result"]["files"] == 1
 
     machine.succeed("grep -q vm2 /tmp/nwg-flake/modules/system.nix")
 

@@ -711,3 +711,59 @@ label {
   font-size: 0.8rem;
   font-weight: 600;
 }
+
+.password-action {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 0.75rem;
+}
+
+.media-picker {
+  display: grid;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+}
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: 0.5rem;
+}
+
+.media-item {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.media-item:hover {
+  border-color: var(--accent);
+}
+
+.media-item img,
+.media-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 5px;
+  background: var(--surface-2);
+}
+
+.media-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.media-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+}

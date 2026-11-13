@@ -57,6 +57,11 @@
             ${pkgs.bash}/bin/bash tests/check-boundaries.sh
             touch $out
           '';
+          minimal-flag = pkgs.runCommand "check-minimal-flag" { } ''
+            grep -Rq "This Ojuny widget is not available in the minimal build." \
+              ${self.packages.${system}.nix-web-gui-minimal}/share/nix-web-gui/dist
+            touch $out
+          '';
         } // lib.optionalAttrs (system == "x86_64-linux") {
           nixos-test-auth = import ./tests/nixos-test-auth.nix {
             inherit self pkgs system;

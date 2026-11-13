@@ -69,6 +69,7 @@ configured allowed groups are enforced when the list is non-empty.
 | `catalog.styles` | implemented |
 | `secureboot.status` | implemented |
 | `secureboot.config` | implemented |
+| `users.hashPassword` | implemented |
 | `config.get` | implemented |
 | `config.set` | implemented |
 | `echo` | test helper |
@@ -87,7 +88,7 @@ The contract is filled in as the engine slices land.
 | Git | separate commit and push controls, if needed |
 | Apply | streamed rebuild output and cancellation |
 | Secure Boot | `secureboot.status`, `secureboot.setup`, `secureboot.repair` |
-| Users | `users.hashPassword` |
+| Users | the account-card UI |
 | Previews | `preview.wallpaper`, `preview.icon`, `preview.style`, `preview.font`, `preview.cursor` |
 | Catalogs | `catalog.themes`, `catalog.fonts`, `catalog.icons`, `catalog.cursors`, `catalog.styles`, `plugins.registry`, `plugins.settings`, `facter.detect`, `monitors.detect` |
 | Config | the settings panel UI |
