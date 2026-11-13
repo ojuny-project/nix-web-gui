@@ -50,9 +50,9 @@ Not yet implemented:
 - Secure Boot setup actions that create keys, enroll keys, rebuild, or reboot.
 - Playwright tests and the full `nix flake check` matrix.
 
-The NixOS VM auth test verifies service startup, alice login, wrong-password
-rejection, bob allowlist rejection, worker RPC, scan, staged edit, and save as
-the authenticated account.
+The NixOS VM auth test passes. It verifies service startup, alice login,
+wrong-password rejection, bob allowlist rejection, worker RPC, scan, staged
+edit, and save as the authenticated account.
 
 See [TODO.md](TODO.md) for the remaining widget, flow, security, packaging, and
 documentation work.

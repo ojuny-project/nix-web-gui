@@ -1,15 +1,18 @@
 # TODO
 
 Missing or partial work in nix-web-gui. The current slice builds, the engine and
-server tests pass, and the frontend check and build pass. The per-user worker VM
-test is the last verification gate.
+server tests pass, the frontend check and build pass, and the per-user worker VM
+test passes. The minimal package and minimal-flag check are the last verification
+items.
 
 ## Verification gaps
 
-- [ ] Finish `checks.x86_64-linux.nixos-test-auth` and record the result.
-- [ ] Run a final `nix build .#default .#nix-web-gui-minimal` against the
+- [x] Finish `checks.x86_64-linux.nixos-test-auth` and record the result. It
+      passes: alice login, worker RPC, scan, staged edit, save, wrong-password
+      rejection, and bob allowlist rejection.
+- [x] Build the default package through the VM test.
+- [ ] Build the minimal package and run `checks.minimal-flag` against the
       committed tree.
-- [ ] Run `checks.minimal-flag`.
 - [ ] Run the full `nix flake check` matrix.
 - [ ] Add Playwright coverage for login, open, edit, save, diff, add file, add
       option, flake inputs, apply, rebuild, and media selection.
