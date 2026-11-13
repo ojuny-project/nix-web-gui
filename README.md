@@ -54,6 +54,9 @@ The NixOS VM auth test verifies service startup, alice login, wrong-password
 rejection, bob allowlist rejection, worker RPC, scan, staged edit, and save as
 the authenticated account.
 
+See [TODO.md](TODO.md) for the remaining widget, flow, security, packaging, and
+documentation work.
+
 ## Development
 
 ```sh
