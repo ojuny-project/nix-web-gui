@@ -565,3 +565,149 @@ label {
   font-size: 0.85rem;
   white-space: pre-wrap;
 }
+
+.inserts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.insert-form {
+  display: grid;
+  gap: 0.8rem;
+  max-width: 42rem;
+}
+
+.insert-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.input-row:last-child {
+  border-bottom: 0;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.input-form {
+  display: grid;
+  gap: 0.8rem;
+  max-width: 42rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.input-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.mono {
+  font-family: "JetBrains Mono", "Cascadia Code", monospace;
+  word-break: break-all;
+}
+
+.list-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.list-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.list-row input {
+  flex: 1;
+}
+
+.submodule-heading {
+  margin: 0.75rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.table-field {
+  display: grid;
+  gap: 0.5rem;
+  overflow-x: auto;
+}
+
+.table-field table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-field th,
+.table-field td {
+  padding: 0.35rem 0.45rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table-field th {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.table-field input[type="text"],
+.table-field input:not([type]) {
+  min-width: 7rem;
+}
+
+.search-input {
+  width: min(22rem, 30vw);
+  margin-left: 0.75rem;
+}
+
+@media (max-width: 760px) {
+  .search-input {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+.field-origin {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.group-heading {
+  margin: 1rem 0 0.35rem;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.details-toggle {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+}

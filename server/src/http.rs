@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::extract::{Request, State};
@@ -13,27 +13,34 @@ use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use futures::Stream;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Mutex as AsyncMutex};
 use tower::ServiceExt;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
-use nix_web_gui_engine::api::{menu_json, page_json, record_json};
 use nix_web_gui_engine::session::SettingsSession;
 use nix_web_gui_engine::theme::{ThemeState, ThemeStore};
 
 use crate::auth;
 use crate::auth::session::{Session, SessionStore};
 use crate::config::AppConfig;
+use crate::rpc;
+use crate::worker_process::Worker;
 
 const COOKIE: &str = "nix_web_gui_session";
+
+#[derive(Clone)]
+pub enum EngineMode {
+    InProcess(Arc<AsyncMutex<HashMap<String, Option<SettingsSession>>>>),
+    Workers(Arc<AsyncMutex<HashMap<String, Arc<AsyncMutex<Worker>>>>>),
+}
 
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<AppConfig>,
     pub sessions: Arc<SessionStore>,
     pub theme: Arc<ThemeStore>,
-    pub settings: Arc<Mutex<HashMap<String, SettingsSession>>>,
+    pub engine: EngineMode,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -132,12 +139,16 @@ async fn logout(
     jar: CookieJar,
 ) -> Result<(CookieJar, Json<Value>), ApiError> {
     if let Some(cookie) = jar.get(COOKIE) {
-        state.sessions.remove(cookie.value());
-        state
-            .settings
-            .lock()
-            .expect("settings store poisoned")
-            .remove(cookie.value());
+        let id = cookie.value().to_string();
+        state.sessions.remove(&id);
+        match &state.engine {
+            EngineMode::InProcess(settings) => {
+                settings.lock().await.remove(&id);
+            }
+            EngineMode::Workers(workers) => {
+                workers.lock().await.remove(&id);
+            }
+        }
     }
     let jar = jar.remove(Cookie::from(COOKIE));
     Ok((jar, Json(json!({ "ok": true }))))
@@ -155,6 +166,7 @@ async fn get_state(State(state): State<AppState>, jar: CookieJar) -> Result<Json
     require_session(&state, &jar)?;
     Ok(Json(json!({
         "flake": state.config.flake,
+        "page": state.config.startup_page,
         "auth": if state.config.dev_auth { "dev" } else { "pam" },
         "theme": state.theme.current(),
     })))
@@ -201,146 +213,65 @@ async fn rpc(
         return Err(ApiError::forbidden("missing or invalid CSRF token"));
     }
 
-    let result: Result<Value, (i32, String)> = match request.method.as_str() {
-        "system.ping" => Ok(json!({ "pong": true, "user": session.username })),
-        "system.capabilities" => Ok(json!({
-            "apiVersion": nix_web_gui_engine::API_VERSION,
-            "engine": "nix-settings-gui",
-            "ojunyWidgets": cfg!(feature = "ojuny-widgets"),
-        })),
-        "echo" => Ok(request.params),
-        "session.open" => open_settings(&state, &id, &request.params),
-        "session.close" => {
-            state
-                .settings
-                .lock()
-                .expect("settings store poisoned")
-                .remove(&id);
-            Ok(json!({ "closed": true }))
+    let method = request.method;
+    let request_id = request.id;
+    let request_value = json!({
+        "jsonrpc": "2.0",
+        "id": request_id.clone(),
+        "method": method.clone(),
+        "params": request.params,
+    });
+
+    let response = if method == "system.ping" {
+        json!({
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": { "pong": true, "user": session.username },
+        })
+    } else if method == "system.capabilities" {
+        json!({
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "apiVersion": nix_web_gui_engine::API_VERSION,
+                "engine": "nix-settings-gui",
+                "ojunyWidgets": cfg!(feature = "ojuny-widgets"),
+            },
+        })
+    } else {
+        match &state.engine {
+            EngineMode::InProcess(settings) => {
+                let mut guard = settings.lock().await;
+                let settings = guard.entry(id.clone()).or_insert(None);
+                rpc::handle(settings, &request_value)
+            }
+            EngineMode::Workers(workers) => {
+                let worker = {
+                    let mut guard = workers.lock().await;
+                    if let Some(worker) = guard.get(&id) {
+                        worker.clone()
+                    } else {
+                        let worker = Arc::new(AsyncMutex::new(
+                            Worker::spawn(&session.username).map_err(|error| {
+                                ApiError(StatusCode::BAD_GATEWAY, error)
+                            })?,
+                        ));
+                        guard.insert(id.clone(), worker.clone());
+                        worker
+                    }
+                };
+                let mut worker = worker.lock().await;
+                let result = worker.request(&request_value).await;
+                drop(worker);
+                if result.is_err() {
+                    workers.lock().await.remove(&id);
+                }
+                result.map_err(|error| ApiError(StatusCode::BAD_GATEWAY, error))?
+            }
         }
-        "session.reload" => with_settings(&state, &id, |settings| {
-            settings.reload().map_err(|error| (-32013, error))?;
-            Ok(json!({
-                "root": settings.root,
-                "menus": settings.menus().len(),
-                "records": settings.records().count(),
-                "staged": settings.staged().len(),
-            }))
-        }),
-        "session.discard" => with_settings(&state, &id, |settings| {
-            settings.discard().map_err(|error| (-32013, error))?;
-            Ok(json!({
-                "root": settings.root,
-                "menus": settings.menus().len(),
-                "records": settings.records().count(),
-                "staged": 0,
-            }))
-        }),
-        "session.state" => with_settings(&state, &id, |settings| {
-            Ok(json!({
-                "root": settings.root,
-                "menus": settings.menus().len(),
-                "records": settings.records().count(),
-                "staged": settings.staged().len(),
-            }))
-        }),
-        "scan" => with_settings(&state, &id, |settings| {
-            Ok(json!({
-                "menus": settings.menus().iter().map(menu_json).collect::<Vec<_>>(),
-            }))
-        }),
-        "page.list" => with_settings(&state, &id, |settings| {
-            Ok(json!({
-                "pages": settings.menus().iter().map(page_json).collect::<Vec<_>>(),
-            }))
-        }),
-        "control.get" => with_settings(&state, &id, |settings| {
-            let path = string_param(&request.params, "path");
-            settings
-                .record(&path)
-                .map(|record| record_json(record))
-                .ok_or_else(|| (-32011, format!("unknown option path: {path}")))
-        }),
-        "control.set" => with_settings(&state, &id, |settings| {
-            let path = string_param(&request.params, "path");
-            let value = string_param(&request.params, "value");
-            settings
-                .set(&path, value)
-                .map(|_| json!({ "staged": true }))
-                .map_err(|error| (-32011, error))
-        }),
-        "control.reset" => with_settings(&state, &id, |settings| {
-            let path = string_param(&request.params, "path");
-            Ok(json!({ "staged": settings.reset(&path) }))
-        }),
-        "edits.preview" => with_settings(&state, &id, |settings| {
-            let edits = settings.preview().map_err(|error| (-32012, error))?;
-            Ok(json!({
-                "edits": edits.iter().map(|edit| json!({
-                    "file": edit.file,
-                    "start": edit.start,
-                    "end": edit.end,
-                    "before": edit.before,
-                    "after": edit.after,
-                })).collect::<Vec<_>>()
-            }))
-        }),
-        "edits.apply" => with_settings(&state, &id, |settings| {
-            settings
-                .apply()
-                .map(|files| json!({ "files": files }))
-                .map_err(|error| (-32012, error))
-        }),
-        other => Err((-32601, format!("unknown method: {other}"))),
     };
 
-    Ok(Json(match result {
-        Ok(result) => json!({ "jsonrpc": "2.0", "id": request.id, "result": result }),
-        Err((code, message)) => json!({
-            "jsonrpc": "2.0",
-            "id": request.id,
-            "error": { "code": code, "message": message },
-        }),
-    }))
-}
-
-fn open_settings(state: &AppState, id: &str, params: &Value) -> Result<Value, (i32, String)> {
-    let root = string_param(params, "root");
-    if root.is_empty() {
-        return Err((-32010, "root is required".to_string()));
-    }
-    let settings = SettingsSession::open(root).map_err(|error| (-32010, error))?;
-    let menus = settings.menus().len();
-    let records = settings.records().count();
-    state
-        .settings
-        .lock()
-        .expect("settings store poisoned")
-        .insert(id.to_string(), settings);
-    Ok(json!({
-        "apiVersion": nix_web_gui_engine::API_VERSION,
-        "menus": menus,
-        "records": records,
-    }))
-}
-
-fn with_settings<F>(state: &AppState, id: &str, handler: F) -> Result<Value, (i32, String)>
-where
-    F: FnOnce(&mut SettingsSession) -> Result<Value, (i32, String)>,
-{
-    let mut guard = state.settings.lock().expect("settings store poisoned");
-    let settings = guard
-        .get_mut(id)
-        .ok_or_else(|| (-32000, "no open session".to_string()))?;
-    handler(settings)
-}
-
-fn string_param(params: &Value, name: &str) -> String {
-    params
-        .get(name)
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_string()
+    Ok(Json(response))
 }
 
 async fn events(
@@ -421,6 +352,7 @@ mod tests {
                 static_dir: ".".into(),
                 theme_file: theme_path.clone(),
                 flake: None,
+                startup_page: None,
                 pam_service: "nix-web-gui".into(),
                 allowed_groups: Vec::new(),
                 dev_auth: true,
@@ -429,7 +361,7 @@ mod tests {
             }),
             sessions: Arc::new(SessionStore::default()),
             theme: ThemeStore::new(theme_path),
-            settings: Arc::new(Mutex::new(HashMap::new())),
+            engine: EngineMode::InProcess(Arc::new(AsyncMutex::new(HashMap::new()))),
         }
     }
 
@@ -554,6 +486,7 @@ mod engine_tests {
                 static_dir: ".".into(),
                 theme_file: "/tmp/nix-web-gui-engine-test-theme".into(),
                 flake: None,
+                startup_page: None,
                 pam_service: "nix-web-gui".into(),
                 allowed_groups: Vec::new(),
                 dev_auth: true,
@@ -562,7 +495,7 @@ mod engine_tests {
             }),
             sessions: Arc::new(SessionStore::default()),
             theme: ThemeStore::new("/tmp/nix-web-gui-engine-test-theme".into()),
-            settings: Arc::new(Mutex::new(HashMap::new())),
+            engine: EngineMode::InProcess(Arc::new(AsyncMutex::new(HashMap::new()))),
         }
     }
 

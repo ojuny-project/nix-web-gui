@@ -1,30 +1,28 @@
 # Security
 
-## Current state
+## Current isolation
 
-This is the first vertical slice. It authenticates through PAM and serves the
-settings engine from the same process. The systemd unit runs as root so PAM can
-read the device account database. The listener binds to `127.0.0.1` by default
-and only `wheel` may sign in.
+The systemd unit runs a small root parent. It handles PAM, login, cookies, CSRF,
+and worker spawning. The listener binds to `127.0.0.1` by default and only
+`wheel` may sign in.
 
-Do not expose this build to a non-loopback address yet. The root worker split is
-the next security step.
-
-## Planned isolation
-
-- A small root parent handles PAM, login, cookies, CSRF, and worker spawning.
-- Each authenticated browser session gets a worker that runs with that user's
-  uid and gid. The worker owns the scan, staged values, file writes, git, apply,
-  and rebuild actions.
+- Each authenticated browser session gets a worker on its first non-system RPC.
+- The worker runs with the user's uid, primary gid, and supplementary groups.
+- The worker receives the user's HOME, USER, LOGNAME, XDG_CONFIG_HOME, and
+  XDG_STATE_HOME, so the existing `~/.config/nix-settings-gui/config.json`,
+  recents, and file permissions apply.
+- The worker owns the scan, staged values, file writes, git, apply, rebuild, and
+  Secure Boot status actions.
 - The root parent never scans or writes a configuration file.
-- The worker receives the user's HOME and XDG directories, so the existing
-  `~/.config/nix-settings-gui/config.json`, recents, and file permissions apply.
 - Cross-user reads and writes are rejected by Unix permissions, not only by
   application checks.
+- Development auth uses an in-process engine only when `--dev-auth` is set.
+  Production PAM uses the per-user worker path.
 
 ## Transport
 
-- The HTTP listener is loopback-only by default.
+- The HTTP listener is loopback-only by default. A non-loopback address requires
+  `services.nix-web-gui.allowRemote = true` and a non-empty allowed group list.
 - TLS is terminated by a reverse proxy. There is no built-in certificate
   authority.
 - Session cookies are HttpOnly and SameSite=Strict. The `Secure` flag is set
@@ -51,6 +49,7 @@ There is no general root helper and no arbitrary root command.
 ## Module shape rule
 
 The scanner keeps the documented limitation. An `@option` inside
-`lib.mkMerge`, a list literal, `map`, `forEach`, or `lib.optionalAttrs` is
-ignored. `lib.mkIf` is supported. The fix is always to change the module shape,
-never to add list or apply-node descent to the scanner.
+`lib.mkMerge`, a list literal, `map`, `forEach`, `lib.optionalAttrs`, or a
+`lib.mkIf` body is ignored. Keep annotated assignments in a plain attribute set.
+The fix is always to change the module shape, never to add list or apply-node
+descent to the scanner.

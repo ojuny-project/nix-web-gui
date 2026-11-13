@@ -1,6 +1,9 @@
 mod auth;
 mod config;
 mod http;
+mod rpc;
+mod worker;
+mod worker_process;
 
 use std::error::Error;
 use std::sync::Arc;
@@ -12,7 +15,7 @@ use tokio::net::TcpListener;
 
 use crate::auth::session::SessionStore;
 use crate::config::{Cli, Command, PopoutArgs, ServeArgs};
-use crate::http::AppState;
+use crate::http::{AppState, EngineMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -26,6 +29,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match Cli::parse().command {
         Command::Serve(args) => serve(args).await,
         Command::Popout(args) => popout(args).await,
+        Command::Worker => worker::run_stdio(),
     }
 }
 
@@ -53,6 +57,7 @@ async fn popout(args: PopoutArgs) -> Result<(), Box<dyn Error>> {
         static_dir: None,
         theme_file: None,
         flake: args.flake,
+        page: args.page,
         pam_service: "nix-web-gui".to_string(),
         allowed_group: Vec::new(),
         dev_auth: false,
@@ -87,11 +92,21 @@ fn build_state(config: Arc<config::AppConfig>) -> AppState {
         }
     });
 
+    let engine = if config.dev_auth {
+        EngineMode::InProcess(Arc::new(tokio::sync::Mutex::new(
+            std::collections::HashMap::new(),
+        )))
+    } else {
+        EngineMode::Workers(Arc::new(tokio::sync::Mutex::new(
+            std::collections::HashMap::new(),
+        )))
+    };
+
     AppState {
         config,
         sessions: Arc::new(SessionStore::default()),
         theme,
-        settings: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+        engine,
     }
 }
 

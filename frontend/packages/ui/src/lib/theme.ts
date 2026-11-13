@@ -13,11 +13,11 @@ export type Scheme = {
 export const THEME_EVENT = "nix-web-gui:theme-change";
 export const DEFAULT_THEME_ID: string = data.default;
 
-const schemes = data.schemes as Scheme[];
-const byId = new Map(schemes.map((scheme) => [scheme.id, scheme]));
+export const SCHEMES = data.schemes as Scheme[];
+const byId = new Map(SCHEMES.map((scheme) => [scheme.id, scheme]));
 
 export function schemeById(id: string): Scheme {
-  return byId.get(id) ?? byId.get(DEFAULT_THEME_ID) ?? schemes[0];
+  return byId.get(id) ?? byId.get(DEFAULT_THEME_ID) ?? SCHEMES[0];
 }
 
 export function applyTheme(id: string): Scheme {

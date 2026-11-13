@@ -65,6 +65,13 @@ export async function rpc<T>(
   return body.result as T;
 }
 
+export type Visibility = {
+  path: string;
+  equals?: string | null;
+  equalsAny?: string[];
+  notEquals?: string | null;
+};
+
 export type ScanRecord = {
   path: string;
   file: string;
@@ -73,6 +80,7 @@ export type ScanRecord = {
   description?: string | null;
   widget?: string | null;
   choices?: string[] | null;
+  list?: string[] | null;
   advanced?: boolean;
   hidden?: boolean;
   readonly?: boolean;
@@ -86,11 +94,66 @@ export type ScanRecord = {
   unit?: string | null;
   rows?: number | null;
   placeholder?: string | null;
+  type?: string | null;
+  default?: string | null;
+  applyCommand?: string | null;
+  origin?: string | null;
+  visibleWhen?: Visibility | null;
+  children?: ScanRecord[] | null;
+  depth?: number | null;
+  table?: TableJson | null;
+};
+
+export type ScanInsert = {
+  name: string;
+  group?: string | null;
+  label?: string | null;
+  offset: number;
+  line: number;
+};
+
+export type ScanSnippetPlaceholder = {
+  name: string;
+  label: string;
+  default: string;
+  hint: string;
+};
+
+export type ScanSnippet = {
+  name: string;
+  label: string;
+  placeholders: ScanSnippetPlaceholder[];
+};
+
+export type FileTemplate = {
+  index: number;
+  label: string;
+  kind: string;
+  filename: string;
+  output: string;
+  placeholders: ScanSnippetPlaceholder[];
+};
+
+export type TableRowJson = {
+  key: string;
+  label?: string | null;
+  hidden?: boolean;
+  fields: Record<string, string>;
+};
+
+export type TableJson = {
+  list: boolean;
+  columns: string[];
+  columnTypes?: string[] | null;
+  keyEditable: boolean;
+  firstValueEditable: boolean;
+  rows: TableRowJson[];
 };
 
 export type ScanMenu = {
   file: string;
   displayname: string;
+  origin?: string | null;
   description?: string | null;
   category?: string | null;
   icon?: string | null;
@@ -98,10 +161,13 @@ export type ScanMenu = {
   systems?: string[] | null;
   hidden?: boolean;
   records: ScanRecord[];
+  inserts?: ScanInsert[];
+  snippets?: ScanSnippet[];
 };
 
 export type ScanResult = {
   menus: ScanMenu[];
+  hosts?: string[];
 };
 
 export type PreviewEdit = {
@@ -118,6 +184,7 @@ export type PreviewResult = {
 
 export type ServerState = {
   flake: string | null;
+  page: string | null;
   auth: "pam" | "dev";
   theme: ThemeState;
 };
@@ -127,3 +194,85 @@ export async function getState(): Promise<ServerState> {
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
+
+export type FlakeInputJson = {
+  name: string;
+  url: string | null;
+  flake: boolean;
+  submodules: boolean;
+  lfs: boolean;
+  follows: Record<string, string>;
+  description: string | null;
+};
+
+export type LockedInputJson = {
+  type: string;
+  owner: string | null;
+  repo: string | null;
+  ref: string | null;
+  rev: string | null;
+  lastModified: number | null;
+  narHash: string | null;
+};
+
+export type FlakeInputsResult = {
+  inputs: FlakeInputJson[];
+  nixpkgs: FlakeInputJson | null;
+  locked: LockedInputJson | null;
+};
+
+export type GitStatus = {
+  branch: string;
+  upstream: string | null;
+  dirty: boolean;
+  ahead: number;
+  behind: number;
+  state: string;
+};
+
+export type WebConfig = {
+  flake_path: string | null;
+  terminal_command: string | null;
+  rebuild_command: string | null;
+  recent_flake_paths: string[];
+  live_apply: boolean;
+  reload_mango_on_rebuild: boolean;
+  reload_dms_on_rebuild: boolean;
+  expand_details_by_default: boolean;
+  auto_git_sync: boolean;
+};
+
+export type StyleEntry = {
+  label: string;
+  value: string;
+  package: string;
+  monospace: boolean;
+  variant: string;
+};
+
+export type SecureBootState = {
+  efi: boolean;
+  firmware_mode: string;
+  firmware: string | null;
+  boot_into_firmware: boolean;
+  sbctl_installed: boolean;
+  owner_guid: string | null;
+  setup_mode_enabled: boolean | null;
+  vendor_keys: string[];
+  esp_path: string | null;
+  esp_free_bytes: number | null;
+  key_bundle: string;
+  keys_present: boolean;
+  keys_enrolled: boolean | null;
+  lanzaboote_active: boolean;
+  signed_files: number;
+  unsigned_files: number;
+  windows_present: boolean;
+  bitlocker_present: boolean;
+  errors: string[];
+};
+
+export type SecureBootStatus = {
+  state: SecureBootState;
+  stage: { title: string; detail: string };
+};

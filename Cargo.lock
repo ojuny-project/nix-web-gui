@@ -1248,6 +1248,7 @@ name = "nix-web-gui-engine"
 version = "0.1.0"
 dependencies = [
  "nix-settings-gui",
+ "rnix",
  "serde",
  "serde_json",
  "thiserror",

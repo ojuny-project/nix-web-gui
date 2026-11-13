@@ -76,6 +76,7 @@ mod tests {
             static_dir: ".".into(),
             theme_file: "/tmp/theme".into(),
             flake: None,
+            startup_page: None,
             pam_service: "nix-web-gui".into(),
             allowed_groups: Vec::new(),
             dev_auth: true,

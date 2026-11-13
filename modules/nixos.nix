@@ -51,6 +51,12 @@ in
       description = "Open the listener port in the firewall.";
     };
 
+    allowRemote = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Allow binding a non-loopback address. Requires a non-empty allowedGroups list.";
+    };
+
     allowedGroups = mkOption {
       type = types.listOf types.str;
       default = [ "wheel" ];
@@ -96,13 +102,19 @@ in
   config = mkIf cfg.enable {
     assertions = [
       {
-        assertion = cfg.listenAddress == "127.0.0.1" || cfg.listenAddress == "::1" || cfg.allowedGroups != [ ];
-        message = "nix-web-gui: bind to loopback or configure allowedGroups when exposing the listener.";
+        assertion =
+          cfg.listenAddress == "127.0.0.1"
+          || cfg.listenAddress == "::1"
+          || (cfg.allowRemote && cfg.allowedGroups != [ ]);
+        message = "nix-web-gui: set allowRemote and a non-empty allowedGroups list before binding a non-loopback address.";
       }
     ];
 
     security.pam.services.nix-web-gui = {
-      text = "include system-auth";
+      text = ''
+        auth required pam_unix.so
+        account required pam_unix.so
+      '';
     };
 
     environment.etc."nix-web-gui/theme".text = cfg.theme + "\n";

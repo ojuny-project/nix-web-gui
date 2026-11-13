@@ -7,14 +7,23 @@
     type ControlDescriptor,
     type ControlValue,
   } from "@nix-web-gui/ui";
+  import SecureBootPanel from "./SecureBootPanel.svelte";
   import {
     getState,
     logout,
     rpc,
     type PreviewResult,
+    type FileTemplate,
+    type FlakeInputJson,
+    type FlakeInputsResult,
+    type GitStatus,
+    type WebConfig,
+    type ScanInsert,
     type ScanMenu,
     type ScanRecord,
     type ScanResult,
+    type ScanSnippet,
+    type StyleEntry,
     type User,
   } from "../api";
 
@@ -22,7 +31,11 @@
   export let onLogout: () => void;
 
   let root = "";
+  let search = "";
   let menus: ScanMenu[] = [];
+  let hosts: string[] = [];
+  let systemOnly = false;
+  let selectedHost = "";
   let selected = 0;
   let view: "settings" | "flake" = "settings";
   let records: ScanRecord[] = [];
@@ -36,8 +49,82 @@
   let showDiff = false;
   let themeName = "everforest-dark-hard";
   let engine = "loading";
+  let insert: { menuFile: string; marker: ScanInsert; snippet: ScanSnippet } | null =
+    null;
+  let insertValues: Record<string, string> = {};
+  let insertBusy = false;
+  let flakeData: FlakeInputsResult | null = null;
+  let flakeBusy = false;
+  let inputName = "";
+  let inputUrl = "";
+  let inputDescription = "";
+  let editingName: string | null = null;
+  let gitStatus: GitStatus | null = null;
+  let gitBusy = false;
+  let liveApply = true;
+  let autoGitSync = false;
+  let expandDetailsDefault = false;
+  let config: WebConfig | null = null;
+  let showConfig = false;
+  let configBusy = false;
+  let rebuildCommand = "";
+  let terminalCommand = "";
+  let showAddFile = false;
+  let fileTemplates: FileTemplate[] = [];
+  let addFileKind = "nixos";
+  let addFilePath = "";
+  let addFileModuleName = "";
+  let addFileTemplate: number | null = null;
+  let addFilePlaceholders: Record<string, string> = {};
+  let addFileBusy = false;
+  let showAddOption = false;
+  let optionPath = "";
+  let optionWidget = "text";
+  let optionLabel = "";
+  let optionValue = "";
+  let optionBusy = false;
+
+  const optionWidgets = [
+    "switch",
+    "dropdown",
+    "radio",
+    "spin",
+    "slider",
+    "text",
+    "multiline",
+    "path",
+    "package",
+    "packages",
+    "list",
+    "color",
+    "submodule",
+    "users",
+    "facter",
+    "docker",
+    "raw",
+  ];
 
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  let pageToken = 0;
+  let fontChoices: string[] = [];
+  let iconChoices: string[] = [];
+  let cursorChoices: string[] = [];
+
+  function selectStartupPage(pattern: string) {
+    try {
+      const expression = new RegExp(pattern, "i");
+      const index = sortMenus(menus).findIndex(
+        (menu) =>
+          expression.test(menu.displayname) || expression.test(menu.file),
+      );
+      if (index >= 0) {
+        selected = index;
+        loadPage();
+      }
+    } catch {
+      // Keep the first menu on an invalid page pattern.
+    }
+  }
 
   function sortMenus(input: ScanMenu[]) {
     return [...input].sort(
@@ -46,7 +133,61 @@
   }
 
   $: sortedMenus = sortMenus(menus);
-  $: visibleRecords = records.filter((record) => !record.hidden || advanced);
+  $: visibleRecords = records.filter((record) => {
+    if (record.hidden && !advanced) return false;
+    if (!visibleWhenHolds(record)) return false;
+    if (!searchTerm) return true;
+    return (
+      record.path.toLowerCase().includes(searchTerm) ||
+      (record.label ?? "").toLowerCase().includes(searchTerm) ||
+      (record.description ?? "").toLowerCase().includes(searchTerm)
+    );
+  });
+  $: currentMenu = sortedMenus[selected];
+  $: orderedRecords = [...visibleRecords].sort(
+    (left, right) =>
+      (left.groupOrder ?? 1e9) - (right.groupOrder ?? 1e9) ||
+      (left.group ?? "").localeCompare(right.group ?? "") ||
+      (left.order ?? 1e9) - (right.order ?? 1e9) ||
+      left.path.localeCompare(right.path),
+  );
+  $: groupedRecords = orderedRecords.reduce<
+    Array<{ name: string; records: ScanRecord[] }>
+  >((groups, record) => {
+    const name = record.group ?? "";
+    const last = groups.at(-1);
+    if (last && last.name === name) {
+      last.records.push(record);
+    } else {
+      groups.push({ name, records: [record] });
+    }
+    return groups;
+  }, []);
+  $: searchTerm = search.trim().toLowerCase();
+  $: filteredMenus = sortedMenus.filter((menu) => {
+    if (!searchTerm) return true;
+    if (
+      menu.displayname.toLowerCase().includes(searchTerm) ||
+      (menu.description ?? "").toLowerCase().includes(searchTerm)
+    ) {
+      return true;
+    }
+    return menu.records.some(
+      (record) =>
+        record.path.toLowerCase().includes(searchTerm) ||
+        (record.label ?? "").toLowerCase().includes(searchTerm) ||
+        (record.description ?? "").toLowerCase().includes(searchTerm),
+    );
+  });
+  $: menuGroups = Object.entries(
+    filteredMenus.reduce<Record<string, ScanMenu[]>>((groups, menu) => {
+      const category = menu.category ?? "";
+      (groups[category] ??= []).push(menu);
+      return groups;
+    }, {}),
+  ).sort(([left], [right]) => left.localeCompare(right)) as Array<
+    [string, ScanMenu[]]
+  >;
 
   onMount(() => {
     const syncTheme = () => {
@@ -54,7 +195,18 @@
     };
     syncTheme();
     window.addEventListener("nix-web-gui:theme-change", syncTheme);
+    window.addEventListener("keydown", onKeydown);
 
+    loadCatalogs();
+    rpc<WebConfig>("config.get", {}, user.csrf)
+      .then((loaded) => {
+        liveApply = loaded.live_apply;
+        autoGitSync = loaded.auto_git_sync;
+        expandDetailsDefault = loaded.expand_details_by_default;
+      })
+      .catch(() => {
+        // Keep the defaults when config is unavailable.
+      });
     rpc<{ engine: string }>("system.capabilities", {}, user.csrf)
       .then((capabilities) => {
         engine = capabilities.engine;
@@ -64,19 +216,310 @@
       });
 
     getState()
-      .then((state) => {
+      .then(async (state) => {
         const initial = state.flake ?? localStorage.getItem("nix-web-gui.root");
         if (initial) {
           root = initial;
-          openRoot(initial);
+          await openRoot(initial);
+          if (state.page) selectStartupPage(state.page);
         }
       })
       .catch((cause) => {
         error = cause instanceof Error ? cause.message : "Cannot read server state";
       });
 
-    return () => window.removeEventListener("nix-web-gui:theme-change", syncTheme);
+    return () => {
+      window.removeEventListener("nix-web-gui:theme-change", syncTheme);
+      window.removeEventListener("keydown", onKeydown);
+    };
   });
+
+  function onKeydown(event: KeyboardEvent) {
+    const modifier = event.ctrlKey || event.metaKey;
+    if (modifier && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      if (event.shiftKey) {
+        saveAndRebuild();
+      } else {
+        save();
+      }
+    } else if (modifier && event.key.toLowerCase() === "f") {
+      event.preventDefault();
+      document.querySelector<HTMLInputElement>(".search-input")?.focus();
+    } else if (modifier && event.key.toLowerCase() === "r") {
+      event.preventDefault();
+      discard();
+    } else if (event.key === "Escape") {
+      showAddFile = false;
+      showAddOption = false;
+      showConfig = false;
+      insert = null;
+    }
+  }
+
+  async function loadCatalogs() {
+    try {
+      const [fonts, icons, cursors] = await Promise.all([
+        rpc<StyleEntry[]>("catalog.styles", { kind: "fonts" }, user.csrf),
+        rpc<StyleEntry[]>("catalog.styles", { kind: "icons" }, user.csrf),
+        rpc<StyleEntry[]>("catalog.styles", { kind: "cursors" }, user.csrf),
+      ]);
+      fontChoices = fonts.map((entry) => entry.value);
+      iconChoices = icons.map((entry) => entry.value);
+      cursorChoices = cursors.map((entry) => entry.value);
+    } catch {
+      // Keep text inputs when the catalog is unavailable.
+    }
+  }
+
+  async function openFlakeInputs() {
+    view = "flake";
+    await loadFlakeInputs();
+  }
+
+  async function loadFlakeInputs() {
+    flakeBusy = true;
+    error = "";
+    try {
+      flakeData = await rpc<FlakeInputsResult>("flake.inputs", {}, user.csrf);
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot load flake inputs";
+    } finally {
+      flakeBusy = false;
+    }
+  }
+
+  async function openAddFile() {
+    error = "";
+    try {
+      fileTemplates = await rpc<FileTemplate[]>("file.templates", {}, user.csrf);
+      addFileKind = "nixos";
+      addFileTemplate = null;
+      addFileModuleName = "";
+      addFilePath = `${root}/modules/module.nix`;
+      addFilePlaceholders = {};
+      showAddFile = true;
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot read templates";
+    }
+  }
+
+  function onFileKindChange() {
+    if (addFileKind.startsWith("template:")) {
+      const index = Number(addFileKind.slice("template:".length));
+      const template = fileTemplates[index];
+      if (!template) return;
+      addFileTemplate = template.index;
+      addFilePath = `${root}/${template.output}/${template.filename}`;
+      addFilePlaceholders = Object.fromEntries(
+        template.placeholders.map((placeholder) => [
+          placeholder.name,
+          placeholder.default,
+        ]),
+      );
+      return;
+    }
+    addFileTemplate = null;
+    addFilePath = `${root}/modules/module.nix`;
+    addFilePlaceholders = {};
+  }
+
+  async function saveAddFile(event: SubmitEvent) {
+    event.preventDefault();
+    addFileBusy = true;
+    error = "";
+    try {
+      const result = await rpc<{ path: string; reminder: string }>(
+        "file.add",
+        {
+          path: addFilePath,
+          kind: addFileKind.startsWith("template:") ? "nixos" : addFileKind,
+          moduleName: addFileModuleName,
+          template: addFileTemplate,
+          placeholders: addFilePlaceholders,
+        },
+        user.csrf,
+      );
+      showAddFile = false;
+      status = `Created ${result.path}${result.reminder ? ` · ${result.reminder}` : ""}`;
+      const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
+      menus = scanned.menus;
+      loadPage();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot create file";
+    } finally {
+      addFileBusy = false;
+    }
+  }
+
+  function openAddOption() {
+    showAddOption = true;
+    optionPath = "";
+    optionWidget = "text";
+    optionLabel = "";
+    optionValue = "";
+    error = "";
+  }
+
+  async function saveAddOption(event: SubmitEvent) {
+    event.preventDefault();
+    if (!currentMenu) return;
+    optionBusy = true;
+    error = "";
+    try {
+      await rpc(
+        "option.add",
+        {
+          file: currentMenu.file,
+          origin: currentMenu.origin ?? "",
+          path: optionPath,
+          widget: optionWidget,
+          label: optionLabel,
+          value: optionValue,
+        },
+        user.csrf,
+      );
+      showAddOption = false;
+      status = `Added ${optionPath}`;
+      const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
+      menus = scanned.menus;
+      loadPage();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot add option";
+    } finally {
+      optionBusy = false;
+    }
+  }
+
+  async function openConfig() {
+    error = "";
+    try {
+      config = await rpc<WebConfig>("config.get", {}, user.csrf);
+      rebuildCommand = config.rebuild_command ?? "";
+      terminalCommand = config.terminal_command ?? "";
+      showConfig = true;
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot read config";
+    }
+  }
+
+  async function saveConfig(event: SubmitEvent) {
+    event.preventDefault();
+    if (!config) return;
+    configBusy = true;
+    error = "";
+    try {
+      const next: WebConfig = {
+        ...config,
+        rebuild_command: rebuildCommand.trim() || null,
+        terminal_command: terminalCommand.trim() || null,
+      };
+      await rpc("config.set", next, user.csrf);
+      config = next;
+      liveApply = next.live_apply;
+      autoGitSync = next.auto_git_sync;
+      expandDetailsDefault = next.expand_details_by_default;
+      showConfig = false;
+      status = "Config saved";
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot save config";
+    } finally {
+      configBusy = false;
+    }
+  }
+
+  async function refreshGit() {
+    if (!root) return;
+    try {
+      gitStatus = await rpc<GitStatus>("git.status", {}, user.csrf);
+    } catch {
+      gitStatus = null;
+    }
+  }
+
+  async function gitSync() {
+    if (!root) {
+      error = "Open a flake first";
+      return;
+    }
+    gitBusy = true;
+    error = "";
+    try {
+      const current = await rpc<GitStatus>("git.status", {}, user.csrf);
+      if (current.dirty) {
+        const message = prompt("Commit message", "Update settings");
+        if (!message) return;
+        await rpc("git.sync", { message }, user.csrf);
+        status = `Committed and pushed ${current.branch}`;
+      } else {
+        await rpc("git.pull", {}, user.csrf);
+        status = `Pulled ${current.branch}`;
+      }
+      await refreshGit();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Git sync failed";
+    } finally {
+      gitBusy = false;
+    }
+  }
+
+  function newInput() {
+    editingName = null;
+    inputName = "";
+    inputUrl = "";
+    inputDescription = "";
+  }
+
+  function editInput(input: FlakeInputJson) {
+    editingName = input.name;
+    inputName = input.name;
+    inputUrl = input.url ?? "";
+    inputDescription = input.description ?? "";
+  }
+
+  async function saveInput(event: SubmitEvent) {
+    event.preventDefault();
+    if (!inputName.trim() || !inputUrl.trim()) {
+      error = "Input name and URL are required";
+      return;
+    }
+    flakeBusy = true;
+    error = "";
+    try {
+      await rpc(
+        "flake.input.upsert",
+        {
+          name: inputName,
+          url: inputUrl,
+          flake: true,
+          description: inputDescription.trim() || null,
+        },
+        user.csrf,
+      );
+      status = `Saved ${inputName}`;
+      newInput();
+      await loadFlakeInputs();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot save input";
+    } finally {
+      flakeBusy = false;
+    }
+  }
+
+  async function deleteInput(name: string) {
+    if (!confirm(`Delete input ${name}?`)) return;
+    flakeBusy = true;
+    error = "";
+    try {
+      await rpc("flake.input.delete", { name }, user.csrf);
+      status = `Deleted ${name}`;
+      await loadFlakeInputs();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot delete input";
+    } finally {
+      flakeBusy = false;
+    }
+  }
 
   async function openRoot(path: string) {
     if (!path.trim()) return;
@@ -89,17 +532,45 @@
         { root: path },
         user.csrf,
       );
+      if (autoGitSync) {
+        try {
+          await rpc("git.pull", {}, user.csrf);
+        } catch (cause) {
+          status =
+            cause instanceof Error ? `Git pull failed: ${cause.message}` : "Git pull failed";
+        }
+      }
       const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
       menus = scanned.menus;
+      hosts = scanned.hosts ?? [];
+      selectedHost = hosts[0] ?? "";
       selected = 0;
       view = "settings";
       loadPage();
       localStorage.setItem("nix-web-gui.root", path);
       status = `Opened ${opened.menus} menus, ${opened.records} records`;
+      refreshGit();
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Cannot open the flake";
     } finally {
       busy = false;
+    }
+  }
+
+  async function applyHostFilter() {
+    if (!root) return;
+    error = "";
+    try {
+      const scanned = await rpc<ScanResult>(
+        "scan",
+        systemOnly && selectedHost ? { host: selectedHost } : {},
+        user.csrf,
+      );
+      menus = scanned.menus;
+      selected = 0;
+      loadPage();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot filter by host";
     }
   }
 
@@ -113,15 +584,71 @@
     );
     dirty = new Set();
     showDiff = false;
+    pageToken += 1;
+    describePage(pageToken, menu?.file);
   }
 
-  function selectMenu(index: number) {
-    selected = index;
+  function flattenControls(
+    controls: ScanRecord[],
+    depth = 0,
+  ): ScanRecord[] {
+    return controls.flatMap((control) => {
+      const current = { ...control, depth };
+      const children = control.children?.length
+        ? flattenControls(control.children, depth + 1)
+        : [];
+      return [current, ...children];
+    });
+  }
+
+  function describePage(token: number, file: string | undefined) {
+    if (!file) return;
+    rpc<{ controls: ScanRecord[] }>("page.describe", { file }, user.csrf)
+      .then((described) => {
+        if (token !== pageToken) return;
+        if (dirty.size > 0) {
+          const byPath = new Map(
+            described.controls.map((control) => [control.path, control]),
+          );
+          records = records.map((record) => ({
+            ...record,
+            ...byPath.get(record.path),
+          }));
+          return;
+        }
+        records = flattenControls(described.controls);
+        values = Object.fromEntries(
+          records.map((record) => [record.path, displayValue(record)]),
+        );
+      })
+      .catch(() => {
+        // Keep the scanned shape when metadata is unavailable.
+      });
+  }
+
+  function selectMenu(menu: ScanMenu) {
+    selected = sortedMenus.findIndex((candidate) => candidate.file === menu.file);
     view = "settings";
     loadPage();
   }
 
   function displayValue(record: ScanRecord): ControlValue {
+    if (
+      record.widget === "list" ||
+      record.widget === "packages" ||
+      record.widget === "nixosmodules" ||
+      record.widget === "hmmodules"
+    ) {
+      return record.list ?? [];
+    }
+    if (record.widget === "table-attrset" || record.widget === "table-list") {
+      return {
+        rows: (record.table?.rows ?? []).map((row) => ({
+          key: row.key,
+          fields: { ...row.fields },
+        })),
+      };
+    }
     const raw = record.value.trim();
     if (record.widget === "switch") return raw === "true";
     if (record.widget === "spin" || record.widget === "slider") {
@@ -138,20 +665,42 @@
     return raw;
   }
 
-  function toNix(record: ScanRecord, value: ControlValue): string {
-    if (record.widget === "switch") return value ? "true" : "false";
-    if (record.widget === "spin" || record.widget === "slider") {
-      const number = Number(value);
-      return Number.isFinite(number) ? String(number) : "0";
-    }
-    if (record.widget === "path") return String(value ?? "");
+  function literalOf(value: ControlValue): string {
+    if (typeof value === "boolean") return value ? "true" : "false";
+    if (typeof value === "number") return String(value);
+    if (Array.isArray(value)) return "(list)";
     return JSON.stringify(String(value ?? ""));
   }
 
+  function visibleWhenHolds(record: ScanRecord): boolean {
+    const condition = record.visibleWhen;
+    if (!condition) return true;
+    if (!records.some((candidate) => candidate.path === condition.path)) {
+      return true;
+    }
+    const current = literalOf(values[condition.path]).trim();
+    if (condition.equals != null) {
+      return current === condition.equals.trim();
+    }
+    if (condition.equalsAny?.length) {
+      return condition.equalsAny.some((value) => value.trim() === current);
+    }
+    if (condition.notEquals != null) {
+      return current !== condition.notEquals.trim();
+    }
+    return !["false", "null", "0", "0.0"].includes(current);
+  }
+
+  function withCurrent(choices: string[], current: string): string[] {
+    return current && !choices.includes(current) ? [current, ...choices] : choices;
+  }
+
   function descriptor(record: ScanRecord): ControlDescriptor {
-    return {
+    const widget = (record.widget ?? "text") as ControlDescriptor["widget"];
+    const value = String(displayValue(record) ?? "");
+    const result: ControlDescriptor = {
       path: record.path,
-      widget: (record.widget ?? "text") as ControlDescriptor["widget"],
+      widget,
       label: record.label ?? record.path.split(".").at(-1) ?? record.path,
       description: record.description,
       choices: record.choices,
@@ -168,7 +717,16 @@
       group: record.group,
       order: record.order,
       groupOrder: record.groupOrder,
+      children: record.children?.map(descriptor),
+      depth: record.depth ?? 0,
+      table: record.table,
+      origin: record.origin,
+      visibleWhen: record.visibleWhen,
     };
+    if (widget === "font") result.choices = withCurrent(fontChoices, value);
+    if (widget === "icon-theme") result.choices = withCurrent(iconChoices, value);
+    if (widget === "cursor-theme") result.choices = withCurrent(cursorChoices, value);
+    return result;
   }
 
   function onChange(path: string, value: ControlValue) {
@@ -178,15 +736,42 @@
     const record = records.find((candidate) => candidate.path === path);
     if (!record || record.readonly) return;
 
-    const literal = toNix(record, value);
     const previous = timers.get(path);
     if (previous) clearTimeout(previous);
     timers.set(
       path,
       setTimeout(() => {
-        rpc("control.set", { path, value: literal }, user.csrf).catch((cause) => {
-          error = cause instanceof Error ? cause.message : "Cannot stage the value";
-        });
+        void (async () => {
+          try {
+            const staged = await rpc<{
+              value: string;
+              packagePath?: string;
+              packageValue?: string;
+            }>(
+              "control.setTyped",
+              { path, widget: record.widget ?? "text", value },
+              user.csrf,
+            );
+            if (
+              staged.packagePath &&
+              staged.packageValue &&
+              staged.packagePath in values
+            ) {
+              values = {
+                ...values,
+                [staged.packagePath]: staged.packageValue,
+              };
+              dirty = new Set(dirty).add(staged.packagePath);
+            }
+            if (record.applyCommand && liveApply) {
+              await rpc("apply.run", { path, value: staged.value }, user.csrf);
+              status = `Applied ${path}`;
+            }
+          } catch (cause) {
+            error =
+              cause instanceof Error ? cause.message : "Cannot stage the value";
+          }
+        })();
       }, 250),
     );
   }
@@ -209,7 +794,49 @@
     }
   }
 
-  async function save() {
+  function openInsert(
+    menuFile: string,
+    marker: ScanInsert,
+    snippet: ScanSnippet,
+  ) {
+    insert = { menuFile, marker, snippet };
+    insertValues = Object.fromEntries(
+      snippet.placeholders.map((placeholder) => [
+        placeholder.name,
+        placeholder.default,
+      ]),
+    );
+  }
+
+  async function submitInsert(event: SubmitEvent) {
+    event.preventDefault();
+    if (!insert) return;
+    insertBusy = true;
+    error = "";
+    try {
+      await rpc(
+        "insert.apply",
+        {
+          file: insert.menuFile,
+          name: insert.marker.name,
+          offset: insert.marker.offset,
+          placeholders: insertValues,
+        },
+        user.csrf,
+      );
+      insert = null;
+      const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
+      menus = scanned.menus;
+      loadPage();
+      status = "Snippet inserted";
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot insert snippet";
+    } finally {
+      insertBusy = false;
+    }
+  }
+
+  async function save(): Promise<boolean> {
     busy = true;
     error = "";
     status = "Saving...";
@@ -219,8 +846,46 @@
       const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
       menus = scanned.menus;
       loadPage();
+      if (autoGitSync) {
+        try {
+          const current = await rpc<GitStatus>("git.status", {}, user.csrf);
+          gitStatus = current;
+          if (current.dirty && current.state === "current") {
+            const message = prompt("Commit message", "Update settings");
+            if (message) {
+              await rpc("git.sync", { message }, user.csrf);
+              status = `Saved and pushed ${current.branch}`;
+            }
+          } else if (current.state !== "current") {
+            status = `Saved; git is ${current.state}`;
+          }
+          await refreshGit();
+        } catch (cause) {
+          error =
+            cause instanceof Error
+              ? `Saved, but git sync failed: ${cause.message}`
+              : "Saved, but git sync failed";
+        }
+      }
+      return true;
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Save failed";
+      return false;
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function saveAndRebuild() {
+    if (!(await save())) return;
+    busy = true;
+    error = "";
+    status = "Rebuilding...";
+    try {
+      await rpc<{ output: string }>("rebuild.run", {}, user.csrf);
+      status = "Rebuild finished";
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Rebuild failed";
     } finally {
       busy = false;
     }
@@ -250,6 +915,30 @@
     <div class="title">
       <span class="mark">N</span>
       <span>{root ? root.split("/").at(-1) : "Settings"}</span>
+      <input
+        class="search-input"
+        type="search"
+        bind:value={search}
+        placeholder="Search settings"
+        aria-label="Search settings"
+      />
+      {#if hosts.length}
+        <label class="inline">
+          <input
+            type="checkbox"
+            bind:checked={systemOnly}
+            onchange={applyHostFilter}
+          />
+          <span>System only</span>
+        </label>
+        {#if systemOnly}
+          <select bind:value={selectedHost} onchange={applyHostFilter}>
+            {#each hosts as host (host)}
+              <option value={host}>{host}</option>
+            {/each}
+          </select>
+        {/if}
+      {/if}
     </div>
     <div class="topbar-actions">
       <span class="chip">{themeName}</span>
@@ -260,17 +949,22 @@
 
   <aside class="sidebar">
     <nav>
-      <button class:active={view === "flake"} onclick={() => (view = "flake")}>
+      <button class:active={view === "flake"} onclick={openFlakeInputs}>
         Flake Inputs
       </button>
       <p class="nav-label">Menus</p>
-      {#each sortedMenus as menu, index (menu.file)}
-        <button
-          class:active={view === "settings" && selected === index}
-          onclick={() => selectMenu(index)}
-        >
-          {menu.displayname}
-        </button>
+      {#each menuGroups as [category, group] (category)}
+        {#if category}
+          <p class="nav-label">{category}</p>
+        {/if}
+        {#each group as menu (menu.file)}
+          <button
+            class:active={view === "settings" && currentMenu?.file === menu.file}
+            onclick={() => selectMenu(menu)}
+          >
+            {menu.displayname}
+          </button>
+        {/each}
       {/each}
       {#if sortedMenus.length === 0}
         <p class="muted small">Open a flake to list menus.</p>
@@ -296,8 +990,73 @@
         </form>
       </Panel>
     {:else if view === "flake"}
-      <Panel title="Flake Inputs" description="The nixpkgs card and input editor are the next engine slice.">
-        <p class="muted">No input data yet.</p>
+      <Panel title="nixpkgs" description="The pinned revision comes from flake.lock.">
+        {#if flakeData?.nixpkgs}
+          <div class="input-row">
+            <div>
+              <strong>{flakeData.nixpkgs.name}</strong>
+              <p class="muted small mono">{flakeData.nixpkgs.url}</p>
+            </div>
+            <div class="row-actions">
+              {#if flakeData.locked?.rev}
+                <span class="chip muted mono">{flakeData.locked.rev.slice(0, 12)}</span>
+              {/if}
+              <button
+                class="ghost"
+                onclick={() => flakeData?.nixpkgs && editInput(flakeData.nixpkgs)}
+              >
+                Edit
+              </button>
+            </div>
+          </div>
+        {:else}
+          <p class="muted">No nixpkgs input declared.</p>
+        {/if}
+      </Panel>
+
+      <Panel title="Inputs" description="Top-level flake inputs.">
+        {#each (flakeData?.inputs ?? []).filter((input) => input.name !== "nixpkgs") as input (input.name)}
+          <div class="input-row">
+            <div>
+              <strong>{input.name}</strong>
+              <p class="muted small mono">{input.url ?? "no URL"}</p>
+              {#if input.description}
+                <p class="muted small">{input.description}</p>
+              {/if}
+            </div>
+            <div class="row-actions">
+              <button class="ghost" onclick={() => editInput(input)}>Edit</button>
+              <button class="ghost" onclick={() => deleteInput(input.name)}>
+                Delete
+              </button>
+            </div>
+          </div>
+        {/each}
+
+        <form class="input-form" onsubmit={saveInput}>
+          <h3>{editingName ? `Edit ${editingName}` : "Add input"}</h3>
+          <label>
+            <span>Name</span>
+            <input bind:value={inputName} disabled={editingName !== null} />
+          </label>
+          <label>
+            <span>URL</span>
+            <input bind:value={inputUrl} placeholder="github:owner/repo" />
+          </label>
+          <label>
+            <span>Description</span>
+            <input bind:value={inputDescription} />
+          </label>
+          <div class="toolbar">
+            <span class="spacer"></span>
+            {#if editingName}
+              <button type="button" class="ghost" onclick={newInput}>Cancel</button>
+            {/if}
+            <button type="submit" disabled={flakeBusy}>
+              {flakeBusy ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
       </Panel>
     {:else}
       <Panel title={sortedMenus[selected]?.displayname ?? "Settings"} description={sortedMenus[selected]?.description}>
@@ -307,6 +1066,7 @@
             <span>Advanced</span>
           </label>
           <span class="spacer"></span>
+          <button class="ghost" onclick={openAddOption}>Add option</button>
           <button class="ghost" onclick={discard}>Discard</button>
           <button class="ghost" onclick={preview}>Diff</button>
           <button onclick={save} disabled={busy || dirty.size === 0}>
@@ -318,14 +1078,209 @@
           <p class="muted">This menu has no controls.</p>
         {/if}
 
-        {#each visibleRecords as record (record.path)}
-          <Control
-            descriptor={descriptor(record)}
-            value={values[record.path]}
-            onchange={onChange}
-          />
+        {#each groupedRecords as group (group.name)}
+          {#if group.name}
+            <h3 class="group-heading">{group.name}</h3>
+          {/if}
+          {#each group.records as record (record.path)}
+            {#if record.children?.length}
+              <h3
+                class="submodule-heading"
+                style={`margin-left: ${(record.depth ?? 0) * 12}px`}
+              >
+                {record.label ?? record.path}
+              </h3>
+            {:else if record.widget === "secureboot"}
+              <Control
+                descriptor={descriptor(record)}
+                value={values[record.path]}
+                onchange={onChange}
+                expandDetails={expandDetailsDefault}
+              />
+              <SecureBootPanel
+                csrf={user.csrf}
+                configured={Boolean(values[record.path])}
+              />
+            {:else}
+              <Control
+                descriptor={descriptor(record)}
+                value={values[record.path]}
+                onchange={onChange}
+                expandDetails={expandDetailsDefault}
+              />
+            {/if}
+          {/each}
         {/each}
+
+        {#if currentMenu?.inserts?.length}
+          <div class="inserts">
+            {#each currentMenu.inserts as marker (marker.offset)}
+              {@const snippet = currentMenu.snippets?.find(
+                (candidate) => candidate.name === marker.name,
+              )}
+              {#if snippet}
+                <button
+                  class="ghost"
+                  onclick={() => openInsert(currentMenu.file, marker, snippet)}
+                >
+                  Add {marker.label ?? snippet.label}
+                </button>
+              {/if}
+            {/each}
+          </div>
+        {/if}
       </Panel>
+
+      {#if showAddFile}
+        <Panel title="Add file" description="Create a module or render a template.">
+          <form class="input-form" onsubmit={saveAddFile}>
+            <label>
+              <span>Kind</span>
+              <select bind:value={addFileKind} onchange={onFileKindChange}>
+                <option value="raw">Raw function</option>
+                <option value="nixos">NixOS module</option>
+                <option value="home">Home-manager module</option>
+                {#each fileTemplates as template (template.index)}
+                  <option value={`template:${template.index}`}>
+                    Template: {template.label}
+                  </option>
+                {/each}
+              </select>
+            </label>
+            <label>
+              <span>File path</span>
+              <input bind:value={addFilePath} />
+            </label>
+            <label>
+              <span>Module name</span>
+              <input bind:value={addFileModuleName} placeholder="flake.modules.<kind>.<name>" />
+            </label>
+            {#each Object.entries(addFilePlaceholders) as [name, value] (name)}
+              <label>
+                <span>{name}</span>
+                <input bind:value={addFilePlaceholders[name]} />
+              </label>
+            {/each}
+            <div class="toolbar">
+              <span class="spacer"></span>
+              <button type="button" class="ghost" onclick={() => (showAddFile = false)}>
+                Cancel
+              </button>
+              <button type="submit" disabled={addFileBusy}>
+                {addFileBusy ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </form>
+        </Panel>
+      {/if}
+
+      {#if showAddOption}
+        <Panel title="Add option" description="Insert an @option block into the current page.">
+          <form class="input-form" onsubmit={saveAddOption}>
+            <label>
+              <span>Option path</span>
+              <input bind:value={optionPath} placeholder="services.pipewire.enable" />
+            </label>
+            <label>
+              <span>Widget</span>
+              <select bind:value={optionWidget}>
+                {#each optionWidgets as widget (widget)}
+                  <option value={widget}>{widget}</option>
+                {/each}
+              </select>
+            </label>
+            <label>
+              <span>Label</span>
+              <input bind:value={optionLabel} placeholder="Optional label" />
+            </label>
+            <label>
+              <span>Initial value</span>
+              <input bind:value={optionValue} placeholder="true, text, or an expression" />
+            </label>
+            <div class="toolbar">
+              <span class="spacer"></span>
+              <button type="button" class="ghost" onclick={() => (showAddOption = false)}>
+                Cancel
+              </button>
+              <button type="submit" disabled={optionBusy}>
+                {optionBusy ? "Adding..." : "Add option"}
+              </button>
+            </div>
+          </form>
+        </Panel>
+      {/if}
+
+      {#if showConfig && config}
+        <Panel title="Configure" description="The same config file as the desktop settings app.">
+          <form class="input-form" onsubmit={saveConfig}>
+            <label>
+              <span>Rebuild command</span>
+              <input bind:value={rebuildCommand} placeholder="sudo nixos-rebuild switch --flake .#host" />
+            </label>
+            <label>
+              <span>Terminal command</span>
+              <input bind:value={terminalCommand} placeholder="Unused by the web frontend" />
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.live_apply} />
+              <span>Apply changes immediately</span>
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.auto_git_sync} />
+              <span>Sync git on open and save</span>
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.expand_details_by_default} />
+              <span>Expand setting details</span>
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.reload_mango_on_rebuild} />
+              <span>Reload mango after rebuild</span>
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.reload_dms_on_rebuild} />
+              <span>Reload DMS after rebuild</span>
+            </label>
+            <div class="toolbar">
+              <span class="spacer"></span>
+              <button type="button" class="ghost" onclick={() => (showConfig = false)}>
+                Cancel
+              </button>
+              <button type="submit" disabled={configBusy}>
+                {configBusy ? "Saving..." : "Save config"}
+              </button>
+            </div>
+          </form>
+        </Panel>
+      {/if}
+
+      {#if insert}
+        <Panel
+          title={`Add ${insert.marker.label ?? insert.snippet.label}`}
+          description="The snippet is inserted above its @insert marker."
+        >
+          <form class="insert-form" onsubmit={submitInsert}>
+            {#each insert.snippet.placeholders as placeholder (placeholder.name)}
+              <label>
+                <span>{placeholder.label}</span>
+                <input
+                  bind:value={insertValues[placeholder.name]}
+                  placeholder={placeholder.hint}
+                />
+              </label>
+            {/each}
+            <div class="toolbar">
+              <span class="spacer"></span>
+              <button type="button" class="ghost" onclick={() => (insert = null)}>
+                Cancel
+              </button>
+              <button type="submit" disabled={insertBusy}>
+                {insertBusy ? "Inserting..." : "Insert"}
+              </button>
+            </div>
+          </form>
+        </Panel>
+      {/if}
 
       {#if showDiff}
         <Panel title="Pending changes" description="Nothing is written until Save.">

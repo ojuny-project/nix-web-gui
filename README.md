@@ -30,6 +30,7 @@ npm run check
 npm run build
 cd ../..
 nix build
+nix build .#checks.x86_64-linux.nixos-test-auth
 ```
 
 Run the server with a local development password:
@@ -42,7 +43,22 @@ cargo run -p nix-web-gui-server -- serve \
 ```
 
 The production service uses PAM service `nix-web-gui` and the device accounts.
-The NixOS module is `services.nix-web-gui`.
+The NixOS module is `services.nix-web-gui`. It binds to `127.0.0.1` and allows
+`wheel` by default.
+
+The service runs a root parent for PAM and session handling, then starts a
+per-user worker for the settings engine. The worker runs with the authenticated
+account's uid, gid, groups, HOME, and XDG directories. `--dev-auth` uses an
+in-process engine for local development only.
+
+`services.nix-web-gui.allowRemote` must be set explicitly before a non-loopback
+address is accepted.
+
+## Variants
+
+`packages.default` includes the Ojuny widgets. `packages.nix-web-gui-minimal`
+builds the Rust feature set without them and sets `VITE_OJUNY_WIDGETS=0`, so the
+UI marks Ojuny controls as unavailable instead of rendering a generic fallback.
 
 ## Theme
 
@@ -55,6 +71,7 @@ arrives over SSE without a reload.
 ## Limits
 
 The scanner keeps the documented module-shape rule. An `@option` inside
-`lib.mkMerge`, a list literal, `map`, `forEach`, or `lib.optionalAttrs` is
-ignored. `lib.mkIf` is supported. The fix is always to change the module shape,
-never to add list or apply-node descent to the scanner.
+`lib.mkMerge`, a list literal, `map`, `forEach`, `lib.optionalAttrs`, or a
+`lib.mkIf` body is ignored. Keep annotated assignments in a plain attribute set.
+The fix is always to change the module shape, never to add list or apply-node
+descent to the scanner.

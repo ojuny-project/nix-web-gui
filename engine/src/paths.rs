@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 pub enum PathError {
     #[error("path is outside the configured root")]
     OutsideRoot,
+    #[error("path has no file name")]
+    InvalidPath,
     #[error("cannot resolve path: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -18,6 +20,26 @@ pub fn confine(root: &Path, candidate: &Path) -> Result<PathBuf, PathError> {
     let path = path.canonicalize()?;
     if path.starts_with(&root) {
         Ok(path)
+    } else {
+        Err(PathError::OutsideRoot)
+    }
+}
+
+/// Resolve a path that may not exist yet. The parent must already resolve
+/// inside the root; the final component is appended after the check.
+pub fn confine_new(root: &Path, candidate: &Path) -> Result<PathBuf, PathError> {
+    let root = root.canonicalize()?;
+    let path = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        root.join(candidate)
+    };
+    let parent = path.parent().ok_or(PathError::InvalidPath)?;
+    let name = path.file_name().ok_or(PathError::InvalidPath)?;
+    std::fs::create_dir_all(parent)?;
+    let parent = parent.canonicalize()?;
+    if parent.starts_with(&root) {
+        Ok(parent.join(name))
     } else {
         Err(PathError::OutsideRoot)
     }
@@ -40,6 +62,19 @@ mod tests {
         assert!(confine(&root, &inside).is_ok());
         assert!(confine(&root, Path::new("/etc/passwd")).is_err());
         assert!(!is_editable(&root, Path::new("/nix/store/abc/a.nix")));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn allows_a_new_file_inside_the_root() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-new-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let new = confine_new(&root, Path::new("modules/new.nix")).unwrap();
+        assert!(new.starts_with(root.canonicalize().unwrap()));
         let _ = std::fs::remove_dir_all(root);
     }
 

@@ -52,6 +52,48 @@ file chooser.
 | Grid | card canvas | `control.set` | UI grid | no | planned |
 | Docker | row editor | `control.set` | UI docker | no | planned |
 
+## Current implementation
+
+Implemented end to end:
+
+- Open a flake, scan pages, stage and save changes, preview a diff, discard.
+- Switch, dropdown, radio, spin, slider, text, multiline, path, color, package,
+  list, packages, module list, theme, and facter controls.
+- Nested submodule controls with prefixed paths and staged child edits.
+- Generic nested editors for users, monitors, docker, menu, bar, dock, grid,
+  plugins, and keybinds until their dedicated renderers land.
+- Font, icon-theme, and cursor-theme value selectors from the shared catalog,
+  including package sidecar updates.
+- A Secure Boot status card with firmware mode, setup mode, key bundle, keys,
+  Lanzaboote state, signed files, Windows, BitLocker, ESP space, and warnings.
+- A basic `table-attrset` and `table-list` editor with columns, typed cells,
+  row add and remove, and key editing.
+- Global search over menus and controls.
+- A system-only filter with a host selector backed by the scan import graph.
+- `visibleWhen` visibility gates, imported-from origins, live-apply config
+  respect, automatic ff-only Git pull on open, and commit-and-push after save
+  when `auto_git_sync` is enabled.
+- `page.describe` metadata through nixd and the eval fallback.
+- Add file, add option, and insert snippet.
+- Flake input list, nixpkgs card, add/edit/delete, channels, scans, update check,
+  and update.
+- Git status, diff, pull, and sync.
+- Live apply and Save & rebuild.
+- Config panel backed by the shared desktop config file.
+- Base16 theme follow over SSE.
+
+Not yet implemented:
+
+- Table row labels, hidden rows, icon columns, and dropdown columns are not yet
+  rendered in the web table editor. Dedicated keybind, monitor, user, wallpaper,
+  file, icon, and Ojuny renderers are still pending. Secure Boot setup actions
+  still need the privileged re-auth flow. The generic nested editor and raw
+  fallback are placeholders, not full parity.
+- Automated parity tests for the rows above.
+- Worker isolation and the remaining auth hardening.
+- Playwright tests. The NixOS VM auth test exists and checks service startup,
+  alice login, wrong-password rejection, and bob allowlist rejection.
+
 ## Gates
 
 - `parity-capabilities`: no row may be missing an engine method, component,

@@ -41,11 +41,36 @@ configured allowed groups are enforced when the list is non-empty.
 | `session.state` | implemented |
 | `scan` | implemented |
 | `page.list` | implemented |
+| `page.describe` | implemented with nixd and eval fallback |
 | `control.get` | implemented |
+| `control.describe` | implemented without nixd metadata |
 | `control.set` | implemented |
+| `control.setTyped` | implemented |
 | `control.reset` | implemented |
 | `edits.preview` | implemented |
 | `edits.apply` | implemented |
+| `file.add` | implemented |
+| `file.templates` | implemented |
+| `option.add` | implemented |
+| `insert.apply` | implemented |
+| `flake.inputs` | implemented |
+| `flake.input.upsert` | implemented |
+| `flake.input.delete` | implemented |
+| `flake.channels` | implemented |
+| `flake.suggest` | implemented |
+| `flake.update.check` | implemented |
+| `flake.update` | implemented |
+| `git.status` | implemented |
+| `git.diff` | implemented |
+| `git.pull` | implemented |
+| `git.sync` | implemented |
+| `apply.run` | implemented |
+| `rebuild.run` | implemented |
+| `catalog.styles` | implemented |
+| `secureboot.status` | implemented |
+| `secureboot.config` | implemented |
+| `config.get` | implemented |
+| `config.set` | implemented |
 | `echo` | test helper |
 
 ## Planned methods
@@ -54,18 +79,18 @@ The contract is filled in as the engine slices land.
 
 | Group | Methods |
 |---|---|
-| Session | `session.reload`, `session.state` |
-| Pages | `control.describe` |
-| Edits | `edits.preview`, `edits.apply` |
-| Authoring | `file.add`, `option.add`, `insert.apply` |
-| Flake | `flake.inputs`, `flake.input.upsert`, `flake.input.delete`, `flake.input.addAll`, `flake.nixpkgs`, `flake.scan`, `flake.update.check`, `flake.update` |
-| Git | `git.status`, `git.diff`, `git.sync`, `git.commit`, `git.push` |
-| Apply | `apply.run`, `rebuild.run` |
+| Session | `session.state` |
+| Pages | metadata batching beyond `page.describe` |
+| Edits | package validation, conflict detection |
+| Authoring | dialog UI for `file.add`, `option.add`, `insert.apply` |
+| Flake | `flake.input.addAll`, the nixpkgs card UI, and scan progress |
+| Git | separate commit and push controls, if needed |
+| Apply | streamed rebuild output and cancellation |
 | Secure Boot | `secureboot.status`, `secureboot.setup`, `secureboot.repair` |
 | Users | `users.hashPassword` |
 | Previews | `preview.wallpaper`, `preview.icon`, `preview.style`, `preview.font`, `preview.cursor` |
 | Catalogs | `catalog.themes`, `catalog.fonts`, `catalog.icons`, `catalog.cursors`, `catalog.styles`, `plugins.registry`, `plugins.settings`, `facter.detect`, `monitors.detect` |
-| Config | `config.get`, `config.set` |
+| Config | the settings panel UI |
 
 ## Error codes
 

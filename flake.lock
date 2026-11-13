@@ -43,11 +43,11 @@
         "tinted-theming": "tinted-theming"
       },
       "locked": {
-        "lastModified": 1794510563,
-        "narHash": "sha256-NryaHLVYSEp5qKQtJTN4Ng4N2LTy2vznM6hbNwiZ8J0=",
+        "lastModified": 1794546528,
+        "narHash": "sha256-RVDlwSSNZ4kJ3QowQClGLPFmmaIMAxg+EgiJ+DkDvXE=",
         "ref": "refs/heads/main",
-        "rev": "f081f7771347af1a2f483a7d8ba13be70a65f193",
-        "revCount": 105,
+        "rev": "ed2d9734acc3707a4eaeac27bc360bbf47660c8b",
+        "revCount": 107,
         "type": "git",
         "url": "file:///home/den/repos/nix-settings-gui"
       },

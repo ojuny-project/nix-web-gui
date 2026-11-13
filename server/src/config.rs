@@ -15,6 +15,7 @@ pub struct Cli {
 pub enum Command {
     Serve(ServeArgs),
     Popout(PopoutArgs),
+    Worker,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -27,6 +28,8 @@ pub struct ServeArgs {
     pub theme_file: Option<PathBuf>,
     #[arg(long)]
     pub flake: Option<PathBuf>,
+    #[arg(long)]
+    pub page: Option<String>,
     #[arg(long, default_value = "nix-web-gui")]
     pub pam_service: String,
     #[arg(long)]
@@ -44,6 +47,8 @@ pub struct PopoutArgs {
     #[arg(long)]
     pub flake: Option<PathBuf>,
     #[arg(long)]
+    pub page: Option<String>,
+    #[arg(long)]
     pub port: Option<u16>,
 }
 
@@ -53,6 +58,7 @@ pub struct AppConfig {
     pub static_dir: PathBuf,
     pub theme_file: PathBuf,
     pub flake: Option<String>,
+    pub startup_page: Option<String>,
     pub pam_service: String,
     pub allowed_groups: Vec<String>,
     pub dev_auth: bool,
@@ -67,6 +73,7 @@ impl ServeArgs {
             static_dir: self.static_dir.unwrap_or_else(default_static_dir),
             theme_file: self.theme_file.unwrap_or_else(default_theme_file),
             flake: self.flake.map(|path| path.display().to_string()),
+            startup_page: self.page,
             pam_service: self.pam_service,
             allowed_groups: self.allowed_group,
             dev_auth: self.dev_auth,

@@ -10,6 +10,8 @@ export type WidgetKind =
   | "package"
   | "packages"
   | "list"
+  | "nixosmodules"
+  | "hmmodules"
   | "color"
   | "submodule"
   | "horizontal-submodule"
@@ -54,6 +56,32 @@ export type ControlDescriptor = {
   group?: string | null;
   order?: number | null;
   groupOrder?: number | null;
+  children?: ControlDescriptor[] | null;
+  depth?: number | null;
+  table?: TableDescriptor | null;
+  origin?: string | null;
+  visibleWhen?: {
+    path: string;
+    equals?: string | null;
+    equalsAny?: string[];
+    notEquals?: string | null;
+  } | null;
+};
+
+export type TableRow = {
+  key: string;
+  label?: string | null;
+  hidden?: boolean;
+  fields: Record<string, string>;
+};
+
+export type TableDescriptor = {
+  list: boolean;
+  columns: string[];
+  columnTypes?: string[] | null;
+  keyEditable: boolean;
+  firstValueEditable: boolean;
+  rows: TableRow[];
 };
 
 export type ControlValue = unknown;

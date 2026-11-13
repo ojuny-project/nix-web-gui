@@ -108,8 +108,8 @@ service packaging.
 The scanner binds an `@option` comment to the next assignment in the same
 container. It does not descend into a list of attribute sets. An annotation
 inside `lib.mkMerge [...]`, a list literal, `map`, `forEach` or
-`lib.optionalAttrs` is ignored. `lib.mkIf` is supported, and options may sit
-directly inside a `lib.mkIf` attribute set.
+`lib.optionalAttrs` or a `lib.mkIf` body is ignored. Keep annotated assignments
+in a plain attribute set.
 
 The fix for an invisible option is always to change the module shape. The web
 GUI must not modify the scanner to add list or apply-node descent. The

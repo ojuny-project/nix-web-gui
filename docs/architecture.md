@@ -12,9 +12,12 @@ engine/                  reusable Rust library
 
 server/                  nix-web-gui product
   src/http.rs            axum router, cookies, CSRF, SSE, static frontend
+  src/rpc.rs             engine RPC dispatch used by in-process and worker modes
+  src/worker.rs          stdio JSON-RPC worker entry point
+  src/worker_process.rs  per-user worker spawn and request proxy
   src/auth/              PAM and browser sessions
   src/config.rs          CLI and runtime configuration
-  src/main.rs            serve and popout entry points
+  src/main.rs            serve, popout, and worker entry points
 
 frontend/packages/ui/    reusable Svelte renderer
   src/lib/components/    Control, Field, Panel
@@ -32,8 +35,8 @@ frontend/packages/app/   nix-web-gui product
 
 - `engine` has no axum, PAM, tower-http, or frontend code. It is the crate a
   fleet manager can depend on.
-- `server` owns authentication, browser sessions, transport, and static files.
-  It maps HTTP to engine calls.
+- `server` owns authentication, browser sessions, transport, static files, and
+  the per-user worker boundary. The root parent maps HTTP RPC to a worker.
 - `frontend/packages/ui` has no auth, router, or RPC client. It renders a
   `ControlDescriptor` and reports changes through a callback.
 - `frontend/packages/app` owns the login flow and product layout.
@@ -51,9 +54,9 @@ and applies it through CSS variables. A live palette change pushes one
 
 The scanner binds an `@option` comment to the next assignment in the same
 container. It does not descend into a list of attribute sets. An annotation
-inside `lib.mkMerge [...]`, a list literal, `map`, `forEach` or
-`lib.optionalAttrs` is ignored. `lib.mkIf` is supported, and options may sit
-directly inside a `lib.mkIf` attribute set.
+inside `lib.mkMerge [...]`, a list literal, `map`, `forEach`,
+`lib.optionalAttrs` or a `lib.mkIf` body is ignored. Keep annotated assignments
+in a plain attribute set.
 
 The fix for an invisible option is always to change the module shape. This
 repository does not modify the scanner to add list or apply-node descent.

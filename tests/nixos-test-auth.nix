@@ -1,0 +1,112 @@
+{ self, pkgs, system }:
+let
+  fixture = pkgs.runCommand "nix-web-gui-auth-fixture" { } ''
+    mkdir -p $out/modules
+    cp ${pkgs.writeText "flake.nix" ''
+      { outputs = { self, nixpkgs }: { }; }
+    ''} $out/flake.nix
+    cp ${pkgs.writeText "system.nix" ''
+      /* @menu displayname = "Test"; */
+      { ... }: {
+        /* @option widget = "text"; label = "Hostname"; */
+        networking.hostName = "vm";
+      }
+    ''} $out/modules/system.nix
+  '';
+in
+pkgs.testers.nixosTest {
+  name = "nix-web-gui-auth";
+
+  nodes.machine = { ... }: {
+    imports = [ self.nixosModules.default ];
+
+    system.stateVersion = "26.05";
+
+    services.nix-web-gui = {
+      enable = true;
+      package = self.packages.${system}.default;
+      allowedGroups = [ "wheel" ];
+    };
+
+    users.users.alice = {
+      isNormalUser = true;
+      extraGroups = [ "wheel" ];
+      password = "secret";
+    };
+
+    users.users.bob = {
+      isNormalUser = true;
+      password = "secret";
+    };
+
+    environment.systemPackages = [ pkgs.curl pkgs.jq ];
+  };
+
+  testScript = ''
+    machine.wait_for_unit("nix-web-gui.service")
+    machine.wait_for_open_port(8787)
+
+    machine.succeed("curl -fsS http://127.0.0.1:8787/api/health")
+
+    machine.succeed("cp -r ${fixture} /tmp/nwg-flake")
+    machine.succeed("chmod -R 777 /tmp/nwg-flake")
+
+    csrf = machine.succeed(
+        "curl -fsS -c /tmp/alice.cookies "
+        "-X POST http://127.0.0.1:8787/api/login "
+        "-H 'content-type: application/json' "
+        "-d '{\"username\":\"alice\",\"password\":\"secret\"}' "
+        "| jq -r '.csrf'"
+    ).strip()
+
+    machine.succeed(
+        f"curl -fsS -b /tmp/alice.cookies "
+        "-X POST http://127.0.0.1:8787/api/rpc "
+        "-H 'content-type: application/json' "
+        f"-H 'x-csrf-token: {csrf}' "
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"echo\",\"params\":{\"ok\":true}}' "
+        "| jq -e '.result.ok'"
+    )
+
+    machine.succeed(
+        f"curl -fsS -b /tmp/alice.cookies "
+        "-X POST http://127.0.0.1:8787/api/rpc "
+        "-H 'content-type: application/json' "
+        f"-H 'x-csrf-token: {csrf}' "
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"session.open\",\"params\":{\"root\":\"/tmp/nwg-flake\"}}' "
+        "| jq -e '.result.menus >= 1'"
+    )
+
+    machine.succeed(
+        f"curl -fsS -b /tmp/alice.cookies "
+        "-X POST http://127.0.0.1:8787/api/rpc "
+        "-H 'content-type: application/json' "
+        f"-H 'x-csrf-token: {csrf}' "
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"control.setTyped\",\"params\":{\"path\":\"networking.hostName\",\"widget\":\"text\",\"value\":\"vm2\"}}' "
+        "| jq -e '.result.staged'"
+    )
+
+    machine.succeed(
+        f"curl -fsS -b /tmp/alice.cookies "
+        "-X POST http://127.0.0.1:8787/api/rpc "
+        "-H 'content-type: application/json' "
+        f"-H 'x-csrf-token: {csrf}' "
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"edits.apply\",\"params\":{}}' "
+        "| jq -e '.result.files == 1'"
+    )
+
+    machine.succeed("grep -q vm2 /tmp/nwg-flake/modules/system.nix")
+
+    machine.fail(
+        "curl -fsS -X POST http://127.0.0.1:8787/api/login "
+        "-H 'content-type: application/json' "
+        "-d '{\"username\":\"alice\",\"password\":\"wrong\"}'"
+    )
+
+    machine.fail(
+        "curl -fsS -X POST http://127.0.0.1:8787/api/login "
+        "-H 'content-type: application/json' "
+        "-d '{\"username\":\"bob\",\"password\":\"secret\"}'"
+    )
+  '';
+}

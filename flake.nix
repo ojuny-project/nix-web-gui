@@ -57,6 +57,10 @@
             ${pkgs.bash}/bin/bash tests/check-boundaries.sh
             touch $out
           '';
+        } // lib.optionalAttrs (system == "x86_64-linux") {
+          nixos-test-auth = import ./tests/nixos-test-auth.nix {
+            inherit self pkgs system;
+          };
         };
 
         devShells.default = pkgs.mkShell {

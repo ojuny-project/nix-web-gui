@@ -6,7 +6,15 @@
 //! static assets. Those stay in the `server` crate.
 
 pub mod api;
+pub mod apply;
+pub mod authoring;
+pub mod catalog;
+pub mod config;
+pub mod flake;
+pub mod git;
 pub mod paths;
+pub mod render;
+pub mod secureboot;
 pub mod session;
 pub mod theme;
 
