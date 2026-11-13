@@ -35,12 +35,12 @@ pkgs.testers.nixosTest {
 
     machine.succeed("curl -fsS http://127.0.0.1:8787/api/health")
 
-    machine.succeed("mkdir -p /tmp/nwg-flake/modules")
-    machine.succeed("""cat > /tmp/nwg-flake/flake.nix <<'EOF'
+    machine.succeed("mkdir -p /home/alice/nwg-flake/modules")
+    machine.succeed("""cat > /home/alice/nwg-flake/flake.nix <<'EOF'
     { outputs = { self, nixpkgs }: { }; }
     EOF
     """)
-    machine.succeed("""cat > /tmp/nwg-flake/modules/system.nix <<'EOF'
+    machine.succeed("""cat > /home/alice/nwg-flake/modules/system.nix <<'EOF'
     /* @menu displayname = "Test"; */
     { ... }: {
       /* @option widget = "text"; label = "Hostname"; */
@@ -48,7 +48,7 @@ pkgs.testers.nixosTest {
     }
     EOF
     """)
-    machine.succeed("chmod -R 777 /tmp/nwg-flake")
+    machine.succeed("chown -R alice:users /home/alice/nwg-flake")
 
     csrf = machine.succeed(
         "curl -fsS -c /tmp/alice.cookies "
@@ -72,7 +72,7 @@ pkgs.testers.nixosTest {
         "-X POST http://127.0.0.1:8787/api/rpc "
         "-H 'content-type: application/json' "
         f"-H 'x-csrf-token: {csrf}' "
-        "-d '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"session.open\",\"params\":{\"root\":\"/tmp/nwg-flake\"}}'"
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"session.open\",\"params\":{\"root\":\"/home/alice/nwg-flake\"}}'"
     )
     machine.log(opened)
     assert json.loads(opened)["result"]["menus"] >= 1
@@ -97,7 +97,7 @@ pkgs.testers.nixosTest {
     machine.log(applied)
     assert json.loads(applied)["result"]["files"] == 1
 
-    machine.succeed("grep -q vm2 /tmp/nwg-flake/modules/system.nix")
+    machine.succeed("grep -q vm2 /home/alice/nwg-flake/modules/system.nix")
 
     machine.fail(
         "curl -fsS -X POST http://127.0.0.1:8787/api/login "

@@ -146,7 +146,6 @@ in
         User = "root";
         Restart = "on-failure";
         RestartSec = "2s";
-        PrivateTmp = true;
         NoNewPrivileges = false;
       };
     };
