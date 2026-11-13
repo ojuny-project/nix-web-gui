@@ -37,17 +37,17 @@ pkgs.testers.nixosTest {
 
     machine.succeed("mkdir -p /tmp/nwg-flake/modules")
     machine.succeed("""cat > /tmp/nwg-flake/flake.nix <<'EOF'
-{ outputs = { self, nixpkgs }: { }; }
-EOF
-""")
+    { outputs = { self, nixpkgs }: { }; }
+    EOF
+    """)
     machine.succeed("""cat > /tmp/nwg-flake/modules/system.nix <<'EOF'
-/* @menu displayname = "Test"; */
-{ ... }: {
-  /* @option widget = "text"; label = "Hostname"; */
-  networking.hostName = "vm";
-}
-EOF
-""")
+    /* @menu displayname = "Test"; */
+    { ... }: {
+      /* @option widget = "text"; label = "Hostname"; */
+      networking.hostName = "vm";
+    }
+    EOF
+    """)
     machine.succeed("chmod -R 777 /tmp/nwg-flake")
 
     csrf = machine.succeed(
