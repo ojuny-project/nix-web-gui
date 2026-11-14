@@ -289,7 +289,15 @@ pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
                 .map_err(|error| (-32012, error))
         }),
         "flake.inputs" => with_settings(session, |settings| {
-            flake::inputs(&settings.root).map_err(|error| (-32012, error))
+            flake::inputs(&settings.root, settings.declared_inputs())
+                .map_err(|error| (-32012, error))
+        }),
+        "flake.input.addAll" => with_settings(session, |settings| {
+            let declared = settings.declared_inputs().to_vec();
+            let added = flake::add_all(&settings.root, &declared)
+                .map_err(|error| (-32012, error))?;
+            settings.reload().map_err(|error| (-32013, error))?;
+            Ok(json!({ "added": added }))
         }),
         "flake.input.upsert" => with_settings(session, |settings| {
             let name = string_param(&params, "name");

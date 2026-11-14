@@ -7,16 +7,23 @@ use nix_settings_gui::flake_update::{self, InputState, InputStatus};
 use nix_settings_gui::{edit, nixpkgs, ref_suggest};
 use serde_json::{json, Value};
 
-pub fn inputs(root: &str) -> Result<Value, String> {
+pub fn inputs(root: &str, declared: &[flake_inputs::DeclaredInput]) -> Result<Value, String> {
     let path = Path::new(root).join("flake.nix");
     let document = flake_inputs::load(&path.display().to_string())?;
     let list: Vec<Value> = document.inputs.iter().map(input_json).collect();
     let nixpkgs_input = document.input("nixpkgs").map(input_json);
     let locked = flake_lock::read_input_in(Path::new(root), "nixpkgs").map(|locked| locked_json(&locked));
+    let missing = flake_inputs::missing_declared_inputs(declared, &document.inputs);
     Ok(json!({
         "inputs": list,
         "nixpkgs": nixpkgs_input,
         "locked": locked,
+        "missing": missing.iter().map(|input| json!({
+            "name": input.name,
+            "url": input.url,
+            "file": input.file,
+            "line": input.line,
+        })).collect::<Vec<_>>(),
     }))
 }
 
@@ -75,6 +82,30 @@ pub fn delete(root: &str, name: &str) -> Result<(), String> {
     let document = flake_inputs::load(&path.display().to_string())?;
     let edits = document.edits_for_delete(name)?;
     edit::apply(&edits, root).map(|_| ())
+}
+
+/// Declare every input that is referenced by an `@inputs` marker but missing
+/// from `flake.nix`. Returns the added names.
+pub fn add_all(
+    root: &str,
+    declared: &[flake_inputs::DeclaredInput],
+) -> Result<Vec<String>, String> {
+    let path = Path::new(root).join("flake.nix");
+    let document = flake_inputs::load(&path.display().to_string())?;
+    let missing = flake_inputs::missing_declared_inputs(declared, &document.inputs);
+    if missing.is_empty() {
+        return Ok(Vec::new());
+    }
+    let inputs: Vec<FlakeInput> = missing
+        .iter()
+        .map(|declared| FlakeInput {
+            url: Some(declared.url.clone()),
+            ..FlakeInput::new(&declared.name)
+        })
+        .collect();
+    let edits = document.edits_for_add_all(&inputs)?;
+    edit::apply(&edits, root)?;
+    Ok(missing.into_iter().map(|input| input.name).collect())
 }
 
 pub fn channels() -> Vec<String> {
@@ -176,7 +207,7 @@ mod tests {
             "{}/../tests/fixtures/plain-flake",
             env!("CARGO_MANIFEST_DIR")
         );
-        let value = inputs(&root).unwrap();
+        let value = inputs(&root, &[]).unwrap();
         assert!(value["inputs"].is_array());
     }
 }

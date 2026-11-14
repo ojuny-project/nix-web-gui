@@ -28,6 +28,8 @@ pub fn record_json(record: &Record) -> Value {
         "rows": record.spec.rows,
         "placeholder": record.spec.placeholder,
         "maxColumns": record.spec.max_columns,
+        "monospace": record.spec.monospace,
+        "variant": record.spec.variant,
         "columns": record.spec.columns,
         "keyEditable": record.spec.key_editable,
         "applyCommand": record.spec.apply_command,

@@ -82,11 +82,11 @@ feature and hardening gaps.
 
 ### Fonts, icons, cursors, theme
 
-- [ ] Font previews and installed-only filtering.
-- [ ] Monospace filtering.
+- [x] Font previews and installed-only filtering from the catalog.
+- [x] Monospace filtering.
 - [ ] Icon-theme and cursor-theme preview sheets.
-- [ ] Variant filtering for icon themes.
-- [ ] Theme picker search and swatches instead of a plain select.
+- [x] Variant filtering for icon themes.
+- [x] Theme picker search and swatches instead of a plain select.
 - [ ] High-contrast palette behavior.
 - [ ] Live palette update from the theme `applyCommand`, not only from the
       system theme file.
@@ -149,9 +149,10 @@ feature and hardening gaps.
 - [ ] Streamed scan, update-check, apply, save, and rebuild progress. Only theme
       events use SSE.
 - [ ] Cancellation for update checks, scans, and rebuilds.
-- [ ] `flake.input.addAll` and the missing-input banner.
-- [ ] Flake input scan buttons and update-check progress in the UI.
-- [ ] Nixpkgs card edit form and pinned-revision refresh.
+- [x] `flake.input.addAll` and the missing-input banner.
+- [x] Flake input check and update buttons in the UI. Progress is still a
+      single blocking response.
+- [x] Nixpkgs card edit form and pinned-revision refresh.
 - [x] Separate Git commit and push actions, with a Git page for status, pull,
       push, commit, sync, and diff.
 - [x] Git diff UI. `git.diff` returns the status list plus the unstaged patch.
@@ -212,8 +213,9 @@ feature and hardening gaps.
       every menu and jumps to the control.
 - [x] Automatic current-host detection. The matching host is preselected in the
       system-only selector.
-- [ ] Sectioned Advanced area. Advanced controls are filtered but not grouped.
-- [ ] Menu icons and category collapse.
+- [x] Sectioned Advanced area. Advanced and hidden controls are grouped under
+      an Advanced heading.
+- [x] Menu icons and category collapse.
 - [ ] Responsive and accessibility audit.
 - [ ] Loading and error states for every long-running action.
 - [ ] Empty states for menus with no controls and missing media directories.

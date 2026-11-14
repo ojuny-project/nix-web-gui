@@ -101,6 +101,8 @@ export type ScanRecord = {
   visibleWhen?: Visibility | null;
   children?: ScanRecord[] | null;
   depth?: number | null;
+  monospace?: boolean;
+  variant?: string | null;
   table?: TableJson | null;
 };
 
@@ -222,6 +224,23 @@ export type FlakeInputsResult = {
   inputs: FlakeInputJson[];
   nixpkgs: FlakeInputJson | null;
   locked: LockedInputJson | null;
+  missing?: Array<{
+    name: string;
+    url: string;
+    file: string;
+    line: number;
+  }>;
+};
+
+export type InputCheck = {
+  name: string;
+  state?: string;
+  reason?: string | null;
+  currentRev?: string | null;
+  currentDate?: string | null;
+  remoteRev?: string | null;
+  remoteDate?: string | null;
+  error?: string;
 };
 
 export type GitStatus = {

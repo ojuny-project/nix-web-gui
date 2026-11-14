@@ -68,6 +68,10 @@ impl SettingsSession {
         scan::hosts_from_targets(&self.scanned.targets)
     }
 
+    pub fn declared_inputs(&self) -> &[nix_settings_gui::flake_inputs::DeclaredInput] {
+        &self.scanned.declared_inputs
+    }
+
     pub fn menus_filtered(
         &self,
         host: Option<&str>,

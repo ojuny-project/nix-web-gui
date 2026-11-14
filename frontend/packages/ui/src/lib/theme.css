@@ -319,6 +319,27 @@ label {
   text-transform: uppercase;
 }
 
+.sidebar nav .nav-toggle {
+  display: block;
+  margin: 1rem 0 0.35rem;
+  padding: 0 0.7rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.menu-icon {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-right: 0.45rem;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
 .content {
   grid-area: content;
   overflow: auto;
@@ -799,6 +820,84 @@ button.tiny {
 .toolbar button.active {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.font-preview {
+  margin: 0 0 0.75rem 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 1rem;
+}
+
+.plain-list {
+  margin: 0;
+  padding: 0 1.1rem 0.75rem;
+  list-style: none;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.plain-list li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.theme-picker {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 22rem;
+  overflow: auto;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.4rem;
+}
+
+.theme-swatch {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.35rem;
+  text-align: left;
+  font-weight: 500;
+}
+
+.theme-swatch:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.theme-swatch.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.swatch-colors {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: 1.1rem;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.swatch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+input.search-input.small {
+  width: 100%;
+  margin-left: 0;
 }
 
 .media-picker {

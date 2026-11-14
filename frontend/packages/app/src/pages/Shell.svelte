@@ -18,6 +18,7 @@
     type FlakeInputJson,
     type FlakeInputsResult,
     type GitStatus,
+    type InputCheck,
     type WebConfig,
     type ScanInsert,
     type ScanMenu,
@@ -48,6 +49,7 @@
   let originalValues: Record<string, ControlValue> = {};
   let dirty: Set<string> = new Set();
   let highlightPath = "";
+  let collapsed = new Set<string>();
   let advanced = false;
   let busy = false;
   let status = "";
@@ -62,6 +64,8 @@
   let insertBusy = false;
   let flakeData: FlakeInputsResult | null = null;
   let flakeBusy = false;
+  let flakeCheckBusy = false;
+  let updateChecks: Record<string, InputCheck> = {};
   let inputName = "";
   let inputUrl = "";
   let inputDescription = "";
@@ -131,9 +135,9 @@
 
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   let pageToken = 0;
-  let fontChoices: string[] = [];
-  let iconChoices: string[] = [];
-  let cursorChoices: string[] = [];
+  let fontEntries: StyleEntry[] = [];
+  let iconEntries: StyleEntry[] = [];
+  let cursorEntries: StyleEntry[] = [];
 
   function selectStartupPage(pattern: string) {
     try {
@@ -149,6 +153,13 @@
     } catch {
       // Keep the first menu on an invalid page pattern.
     }
+  }
+
+  function toggleCategory(category: string) {
+    const next = new Set(collapsed);
+    if (next.has(category)) next.delete(category);
+    else next.add(category);
+    collapsed = next;
   }
 
   function sortMenus(input: ScanMenu[]) {
@@ -176,18 +187,28 @@
       (left.order ?? 1e9) - (right.order ?? 1e9) ||
       left.path.localeCompare(right.path),
   );
-  $: groupedRecords = orderedRecords.reduce<
-    Array<{ name: string; records: ScanRecord[] }>
-  >((groups, record) => {
-    const name = record.group ?? "";
-    const last = groups.at(-1);
-    if (last && last.name === name) {
-      last.records.push(record);
-    } else {
-      groups.push({ name, records: [record] });
+  $: groupedRecords = (() => {
+    const normal = orderedRecords.filter(
+      (record) => !record.advanced && !record.hidden,
+    );
+    const advancedRecords = orderedRecords.filter(
+      (record) => record.advanced || record.hidden,
+    );
+    const groups: Array<{ name: string; records: ScanRecord[] }> = [];
+    for (const record of normal) {
+      const name = record.group ?? "";
+      const last = groups.at(-1);
+      if (last && last.name === name) {
+        last.records.push(record);
+      } else {
+        groups.push({ name, records: [record] });
+      }
+    }
+    if (advanced && advancedRecords.length) {
+      groups.push({ name: "Advanced", records: advancedRecords });
     }
     return groups;
-  }, []);
+  })();
   $: searchTerm = search.trim().toLowerCase();
   $: filteredMenus = sortedMenus.filter((menu) => {
     if (!searchTerm) return true;
@@ -326,9 +347,9 @@
         rpc<StyleEntry[]>("catalog.styles", { kind: "icons" }, user.csrf),
         rpc<StyleEntry[]>("catalog.styles", { kind: "cursors" }, user.csrf),
       ]);
-      fontChoices = fonts.map((entry) => entry.value);
-      iconChoices = icons.map((entry) => entry.value);
-      cursorChoices = cursors.map((entry) => entry.value);
+      fontEntries = fonts;
+      iconEntries = icons;
+      cursorEntries = cursors;
     } catch {
       // Keep text inputs when the catalog is unavailable.
     }
@@ -349,6 +370,75 @@
     } finally {
       flakeBusy = false;
     }
+  }
+
+  async function addMissingInputs() {
+    flakeBusy = true;
+    error = "";
+    try {
+      const result = await rpc<{ added: string[] }>(
+        "flake.input.addAll",
+        {},
+        user.csrf,
+      );
+      status = result.added.length
+        ? `Declared ${result.added.join(", ")}`
+        : "No missing inputs";
+      await loadFlakeInputs();
+    } catch (cause) {
+      error =
+        cause instanceof Error ? cause.message : "Cannot declare missing inputs";
+    } finally {
+      flakeBusy = false;
+    }
+  }
+
+  async function checkInputUpdates(names: string[]) {
+    flakeCheckBusy = true;
+    error = "";
+    try {
+      const result = await rpc<InputCheck[]>(
+        "flake.update.check",
+        { names },
+        user.csrf,
+      );
+      updateChecks = {
+        ...updateChecks,
+        ...Object.fromEntries(result.map((check) => [check.name, check])),
+      };
+      status = "Checked input revisions";
+    } catch (cause) {
+      error =
+        cause instanceof Error ? cause.message : "Cannot check input revisions";
+    } finally {
+      flakeCheckBusy = false;
+    }
+  }
+
+  async function updateInputs(names: string[]) {
+    flakeBusy = true;
+    error = "";
+    try {
+      const result = await rpc<{ updated: number }>(
+        "flake.update",
+        { names },
+        user.csrf,
+      );
+      status = `Updated ${result.updated} input(s)`;
+      await loadFlakeInputs();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot update inputs";
+    } finally {
+      flakeBusy = false;
+    }
+  }
+
+  function checkLabel(name: string): string {
+    const check = updateChecks[name];
+    if (!check) return "";
+    if (check.error) return check.error;
+    if (check.state === "update-available") return "update available";
+    return check.state ?? "";
   }
 
   async function openAddFile() {
@@ -1002,9 +1092,30 @@
       origin: record.origin,
       visibleWhen: record.visibleWhen,
     };
-    if (widget === "font") result.choices = withCurrent(fontChoices, value);
-    if (widget === "icon-theme") result.choices = withCurrent(iconChoices, value);
-    if (widget === "cursor-theme") result.choices = withCurrent(cursorChoices, value);
+    if (widget === "font") {
+      const entries = record.monospace
+        ? fontEntries.filter((entry) => entry.monospace)
+        : fontEntries;
+      result.choices = withCurrent(
+        entries.map((entry) => entry.value),
+        value,
+      );
+    }
+    if (widget === "icon-theme") {
+      const entries = record.variant
+        ? iconEntries.filter((entry) => entry.variant === record.variant)
+        : iconEntries;
+      result.choices = withCurrent(
+        entries.map((entry) => entry.value),
+        value,
+      );
+    }
+    if (widget === "cursor-theme") {
+      result.choices = withCurrent(
+        cursorEntries.map((entry) => entry.value),
+        value,
+      );
+    }
     return result;
   }
 
@@ -1271,16 +1382,27 @@
         <p class="nav-label">Menus</p>
         {#each menuGroups as [category, group] (category)}
           {#if category}
-            <p class="nav-label">{category}</p>
-          {/if}
-          {#each group as menu (menu.file)}
             <button
-              class:active={view === "settings" && currentMenu?.file === menu.file}
-              onclick={() => selectMenu(menu)}
+              class="nav-label nav-toggle"
+              aria-expanded={!collapsed.has(category)}
+              onclick={() => toggleCategory(category)}
             >
-              {menu.displayname}
+              {collapsed.has(category) ? "▸" : "▾"} {category}
             </button>
-          {/each}
+          {/if}
+          {#if !category || !collapsed.has(category)}
+            {#each group as menu (menu.file)}
+              <button
+                class:active={view === "settings" && currentMenu?.file === menu.file}
+                onclick={() => selectMenu(menu)}
+              >
+                {#if menu.icon}
+                  <span class="menu-icon" title={menu.icon}></span>
+                {/if}
+                {menu.displayname}
+              </button>
+            {/each}
+          {/if}
         {/each}
         {#if sortedMenus.length === 0}
           <p class="muted small">Open a flake to list menus.</p>
@@ -1351,6 +1473,20 @@
               {/if}
               <button
                 class="ghost"
+                onclick={() => checkInputUpdates(["nixpkgs"])}
+                disabled={flakeCheckBusy}
+              >
+                Check
+              </button>
+              <button
+                class="ghost"
+                onclick={() => updateInputs(["nixpkgs"])}
+                disabled={flakeBusy}
+              >
+                Refresh
+              </button>
+              <button
+                class="ghost"
                 onclick={() => flakeData?.nixpkgs && editInput(flakeData.nixpkgs)}
               >
                 Edit
@@ -1361,6 +1497,28 @@
           <p class="muted">No nixpkgs input declared.</p>
         {/if}
       </Panel>
+
+      {#if flakeData?.missing?.length}
+        <Panel
+          title="Missing inputs"
+          description="Declared by an @inputs marker but absent from flake.nix."
+        >
+          <ul class="plain-list">
+            {#each flakeData.missing as input (input.name)}
+              <li>
+                <strong>{input.name}</strong>
+                <span class="muted small mono">{input.url}</span>
+              </li>
+            {/each}
+          </ul>
+          <div class="toolbar">
+            <span class="spacer"></span>
+            <button onclick={addMissingInputs} disabled={flakeBusy}>
+              Declare all
+            </button>
+          </div>
+        </Panel>
+      {/if}
 
       <Panel title="Inputs" description="Top-level flake inputs.">
         {#each (flakeData?.inputs ?? []).filter((input) => input.name !== "nixpkgs") as input (input.name)}
@@ -1373,6 +1531,23 @@
               {/if}
             </div>
             <div class="row-actions">
+              {#if checkLabel(input.name)}
+                <span class="chip muted">{checkLabel(input.name)}</span>
+              {/if}
+              <button
+                class="ghost"
+                onclick={() => checkInputUpdates([input.name])}
+                disabled={flakeCheckBusy}
+              >
+                Check
+              </button>
+              <button
+                class="ghost"
+                onclick={() => updateInputs([input.name])}
+                disabled={flakeBusy}
+              >
+                Update
+              </button>
               <button class="ghost" onclick={() => editInput(input)}>Edit</button>
               <button class="ghost" onclick={() => deleteInput(input.name)}>
                 Delete
@@ -1535,6 +1710,14 @@
                   onchange={onChange}
                   expandDetails={expandDetailsDefault}
                 />
+                {#if record.widget === "font"}
+                  <p
+                    class="font-preview"
+                    style={`font-family: "${String(values[record.path] ?? "").replaceAll('"', "")}", sans-serif`}
+                  >
+                    The quick brown fox jumps over the lazy dog · 0123456789
+                  </p>
+                {/if}
                 {#if record.widget === "wallpaper" || record.widget === "file" || record.widget === "icon"}
                   <MediaPicker
                     {record}
