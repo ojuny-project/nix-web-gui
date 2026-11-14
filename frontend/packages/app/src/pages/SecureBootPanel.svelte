@@ -5,10 +5,19 @@
 
   export let csrf: string;
   export let configured: boolean;
+  export let file: string;
+  export let origin: string;
+  export let root: string;
 
   let status: SecureBootStatus | null = null;
   let busy = false;
+  let actionBusy = false;
   let error = "";
+  let output: string[] = [];
+  let keyAction = "keep";
+  let microsoft = true;
+  let firmwareBuiltin = false;
+  let configBlock = "";
 
   onMount(load);
 
@@ -25,6 +34,94 @@
       error = cause instanceof Error ? cause.message : "Cannot read Secure Boot";
     } finally {
       busy = false;
+    }
+  }
+
+  async function prepare() {
+    if (
+      keyAction === "create" &&
+      !confirm("Generate a new key bundle in /var/lib/sbctl?")
+    ) {
+      return;
+    }
+    actionBusy = true;
+    error = "";
+    try {
+      const result = await rpc<{ output: string[] }>(
+        "secureboot.setup",
+        { keyAction, microsoft, firmwareBuiltin },
+        csrf,
+      );
+      output = result.output;
+      await load();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot prepare keys";
+    } finally {
+      actionBusy = false;
+    }
+  }
+
+  async function writeConfig() {
+    actionBusy = true;
+    error = "";
+    try {
+      const result = await rpc<{ written: string[] }>(
+        "secureboot.writeConfig",
+        { file, origin },
+        csrf,
+      );
+      output = result.written.length
+        ? result.written.map((line) => `wrote: ${line}`)
+        : ["The module already declares every Lanzaboote setting."];
+      await load();
+    } catch (cause) {
+      error =
+        cause instanceof Error ? cause.message : "Cannot write the configuration";
+    } finally {
+      actionBusy = false;
+    }
+  }
+
+  async function rebuild() {
+    if (!confirm("Run the configured rebuild command now?")) return;
+    actionBusy = true;
+    error = "";
+    try {
+      const result = await rpc<{ output: string }>(
+        "secureboot.rebuild",
+        { root },
+        csrf,
+      );
+      output = [result.output];
+      await load();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Rebuild failed";
+    } finally {
+      actionBusy = false;
+    }
+  }
+
+  async function reboot() {
+    if (!confirm("Reboot the machine now?")) return;
+    actionBusy = true;
+    error = "";
+    try {
+      await rpc("secureboot.reboot", { confirm: true }, csrf);
+      output = ["Reboot requested."];
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Reboot failed";
+    } finally {
+      actionBusy = false;
+    }
+  }
+
+  async function showConfig() {
+    try {
+      const result = await rpc<{ block: string }>("secureboot.config", {}, csrf);
+      configBlock = result.block;
+    } catch (cause) {
+      error =
+        cause instanceof Error ? cause.message : "Cannot read the config block";
     }
   }
 
@@ -83,9 +180,56 @@
         {/each}
       </ul>
     {/if}
+
+    <h3>Setup options</h3>
+    <div class="input-form">
+      <label>
+        <span>Keys</span>
+        <select bind:value={keyAction}>
+          <option value="keep">Keep existing keys</option>
+          <option value="create">Generate new keys</option>
+          <option value="migrate">Migrate /etc/secureboot</option>
+        </select>
+      </label>
+      <label class="inline">
+        <input type="checkbox" bind:checked={microsoft} />
+        <span>Include Microsoft keys</span>
+      </label>
+      <label class="inline">
+        <input type="checkbox" bind:checked={firmwareBuiltin} />
+        <span>Include firmware builtin keys</span>
+      </label>
+    </div>
+
+    <div class="toolbar">
+      <button class="ghost" onclick={showConfig}>Show config block</button>
+      <button class="ghost" onclick={prepare} disabled={actionBusy}>
+        Prepare or enroll keys
+      </button>
+      <button class="ghost" onclick={writeConfig} disabled={actionBusy}>
+        Write configuration
+      </button>
+      <button class="ghost" onclick={rebuild} disabled={actionBusy}>
+        Rebuild
+      </button>
+      <span class="spacer"></span>
+      <button class="ghost" onclick={reboot} disabled={actionBusy}>
+        Reboot
+      </button>
+    </div>
+
+    {#if configBlock}
+      <pre class="diff">{configBlock}</pre>
+    {/if}
+    {#if output.length}
+      <pre class="diff">{output.join("\n")}</pre>
+    {/if}
+
     <p class="muted small">
-      Setup actions that create keys, enroll keys, rebuild, or reboot are not
-      exposed yet. They need the privileged re-authentication flow.
+      Firmware steps stay manual: reset to Setup Mode before enrolling, then
+      enable Secure Boot without resetting the keys. Key creation, enrollment,
+      the Lanzaboote configuration, and the rebuild run from the root service
+      account.
     </p>
   {/if}
 </Panel>

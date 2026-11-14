@@ -109,14 +109,17 @@ feature and hardening gaps.
 
 ### Secure Boot
 
-- [ ] Setup flow stages: keys, config, rebuild, clear keys, enroll, enable,
-      verify, done.
-- [ ] Key creation and migration from `/etc/secureboot`.
-- [ ] Lanzaboote input and configuration writes.
-- [ ] Enrollment marker only after successful `sbctl enroll-keys`.
-- [ ] Repair keys action.
-- [ ] Privileged re-authentication and `sudo -S` for setup actions.
-- [ ] Streamed rebuild output and reboot guidance.
+- [x] Setup flow stages: keys, config, rebuild, clear keys, enroll, enable,
+      verify, done. The stage is derived from live state and shown in the panel.
+- [x] Key creation and migration from `/etc/secureboot`.
+- [x] Lanzaboote configuration writes. The flake input itself still needs to be
+      added from the Flake Inputs page.
+- [x] Enrollment marker only after successful `sbctl enroll-keys`.
+- [x] Re-enroll through the same prepare action when the stage is Enroll.
+- [ ] Per-action privileged re-authentication. Setup actions instead require the
+      root service account and fail clearly outside it.
+- [ ] Streamed rebuild output. The full output is returned when the command
+      finishes.
 
 ## Ojuny widgets and minimal variant
 

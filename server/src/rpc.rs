@@ -185,6 +185,13 @@ pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
             Ok(secureboot::status(configured))
         }
         "secureboot.config" => Ok(json!({ "block": secureboot::config_block() })),
+        "secureboot.writeConfig" => with_settings(session, |settings| {
+            let file = string_param(&params, "file");
+            let origin = string_param(&params, "origin");
+            secureboot::apply_config(settings, &file, &origin)
+                .map(|written| json!({ "written": written }))
+                .map_err(|error| (-32012, error))
+        }),
         "preview.list" => with_settings(session, |settings| {
             let path = string_param(&params, "path");
             preview::list(settings, &path).map_err(|error| (-32011, error))

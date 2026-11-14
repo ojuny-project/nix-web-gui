@@ -230,7 +230,7 @@ async fn rpc(
         "jsonrpc": "2.0",
         "id": request_id.clone(),
         "method": method.clone(),
-        "params": request.params,
+        "params": request.params.clone(),
     });
 
     let response = if method == "system.ping" {
@@ -249,6 +249,19 @@ async fn rpc(
                 "ojunyWidgets": cfg!(feature = "ojuny-widgets"),
             },
         })
+    } else if let Some(result) = secureboot_action(&method, &request.params) {
+        match result {
+            Ok(value) => json!({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": value,
+            }),
+            Err(message) => json!({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": { "code": -32012, "message": message },
+            }),
+        }
     } else {
         match &state.engine {
             EngineMode::InProcess(settings) => {
@@ -283,6 +296,43 @@ async fn rpc(
     };
 
     Ok(Json(response))
+}
+
+fn secureboot_action(method: &str, params: &Value) -> Option<Result<Value, String>> {
+    match method {
+        "secureboot.setup" => Some(nix_web_gui_engine::secureboot::setup(
+            params
+                .get("keyAction")
+                .and_then(Value::as_str)
+                .unwrap_or("keep"),
+            params
+                .get("microsoft")
+                .and_then(Value::as_bool)
+                .unwrap_or(true),
+            params
+                .get("firmwareBuiltin")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        )),
+        "secureboot.rebuild" => {
+            let root = params.get("root").and_then(Value::as_str).unwrap_or_default();
+            if root.is_empty() {
+                return Some(Err("root is required".to_string()));
+            }
+            Some(
+                nix_web_gui_engine::secureboot::rebuild(root)
+                    .map(|output| json!({ "output": output })),
+            )
+        }
+        "secureboot.reboot" => Some(
+            if params.get("confirm").and_then(Value::as_bool) == Some(true) {
+                nix_web_gui_engine::secureboot::reboot().map(|_| json!({ "rebooting": true }))
+            } else {
+                Err("reboot requires confirm: true".to_string())
+            },
+        ),
+        _ => None,
+    }
 }
 
 async fn events(

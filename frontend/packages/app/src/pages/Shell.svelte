@@ -1524,6 +1524,9 @@
                 <SecureBootPanel
                   csrf={user.csrf}
                   configured={Boolean(values[record.path])}
+                  file={record.file}
+                  origin={record.origin ?? ""}
+                  {root}
                 />
               {:else}
                 <Control

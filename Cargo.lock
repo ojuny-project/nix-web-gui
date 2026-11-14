@@ -1254,6 +1254,7 @@ name = "nix-web-gui-engine"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "libc",
  "nix-settings-gui",
  "rnix",
  "serde",
