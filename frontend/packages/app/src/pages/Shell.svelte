@@ -134,6 +134,8 @@
   ];
 
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  const pendingApplies = new Map<string, string>();
+  let applyRunning = false;
   let pageToken = 0;
   let fontEntries: StyleEntry[] = [];
   let iconEntries: StyleEntry[] = [];
@@ -913,6 +915,17 @@
     return addableWidgets.has(record.widget ?? "") && dirty.size === 0;
   }
 
+  function canRenameRow(record: ScanRecord): boolean {
+    const parent = parentOf(record);
+    return Boolean(
+      parent &&
+        addableWidgets.has(parent.widget ?? "") &&
+        parent.widget !== "submodule" &&
+        parent.widget !== "horizontal-submodule" &&
+        dirty.size === 0,
+    );
+  }
+
   function canRemoveRow(record: ScanRecord): boolean {
     const parent = parentOf(record);
     return Boolean(
@@ -973,6 +986,26 @@
       error = cause instanceof Error ? cause.message : "Cannot add the row";
     } finally {
       structureBusy = false;
+    }
+  }
+
+  async function renameStructureRow(record: ScanRecord) {
+    const parent = parentOf(record);
+    if (!parent) return;
+    const current = record.path.split(".").at(-1) ?? "";
+    const next = prompt("New row name", current);
+    if (!next || next === current) return;
+    error = "";
+    try {
+      await rpc(
+        "structure.rename",
+        { parent: parent.path, child: record.path, key: next },
+        user.csrf,
+      );
+      status = `Renamed ${current} to ${next}`;
+      await reloadStructure();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot rename the row";
     }
   }
 
@@ -1121,6 +1154,34 @@
     return result;
   }
 
+  function scheduleApply(path: string, literal: string) {
+    pendingApplies.set(path, literal);
+    void flushApplies();
+  }
+
+  async function flushApplies() {
+    if (applyRunning) return;
+    applyRunning = true;
+    try {
+      while (pendingApplies.size > 0) {
+        const [path, literal] = pendingApplies.entries().next().value as [
+          string,
+          string,
+        ];
+        pendingApplies.delete(path);
+        try {
+          await rpc("apply.run", { path, value: literal }, user.csrf);
+          status = `Applied ${path}`;
+        } catch (cause) {
+          error =
+            cause instanceof Error ? cause.message : "Cannot apply the value";
+        }
+      }
+    } finally {
+      applyRunning = false;
+    }
+  }
+
   function onChange(path: string, value: ControlValue) {
     values = { ...values, [path]: value };
     dirty = new Set(dirty).add(path);
@@ -1156,8 +1217,7 @@
               dirty = new Set(dirty).add(staged.packagePath);
             }
             if (record.applyCommand && liveApply) {
-              await rpc("apply.run", { path, value: staged.value }, user.csrf);
-              status = `Applied ${path}`;
+              scheduleApply(path, staged.value);
             }
           } catch (cause) {
             error =
@@ -1788,11 +1848,24 @@
                     </button>
                   </div>
                 {/if}
-                {#if canRemoveRow(record)}
+                {#if canRenameRow(record) || canRemoveRow(record)}
                   <div class="inline-actions">
-                    <button class="ghost" onclick={() => removeStructureRow(record)}>
-                      Remove row
-                    </button>
+                    {#if canRenameRow(record)}
+                      <button
+                        class="ghost"
+                        onclick={() => renameStructureRow(record)}
+                      >
+                        Rename
+                      </button>
+                    {/if}
+                    {#if canRemoveRow(record)}
+                      <button
+                        class="ghost"
+                        onclick={() => removeStructureRow(record)}
+                      >
+                        Remove row
+                      </button>
+                    {/if}
                   </div>
                 {/if}
               {/if}

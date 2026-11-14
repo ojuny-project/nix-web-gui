@@ -443,11 +443,63 @@ impl SettingsSession {
         if edits.is_empty() {
             return Ok(0);
         }
+        let package_errors = self.package_errors();
+        if !package_errors.is_empty() {
+            return Err(format!(
+                "package validation failed; nothing written:\n{}",
+                package_errors.join("\n")
+            ));
+        }
+        let user_errors = self.user_errors();
+        if !user_errors.is_empty() {
+            return Err(format!(
+                "user validation failed; nothing written:\n{}",
+                user_errors.join("\n")
+            ));
+        }
         self.verify_unchanged(&edits)?;
         let files = edit::apply(&edits, &self.root)?;
         self.staged.clear();
         self.reload()?;
         Ok(files)
+    }
+
+    /// Ask nixd whether each staged package expression resolves. Missing nixd
+    /// infrastructure is not a save failure; real diagnostics are.
+    fn package_errors(&self) -> Vec<String> {
+        let checks: Vec<(String, String)> = self
+            .staged
+            .iter()
+            .filter_map(|(path, value)| {
+                let record = self.record(path)?;
+                match crate::render::choose_widget(record, None) {
+                    WidgetKind::Package | WidgetKind::Packages => {
+                        Some((path.clone(), format!("with pkgs; {value}")))
+                    }
+                    _ => None,
+                }
+            })
+            .collect();
+        if checks.is_empty() {
+            return Vec::new();
+        }
+        nix_settings_gui::nixd::query_errors(Some(&self.root), checks, |_, _| {})
+            .unwrap_or_default()
+    }
+
+    /// Validate every `users` widget before saving. Mirrors the desktop
+    /// invariant: one normal account must keep sudo privileges and a password.
+    fn user_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        for record in self
+            .records()
+            .filter(|record| record.spec.widget == Some(WidgetKind::Users))
+        {
+            if let Some(error) = validate_users(record, &self.staged) {
+                errors.push(error);
+            }
+        }
+        errors
     }
 
     /// Add one row to an attribute-set or list composite widget such as users,
@@ -495,7 +547,128 @@ impl SettingsSession {
         self.reload()
     }
 
-    /// Remove one child from an attribute-set or list composite widget.
+    /// Rename one row of a composite attribute set. For the users widget the
+    /// matching `home-manager.users` entry is renamed in the same batch.
+    pub fn rename_child(
+        &mut self,
+        parent_path: &str,
+        child_path: &str,
+        new_key: &str,
+    ) -> Result<(), String> {
+        if !self.staged.is_empty() {
+            return Err("save or discard staged changes before renaming a row".to_string());
+        }
+        let new_key = new_key.trim();
+        if new_key.is_empty() {
+            return Err("row key is required".to_string());
+        }
+        let parent = self
+            .record(parent_path)
+            .cloned()
+            .ok_or_else(|| format!("unknown option path: {parent_path}"))?;
+        let widget = crate::render::choose_widget(&parent, None);
+        if widget == WidgetKind::Users && !valid_account_name(new_key) {
+            return Err(format!("{new_key:?} is not a valid account name"));
+        }
+        let new_attr = crate::structure::attr_path(new_key)?;
+        let parent_segments = parent.path_segments().to_vec();
+        let child_segments: Vec<String> = child_path
+            .split('.')
+            .filter(|segment| !segment.is_empty())
+            .map(str::to_string)
+            .collect();
+        let Some(relative) = child_segments.strip_prefix(parent_segments.as_slice()) else {
+            return Err("the row is not inside the selected widget".to_string());
+        };
+        if relative.len() != 1 {
+            return Err("only a direct row of the widget can be renamed".to_string());
+        }
+        let old_key = relative[0].clone();
+        let candidates = scan::scan_value_direct(&parent.value);
+        if candidates
+            .iter()
+            .any(|candidate| candidate.segments == [new_key.to_string()])
+        {
+            return Err(format!("{new_key} already exists in this list"));
+        }
+        let child = candidates
+            .into_iter()
+            .find(|candidate| candidate.segments == relative)
+            .ok_or_else(|| "cannot locate the row value".to_string())?;
+
+        let text = std::fs::read_to_string(&parent.file)
+            .map_err(|error| format!("cannot read {}: {error}", parent.file))?;
+        let start_absolute = parent.byte_start + child.byte_start;
+        let end_absolute = parent.byte_start + child.byte_end;
+        let (assignments, _) = scan::sibling_assignments(&text, parent.byte_start, parent.byte_end)
+            .ok_or_else(|| "cannot locate the widget assignment".to_string())?;
+        let (child_assignments, _) = scan::sibling_assignments(&text, start_absolute, end_absolute)
+            .ok_or_else(|| "cannot locate the row assignment".to_string())?;
+        let assignment = child_assignments
+            .iter()
+            .filter(|assignment| {
+                assignment.value_start <= start_absolute && assignment.value_end >= end_absolute
+            })
+            .min_by_key(|assignment| assignment.value_end - assignment.value_start)
+            .ok_or_else(|| "cannot locate the row assignment".to_string())?;
+        let old_text = text
+            .get(assignment.full_start..assignment.full_end)
+            .ok_or_else(|| "cannot read the row assignment".to_string())?;
+        let equals = old_text
+            .find('=')
+            .ok_or_else(|| "cannot parse the row assignment".to_string())?;
+        let renamed = format!("{} {}", new_attr, &old_text[equals..]);
+        let mut edits = vec![edit::PendingEdit {
+            file: parent.file.clone(),
+            start: assignment.full_start,
+            end: assignment.full_end,
+            value: renamed,
+        }];
+
+        if widget == WidgetKind::Users {
+            if let Some(home) = assignments.iter().find(|assignment| {
+                assignment.segments.len() == 2
+                    && matches!(assignment.segments[0].as_str(), "home-manager" | "homeManager")
+                    && assignment.segments[1] == "users"
+            }) {
+                if let Some(home_child) = scan::scan_value_direct(&home.value)
+                    .into_iter()
+                    .find(|candidate| candidate.segments == [old_key.clone()])
+                {
+                    let home_start = home.value_start + home_child.byte_start;
+                    let home_end = home.value_start + home_child.byte_end;
+                    if let Some((home_assignments, _)) =
+                        scan::sibling_assignments(&text, home_start, home_end)
+                    {
+                        if let Some(home_assignment) = home_assignments.iter().find(|assignment| {
+                            assignment.value_start <= home_start
+                                && assignment.value_end >= home_end
+                        }) {
+                            if let Some(home_text) = text.get(
+                                home_assignment.full_start..home_assignment.full_end,
+                            ) {
+                                if let Some(home_equals) = home_text.find('=') {
+                                    edits.push(edit::PendingEdit {
+                                        file: parent.file.clone(),
+                                        start: home_assignment.full_start,
+                                        end: home_assignment.full_end,
+                                        value: format!(
+                                            "{} {}",
+                                            new_attr,
+                                            &home_text[home_equals..]
+                                        ),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        edit::apply(&edits, &self.root)?;
+        self.reload()
+    }
     pub fn remove_child(&mut self, parent_path: &str, child_path: &str) -> Result<(), String> {
         if !self.staged.is_empty() {
             return Err("save or discard staged changes before removing a row".to_string());
@@ -633,6 +806,110 @@ fn resolve_dependency<'a>(values: &'a HashMap<String, String>, path: &str) -> Op
         .or_else(|| values.get(&format!("config.{path}")))
         .or_else(|| path.strip_prefix("config.").and_then(|rest| values.get(rest)))
         .map(String::as_str)
+}
+
+fn validate_users(record: &Record, staged: &HashMap<String, String>) -> Option<String> {
+    let users = scan::scan_value_direct(&record.value);
+    if users.is_empty() {
+        return Some("At least one user is required.".to_string());
+    }
+    let mut names = HashSet::new();
+    let mut uids = HashMap::new();
+    let mut admin = false;
+    for user in &users {
+        let name = user.segments.last()?.trim().to_string();
+        if !valid_account_name(&name) {
+            return Some(format!(
+                "User name {name:?} is invalid. Use letters, digits, underscores, dots, and dashes, starting with a letter or underscore."
+            ));
+        }
+        if !names.insert(name.clone()) {
+            return Some(format!("User names must be unique; {name} is repeated."));
+        }
+        let fields = scan::scan_value_direct(&user.value);
+        let field = |key: &str| -> Option<String> {
+            let path = format!("{}.{}.{}", record.path(), name, key);
+            staged.get(&path).cloned().or_else(|| {
+                fields
+                    .iter()
+                    .find(|field| field.segments.len() == 1 && field.segments[0] == key)
+                    .map(|field| field.value.clone())
+            })
+        };
+        if let Some(uid) = field("uid").map(|value| value.trim().to_string()) {
+            if !uid.is_empty() {
+                match uid.parse::<u32>() {
+                    Ok(0) | Err(_) => {
+                        return Some(format!("UID for {name} must be a positive number."));
+                    }
+                    Ok(uid) => {
+                        if let Some(other) = uids.insert(uid, name.clone()) {
+                            return Some(format!("UID {uid} is used by both {other} and {name}."));
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(shell) = field("shell") {
+            let shell = shell.trim();
+            if !shell.is_empty() && shell != "null" && !shell.starts_with("pkgs.") {
+                return Some(format!(
+                    "Shell for {name} must be a pkgs.* package expression, for example pkgs.zsh."
+                ));
+            }
+        }
+        let normal = field("isNormalUser").map(|value| value.trim() == "true").unwrap_or(false);
+        let groups = field("extraGroups")
+            .map(|value| {
+                nix_settings_gui::value::list_items(&value)
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|item| unquote(item))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let sudo = groups.iter().any(|group| group == "wheel" || group == "sudo");
+        let password = field("hashedPassword")
+            .map(|value| {
+                let value = value.trim();
+                !value.is_empty() && value != "null" && value != "\"\""
+            })
+            .unwrap_or(false);
+        if normal && sudo && password {
+            admin = true;
+        }
+    }
+    if !admin {
+        return Some(
+            "At least one normal user with sudo privileges and a configured password is required."
+                .to_string(),
+        );
+    }
+    None
+}
+
+fn valid_account_name(name: &str) -> bool {
+    let mut characters = name.chars();
+    match characters.next() {
+        Some(first) if first.is_ascii_alphabetic() || first == '_' => {}
+        _ => return false,
+    }
+    characters.all(|character| {
+        character.is_ascii_alphanumeric() || matches!(character, '_' | '.' | '-')
+    })
+}
+
+fn unquote(value: &str) -> String {
+    let text = value.trim();
+    if text.len() >= 2 && text.starts_with('"') && text.ends_with('"') {
+        text[1..text.len() - 1]
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\")
+    } else if text.starts_with("''") && text.ends_with("''") && text.len() >= 4 {
+        text[2..text.len() - 2].to_string()
+    } else {
+        text.to_string()
+    }
 }
 
 fn is_composite_widget(widget: WidgetKind) -> bool {
@@ -860,7 +1137,7 @@ mod tests {
         let file = root.join("modules/system.nix");
         std::fs::write(
             &file,
-            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"users\"; label = \"Users\"; */\n  users.users = {\n    alice = { isNormalUser = true; };\n  };\n  /* @option widget = \"keybinds\"; label = \"Binds\"; */\n  keybinds = {\n    reload = { modifier = [ \"Mod4\" ]; keys = [ \"r\" ]; };\n  };\n}\n",
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"users\"; label = \"Users\"; */\n  users.users = {\n    alice = { isNormalUser = true; };\n  };\n  /* @option widget = \"keybinds\"; label = \"Binds\"; */\n  keybinds = {\n    reload = { modifier = [ \"Mod4\" ]; keys = [ \"r\" ]; };\n  };\n  home-manager.users = {\n    alice = { home.stateVersion = \"24.05\"; };\n  };\n}\n",
         )
         .unwrap();
 
@@ -877,10 +1154,51 @@ mod tests {
         assert!(!saved.contains("bob ="));
         assert!(saved.contains("alice ="));
 
+        session
+            .rename_child("users.users", "users.users.alice", "alicia")
+            .unwrap();
+        let saved = std::fs::read_to_string(&file).unwrap();
+        assert!(saved.matches("alicia =").count() >= 2);
+        assert!(!saved.contains("alice ="));
+
         session.add_child("keybinds", "terminal", None).unwrap();
         let saved = std::fs::read_to_string(&file).unwrap();
         assert!(saved.contains("terminal ="));
         assert!(saved.contains("modifier = [ ];"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn validates_the_users_invariant() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-users-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules")).unwrap();
+        let file = root.join("modules/system.nix");
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"users\"; label = \"Users\"; */\n  users.users = {\n    alice = {\n      isNormalUser = true;\n      extraGroups = [ \"wheel\" \"networkmanager\" ];\n      hashedPassword = \"$y$abc\";\n    };\n  };\n  /* @option widget = \"text\"; label = \"Hostname\"; */\n  networking.hostName = \"vm\";\n}\n",
+        )
+        .unwrap();
+
+        let mut session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        session
+            .describe_page_local(&file.display().to_string())
+            .unwrap();
+        session
+            .set("users.users.alice.hashedPassword", "null")
+            .unwrap();
+        let error = session.apply().unwrap_err();
+        assert!(error.contains("sudo privileges"), "{error}");
+        assert!(std::fs::read_to_string(&file).unwrap().contains("$y$abc"));
+
+        session
+            .set("users.users.alice.hashedPassword", "\"$y$ok\"")
+            .unwrap();
+        session.set("networking.hostName", "\"saved\"").unwrap();
+        assert_eq!(session.apply().unwrap(), 1);
         let _ = std::fs::remove_dir_all(root);
     }
 

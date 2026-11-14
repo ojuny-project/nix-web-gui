@@ -430,6 +430,15 @@ pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
                 .map(|_| json!({ "removed": true }))
                 .map_err(|error| (-32012, error))
         }),
+        "structure.rename" => with_settings(session, |settings| {
+            let parent = string_param(&params, "parent");
+            let child = string_param(&params, "child");
+            let key = string_param(&params, "key");
+            settings
+                .rename_child(&parent, &child, &key)
+                .map(|_| json!({ "renamed": true }))
+                .map_err(|error| (-32012, error))
+        }),
         "monitor.detect" => Ok(nix_web_gui_engine::structure::detect_monitors()),
         "insert.apply" => with_settings(session, |settings| {
             let file = string_param(&params, "file");

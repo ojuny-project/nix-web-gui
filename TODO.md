@@ -52,16 +52,16 @@ feature and hardening gaps.
 ### Users
 
 - [ ] Dedicated account cards instead of the generic nested editor.
-- [x] Add and remove users through the generic structure editor. Rename
-      handling is still pending.
-- [ ] Validate account names, group names, UIDs, shells, and the invariant that
-      at least one normal sudo account with a password remains.
-- [ ] Set a password when `hashedPassword` is missing. New users are created
+- [x] Add, remove, and rename users through the generic structure editor.
+- [x] Validate account names, UIDs, shells, and the invariant that at least one
+      normal sudo account with a password remains.
+- [x] Set a password when `hashedPassword` is missing. New users are created
       with `hashedPassword = null` so the existing password action can fill it.
-- [ ] Edit description, extra groups, UID, shell, SSH keys, and extra options.
-- [ ] Follow `home-manager.users` on rename, add, and remove when
-      `homeManager = true`.
-- [ ] Separate sudo switch.
+- [x] Edit description, extra groups, UID, shell, SSH keys, and extra options
+      through the generic child controls.
+- [x] Follow `home-manager.users` on rename. Add and remove still need the
+      sibling block update.
+- [ ] Separate sudo switch. Sudo is expressed through `extraGroups`.
 
 ### Wallpaper
 
@@ -146,11 +146,12 @@ feature and hardening gaps.
       evaluates each gate against the staged values and skips hidden controls.
 - [x] Stale-file conflict detection. The session records size and mtime per
       scanned file and rejects a save when an edited file changed on disk.
-- [ ] Package validation through `nixd::query_errors` before save.
+- [x] Package validation through `nixd::query_errors` before save. Missing nixd
+      infrastructure does not block a save.
 - [x] A per-option reset action. Dirty controls show Reset, which calls
       `control.reset` and restores the scanned value.
-- [ ] Apply queue and single-command semantics on the server. The current client
-      debounce can issue overlapping `apply.run` calls.
+- [x] Serial apply queue in the client. One `apply.run` runs at a time and the
+      latest value per path wins.
 - [ ] Streamed scan, update-check, apply, save, and rebuild progress. Only theme
       events use SSE.
 - [ ] Cancellation for update checks, scans, and rebuilds.
