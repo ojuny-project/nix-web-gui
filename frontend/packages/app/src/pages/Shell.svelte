@@ -916,7 +916,9 @@
   function canRemoveRow(record: ScanRecord): boolean {
     const parent = parentOf(record);
     return Boolean(
-      parent && addableWidgets.has(parent.widget ?? "") && dirty.size === 0,
+      parent &&
+        (addableWidgets.has(parent.widget ?? "") || parent.widget === "list") &&
+        dirty.size === 0,
     );
   }
 
@@ -1264,6 +1266,52 @@
     } finally {
       busy = false;
     }
+  }
+
+  async function pickIcon(
+    record: ScanRecord,
+    current: string,
+  ): Promise<string | null> {
+    return new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/png,image/jpeg,image/webp,image/svg+xml,image/gif";
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) {
+          resolve(null);
+          return;
+        }
+        try {
+          const buffer = await file.arrayBuffer();
+          const result = await rpc<{ value: string }>(
+            "preview.upload",
+            {
+              path: record.path,
+              name: file.name,
+              data: toBase64(buffer),
+            },
+            user.csrf,
+          );
+          resolve(result.value);
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : "Cannot upload the icon";
+          resolve(null);
+        }
+      };
+      input.click();
+      void current;
+    });
+  }
+
+  function toBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunk = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
+    }
+    return btoa(binary);
   }
 
   async function setPassword(record: ScanRecord) {
@@ -1709,6 +1757,7 @@
                   value={values[record.path]}
                   onchange={onChange}
                   expandDetails={expandDetailsDefault}
+                  onIconPick={(current) => pickIcon(record, current)}
                 />
                 {#if record.widget === "font"}
                   <p

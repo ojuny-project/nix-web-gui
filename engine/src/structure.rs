@@ -25,12 +25,12 @@ pub fn child_template(
             "{{ label = {}; provider = \"apps\"; }}",
             crate::render::quote(label.unwrap_or("New entry"))
         ),
+        WidgetKind::Plugins => "{ enable = true; }".to_string(),
         WidgetKind::Submodule
         | WidgetKind::HorizontalSubmodule
         | WidgetKind::GridConfiguration
         | WidgetKind::Bar
-        | WidgetKind::Dock
-        | WidgetKind::Plugins => "{ }".to_string(),
+        | WidgetKind::Dock => "{ }".to_string(),
         other => {
             return Err(format!(
                 "{} rows cannot be added from the web editor",

@@ -712,6 +712,16 @@ button.tiny {
   font-size: 0.75rem;
 }
 
+.icon-cell {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.icon-cell input {
+  min-width: 6rem;
+}
+
 .search-input {
   width: min(22rem, 30vw);
   margin-left: 0.75rem;

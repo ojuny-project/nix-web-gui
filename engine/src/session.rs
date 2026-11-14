@@ -240,7 +240,7 @@ impl SettingsSession {
             }
         }
 
-        if is_composite_widget(widget) && depth < 4 {
+        if (is_composite_widget(widget) || is_structured_list(record, widget)) && depth < 6 {
             let children = self.describe_children(record, target, parent_cache, depth + 1);
             if !children.is_empty() {
                 out["children"] = json!(children);
@@ -259,7 +259,14 @@ impl SettingsSession {
     ) -> Vec<Value> {
         let parent_segments = record.path_segments().to_vec();
         let mut out = Vec::new();
-        for mut child in nix_settings_gui::scan::scan_value(&record.value) {
+        let mut children = nix_settings_gui::scan::scan_value(&record.value);
+        if children.is_empty()
+            && nix_settings_gui::value::classify(&record.value)
+                == nix_settings_gui::value::ValueKind::List
+        {
+            children = scan_list_elements(record);
+        }
+        for mut child in children {
             child.byte_start += record.byte_start;
             child.byte_end += record.byte_start;
             if let Some((start, end)) = child.comment_span {
@@ -511,10 +518,9 @@ impl SettingsSession {
         }
 
         let kind = nix_settings_gui::value::classify(&parent.value);
-        let candidates = if kind == nix_settings_gui::value::ValueKind::List {
-            scan::scan_value(&parent.value)
-        } else {
-            scan::scan_value_direct(&parent.value)
+        let candidates = match kind {
+            nix_settings_gui::value::ValueKind::List => scan_list_elements(&parent),
+            _ => scan::scan_value_direct(&parent.value),
         };
         let child = candidates
             .into_iter()
@@ -644,6 +650,63 @@ fn is_composite_widget(widget: WidgetKind) -> bool {
             | WidgetKind::Plugins
             | WidgetKind::Keybinds
     )
+}
+
+/// A list of attribute sets, such as a bar section or dock tile list. A list
+/// of plain strings or expressions keeps its list editor instead.
+fn is_structured_list(record: &Record, widget: WidgetKind) -> bool {
+    if widget != WidgetKind::List
+        || nix_settings_gui::value::classify(&record.value)
+            != nix_settings_gui::value::ValueKind::List
+    {
+        return false;
+    }
+    let parsed = rnix::Root::parse(&record.value);
+    let root = parsed.syntax();
+    root.descendants()
+        .find(|node| node.kind() == rnix::SyntaxKind::NODE_LIST)
+        .map(|list| {
+            list.children().any(|node| {
+                nix_settings_gui::value::classify(node.text().to_string().as_str())
+                    == nix_settings_gui::value::ValueKind::AttrSet
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Elements of a list value as records, so structured list values can be
+/// edited field by field. Annotation scanning never descends into lists; this
+/// helper only exposes existing elements, it does not bind `@option` comments.
+fn scan_list_elements(record: &Record) -> Vec<Record> {
+    use rnix::SyntaxKind;
+    let parsed = rnix::Root::parse(&record.value);
+    let root = parsed.syntax();
+    let Some(list) = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::NODE_LIST)
+    else {
+        return Vec::new();
+    };
+    list.children()
+        .enumerate()
+        .map(|(index, node)| {
+            let range = node.text_range();
+            Record {
+                segments: vec![format!("[{index}]")],
+                option_path: None,
+                file: record.file.clone(),
+                line: 0,
+                col: 0,
+                byte_start: usize::from(range.start()),
+                byte_end: usize::from(range.end()),
+                value: node.text().to_string(),
+                wrapper: None,
+                origin: record.origin.clone(),
+                spec: Default::default(),
+                comment_span: None,
+            }
+        })
+        .collect()
 }
 
 fn discover_target(root: &str) -> Option<Target> {
@@ -818,6 +881,35 @@ mod tests {
         let saved = std::fs::read_to_string(&file).unwrap();
         assert!(saved.contains("terminal ="));
         assert!(saved.contains("modifier = [ ];"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn describes_structured_list_elements() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-list-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules")).unwrap();
+        let file = root.join("modules/system.nix");
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"bar\"; label = \"Bar\"; */\n  bar = {\n    left = [ { id = \"clock\"; } { id = \"battery\"; } ];\n    center = [ \"clock\" ];\n  };\n}\n",
+        )
+        .unwrap();
+
+        let mut session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        let descriptors = session.describe_page_local(&file.display().to_string()).unwrap();
+        let bar = descriptors
+            .iter()
+            .find(|descriptor| descriptor["path"] == "bar")
+            .expect("bar descriptor");
+        assert!(bar["children"].is_array());
+        assert!(session.record("bar.left.[0].id").is_some());
+        assert!(session.record("bar.left.[1].id").is_some());
+        let center = session.record("bar.center").expect("center record");
+        assert!(!is_structured_list(center, WidgetKind::List));
         let _ = std::fs::remove_dir_all(root);
     }
 

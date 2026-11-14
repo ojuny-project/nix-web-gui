@@ -196,6 +196,23 @@ fn media_directory(
                 .clone()
                 .unwrap_or_else(|| FILE_EXTENSIONS.iter().map(|ext| ext.to_string()).collect()),
         ),
+        Some(WidgetKind::TableAttrset | WidgetKind::TableList)
+            if record
+                .spec
+                .column_types
+                .as_ref()
+                .map(|types| types.iter().any(|kind| kind == "icon" || kind == "image"))
+                .unwrap_or(false) =>
+        {
+            (
+                record
+                    .spec
+                    .icon_dir
+                    .clone()
+                    .unwrap_or_else(|| "./icons".to_string()),
+                IMAGE_EXTENSIONS.iter().map(|ext| ext.to_string()).collect(),
+            )
+        }
         _ => return Err("option is not a media picker".to_string()),
     };
 

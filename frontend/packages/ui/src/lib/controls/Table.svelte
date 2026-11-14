@@ -11,6 +11,21 @@
   export let rows: TableRow[] = [];
   export let disabled = false;
   export let onchange: (value: { rows: TableRow[] }) => void;
+  export let onIconPick:
+    | ((current: string) => Promise<string | null>)
+    | undefined = undefined;
+  let picking = false;
+
+  async function pickIcon(row: TableRow, column: string) {
+    if (!onIconPick) return;
+    picking = true;
+    try {
+      const selected = await onIconPick(row.fields[column] ?? "");
+      if (selected != null) updateCell(row, column, selected);
+    } finally {
+      picking = false;
+    }
+  }
 
   let showHidden = false;
   $: visibleRows = showHidden ? rows : rows.filter((row) => !row.hidden);
@@ -120,6 +135,23 @@
                       event.currentTarget.checked ? "true" : "false",
                     )}
                 />
+              {:else if (columnTypes[columnIndex] === "icon" || columnTypes[columnIndex] === "image") && onIconPick}
+                <div class="icon-cell">
+                  <input
+                    value={row.fields[column] ?? ""}
+                    {disabled}
+                    oninput={(event) =>
+                      updateCell(row, column, event.currentTarget.value)}
+                  />
+                  <button
+                    type="button"
+                    class="ghost tiny"
+                    disabled={disabled || picking}
+                    onclick={() => pickIcon(row, column)}
+                  >
+                    Pick
+                  </button>
+                </div>
               {:else if columnTypes[columnIndex] === "dropdown" && choices.length > 0}
                 <select
                   value={row.fields[column] ?? ""}

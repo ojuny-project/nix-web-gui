@@ -22,6 +22,9 @@
   export let value: ControlValue;
   export let onchange: ChangeHandler;
   export let expandDetails = false;
+  export let onIconPick:
+    | ((current: string) => Promise<string | null>)
+    | undefined = undefined;
 
   $: id = `control-${descriptor.path.replaceAll(".", "-")}`;
   $: disabled = descriptor.readonly === true;
@@ -114,6 +117,7 @@
       rows={tableRows}
       {disabled}
       onchange={change}
+      {onIconPick}
     />
   {:else if rawWidgets.has(descriptor.widget)}
     <Textarea

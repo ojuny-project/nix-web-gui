@@ -76,8 +76,8 @@ feature and hardening gaps.
 
 - [x] File picker with the configured `fileDir` and `fileExtensions`.
 - [x] Upload a file, validate size and extension, and stage it with Git.
-- [ ] Icon table-column picker with preview and upload.
-- [ ] Copy and remove operations for icons.
+- [x] Icon table-column picker with upload into the configured `iconDir`.
+- [ ] Icon previews and copy and remove operations for icons.
 - [ ] Preserve the raw expression when a field is not a literal path.
 
 ### Fonts, icons, cursors, theme
@@ -123,12 +123,17 @@ feature and hardening gaps.
 
 ## Ojuny widgets and minimal variant
 
-- [ ] Dedicated menu editor with providers and field help.
+- [ ] Dedicated menu editor with providers and field help. Rows and fields edit
+      through the generic structure editor.
 - [ ] Plugins editor with the DMS registry and declarative settings QML controls.
-- [ ] Bar editor with left, center, right sections, drag or move actions.
-- [ ] Dock editor with widget tiles and extras.
+      Plugin rows can be added and removed; their settings edit generically.
+- [ ] Bar editor with tile add, remove, and move actions. Left, center, and right
+      list fields and tile settings now edit through the structured list view.
+- [ ] Dock editor with tile add and extras. Existing tiles edit as structured
+      list elements.
 - [ ] Grid editor with card canvas, drag, resize, catalog sizes, and profiles.
-- [ ] Docker row editor.
+- [ ] Docker row editor. Rows can be added and removed and fields edit
+      generically.
 - [ ] Tile catalog and `@widget-preset` fields.
 - [ ] Theme, font, icon, and cursor DMS catalogs.
 - [ ] The minimal build currently only marks Ojuny controls unavailable. It has
