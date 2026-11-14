@@ -105,6 +105,18 @@ in
       default = 43200;
       description = "Browser session lifetime.";
     };
+
+    maxSessions = mkOption {
+      type = types.ints.positive;
+      default = 16;
+      description = "Maximum number of live browser sessions. The oldest session is dropped first.";
+    };
+
+    secureCookie = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Always set the Secure flag on the session cookie. Enable this when a TLS reverse proxy terminates HTTPS.";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -141,6 +153,8 @@ in
             --pam-service ${escapeShellArg cfg.pamService} \
             ${flakeArg} \
             --session-ttl-secs ${toString cfg.sessionTtlSeconds} \
+            --max-sessions ${toString cfg.maxSessions} \
+            ${optionalString cfg.secureCookie "--secure-cookie"} \
             ${allowedGroupArgs}
         '';
         User = "root";

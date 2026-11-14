@@ -41,6 +41,15 @@ async fn serve(args: ServeArgs) -> Result<(), Box<dyn Error>> {
     eprintln!("nix-web-gui listening on http://{address}");
 
     let state = build_state(config.clone());
+    let cleanup_state = state.clone();
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(Duration::from_secs(300));
+        loop {
+            tick.tick().await;
+            cleanup_state.sessions.purge_expired();
+            http::purge_stale_engine(&cleanup_state).await;
+        }
+    });
     axum::serve(listener, http::router(state))
         .with_graceful_shutdown(shutdown_signal())
         .await?;
@@ -63,6 +72,8 @@ async fn popout(args: PopoutArgs) -> Result<(), Box<dyn Error>> {
         dev_auth: false,
         dev_password: None,
         session_ttl_secs: 43_200,
+        max_sessions: 16,
+        secure_cookie: false,
     };
     let config = Arc::new(serve_args.into_config());
     let listener = TcpListener::bind(config.listen).await?;
@@ -102,11 +113,14 @@ fn build_state(config: Arc<config::AppConfig>) -> AppState {
         )))
     };
 
+    let sessions = Arc::new(SessionStore::default());
+
     AppState {
         config,
-        sessions: Arc::new(SessionStore::default()),
+        sessions,
         theme,
         engine,
+        throttle: Arc::new(crate::auth::LoginThrottle::new()),
     }
 }
 

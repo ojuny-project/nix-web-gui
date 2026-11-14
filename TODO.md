@@ -166,17 +166,23 @@ feature and hardening gaps.
 
 ## Auth and security
 
-- [ ] Login rate limiting and lockout.
-- [ ] Maximum active sessions and a session cleanup task.
-- [ ] `Secure` cookie flag when the reverse proxy reports HTTPS.
-- [ ] Origin check on mutating requests.
-- [ ] Strict CSP and standard security headers.
+- [x] Login rate limiting and lockout: five failures in five minutes lock an
+      account for five minutes.
+- [x] Maximum active sessions and a cleanup task. The oldest session is dropped
+      beyond the cap, and expired sessions and workers are purged every five
+      minutes.
+- [x] `Secure` cookie flag from `X-Forwarded-Proto: https` or `--secure-cookie`.
+- [x] Origin check on mutating requests. Requests without an Origin header stay
+      usable for CLI clients and are still gated by CSRF.
+- [x] Strict CSP and standard security headers.
 - [ ] Full PAM `system-auth` behavior. The service currently uses explicit
       `pam_unix.so` auth and account lines.
 - [ ] PAM account expiration and multi-factor modules.
-- [ ] Audit log for login, save, Git, apply, rebuild, and privileged actions.
+- [x] Audit log through structured tracing: login success and failure, rate
+      limits, logout, and every RPC method with the account and outcome.
 - [ ] Cross-user file-isolation VM test for bob against alice's flake.
-- [ ] A privileged helper or a documented policy for Secure Boot actions.
+- [x] A documented policy for privileged actions: the service parent runs as
+      root and only fixed engine commands are executed.
 - [ ] TLS is still terminated by a reverse proxy and is not built in.
 - [ ] `allowRemote` remains a gate; production remote exposure still needs the
       hardening above.

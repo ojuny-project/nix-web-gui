@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::extract::{Request, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
@@ -23,6 +23,7 @@ use nix_web_gui_engine::theme::{ThemeState, ThemeStore};
 
 use crate::auth;
 use crate::auth::session::{Session, SessionStore};
+use crate::auth::LoginThrottle;
 use crate::config::AppConfig;
 use crate::rpc;
 use crate::worker_process::Worker;
@@ -41,6 +42,26 @@ pub struct AppState {
     pub sessions: Arc<SessionStore>,
     pub theme: Arc<ThemeStore>,
     pub engine: EngineMode,
+    pub throttle: Arc<LoginThrottle>,
+}
+
+/// Drop per-session engine state whose browser session has expired.
+pub async fn purge_stale_engine(state: &AppState) {
+    let live = state.sessions.ids();
+    match &state.engine {
+        EngineMode::InProcess(settings) => {
+            settings
+                .lock()
+                .await
+                .retain(|id, _| live.contains(id));
+        }
+        EngineMode::Workers(workers) => {
+            workers
+                .lock()
+                .await
+                .retain(|id, _| live.contains(id));
+        }
+    }
 }
 
 pub fn router(state: AppState) -> Router {
@@ -55,6 +76,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/events", get(events))
         .fallback(static_handler)
         .layer(TraceLayer::new_for_http())
+        .layer(axum::middleware::from_fn(security_headers))
         .with_state(state)
 }
 
@@ -72,6 +94,10 @@ impl ApiError {
 
     fn forbidden(message: impl Into<String>) -> Self {
         Self(StatusCode::FORBIDDEN, message.into())
+    }
+
+    fn too_many(message: impl Into<String>) -> Self {
+        Self(StatusCode::TOO_MANY_REQUESTS, message.into())
     }
 }
 
@@ -107,24 +133,42 @@ struct LoginResponse {
 async fn login(
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
     Json(body): Json<LoginRequest>,
 ) -> Result<(CookieJar, Json<LoginResponse>), ApiError> {
+    check_origin(&headers)?;
     let username = body.username.trim();
     if username.is_empty() || body.password.is_empty() {
         return Err(ApiError::bad_request("username and password are required"));
     }
+    if let Some(wait) = state.throttle.check(username) {
+        tracing::warn!(user = %username, "login blocked by rate limit");
+        return Err(ApiError::too_many(format!(
+            "too many failed attempts; try again in {} seconds",
+            wait.as_secs().max(1)
+        )));
+    }
 
-    auth::authenticate(&state.config, username, &body.password)
-        .map_err(|error| ApiError::unauthorized(error.to_string()))?;
+    if let Err(error) = auth::authenticate(&state.config, username, &body.password) {
+        state.throttle.failure(username);
+        tracing::warn!(user = %username, error = %error, "login failed");
+        return Err(ApiError::unauthorized(error.to_string()));
+    }
+    state.throttle.success(username);
 
     state.sessions.purge_expired();
-    let (id, csrf) = state.sessions.create(username, state.config.session_ttl);
+    let (id, csrf) = state
+        .sessions
+        .create(username, state.config.session_ttl, state.config.max_sessions);
+    let secure = state.config.secure_cookie || forwarded_https(&headers);
     let cookie = Cookie::build((COOKIE, id))
         .path("/")
         .http_only(true)
+        .secure(secure)
         .same_site(SameSite::Strict)
         .build();
 
+    tracing::info!(user = %username, "login succeeded");
     Ok((
         jar.add(cookie),
         Json(LoginResponse {
@@ -134,12 +178,75 @@ async fn login(
     ))
 }
 
+fn forwarded_https(headers: &HeaderMap) -> bool {
+    headers
+        .get("x-forwarded-proto")
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.split(',').next().unwrap_or("").trim() == "https")
+        .unwrap_or(false)
+}
+
+/// Reject a mutating request whose Origin does not match the Host it was sent
+/// to. Requests without an Origin header (CLI clients) are allowed because the
+/// CSRF token still gates them.
+fn check_origin(headers: &HeaderMap) -> Result<(), ApiError> {
+    let Some(origin) = headers.get("origin").and_then(|value| value.to_str().ok()) else {
+        return Ok(());
+    };
+    if origin == "null" {
+        return Err(ApiError::forbidden("cross-origin request rejected"));
+    }
+    let origin_authority = origin
+        .parse::<axum::http::Uri>()
+        .ok()
+        .and_then(|uri| uri.authority().map(|authority| authority.to_string()));
+    let host = headers
+        .get("host")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    match (origin_authority, host) {
+        (Some(origin), Some(host)) if origin.eq_ignore_ascii_case(&host) => Ok(()),
+        _ => Err(ApiError::forbidden("cross-origin request rejected")),
+    }
+}
+
+async fn security_headers(
+    request: Request,
+    next: axum::middleware::Next,
+) -> Response {
+    let mut response = next.run(request).await;
+    let headers = response.headers_mut();
+    headers.insert(
+        "content-security-policy",
+        HeaderValue::from_static(
+            "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+        ),
+    );
+    headers.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
+    headers.insert("x-frame-options", HeaderValue::from_static("DENY"));
+    headers.insert("referrer-policy", HeaderValue::from_static("no-referrer"));
+    headers.insert(
+        "permissions-policy",
+        HeaderValue::from_static("geolocation=(), microphone=(), camera=()"),
+    );
+    headers.insert(
+        "cross-origin-opener-policy",
+        HeaderValue::from_static("same-origin"),
+    );
+    response
+}
+
 async fn logout(
     State(state): State<AppState>,
     jar: CookieJar,
+    headers: HeaderMap,
 ) -> Result<(CookieJar, Json<Value>), ApiError> {
+    check_origin(&headers)?;
     if let Some(cookie) = jar.get(COOKIE) {
         let id = cookie.value().to_string();
+        if let Some(session) = state.sessions.get(&id) {
+            tracing::info!(user = %session.username, "logout");
+        }
         state.sessions.remove(&id);
         match &state.engine {
             EngineMode::InProcess(settings) => {
@@ -210,6 +317,7 @@ async fn rpc(
     headers: HeaderMap,
     Json(request): Json<RpcRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    check_origin(&headers)?;
     let id = session_id(&jar).ok_or_else(|| ApiError::unauthorized("not signed in"))?;
     let session = state
         .sessions
@@ -295,6 +403,8 @@ async fn rpc(
         }
     };
 
+    let failed = response.get("error").is_some();
+    tracing::info!(user = %session.username, method = %method, ok = !failed, "rpc");
     Ok(Json(response))
 }
 
@@ -419,10 +529,13 @@ mod tests {
                 dev_auth: true,
                 dev_password: Some("secret".into()),
                 session_ttl: Duration::from_secs(60),
+                max_sessions: 8,
+                secure_cookie: false,
             }),
             sessions: Arc::new(SessionStore::default()),
             theme: ThemeStore::new(theme_path),
             engine: EngineMode::InProcess(Arc::new(AsyncMutex::new(HashMap::new()))),
+            throttle: Arc::new(LoginThrottle::new()),
         }
     }
 
@@ -524,6 +637,78 @@ mod tests {
             .unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
+
+    #[tokio::test]
+    async fn security_headers_are_present() {
+        let response = router(test_state())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response
+            .headers()
+            .get("content-security-policy")
+            .is_some());
+        assert_eq!(
+            response.headers().get("x-frame-options").unwrap(),
+            "DENY"
+        );
+    }
+
+    #[tokio::test]
+    async fn repeated_failures_are_rate_limited() {
+        let app = router(test_state());
+        for _ in 0..5 {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/api/login")
+                        .header("content-type", "application/json")
+                        .body(Body::from(r#"{"username":"den","password":"wrong"}"#))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
+        let blocked = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"username":"den","password":"secret"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(blocked.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    #[tokio::test]
+    async fn cross_origin_login_is_rejected() {
+        let response = router(test_state())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/login")
+                    .header("content-type", "application/json")
+                    .header("host", "127.0.0.1:8787")
+                    .header("origin", "http://evil.example")
+                    .body(Body::from(r#"{"username":"den","password":"secret"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
 }
 
 #[cfg(test)]
@@ -553,10 +738,13 @@ mod engine_tests {
                 dev_auth: true,
                 dev_password: Some("secret".into()),
                 session_ttl: Duration::from_secs(60),
+                max_sessions: 8,
+                secure_cookie: false,
             }),
             sessions: Arc::new(SessionStore::default()),
             theme: ThemeStore::new("/tmp/nix-web-gui-engine-test-theme".into()),
             engine: EngineMode::InProcess(Arc::new(AsyncMutex::new(HashMap::new()))),
+            throttle: Arc::new(LoginThrottle::new()),
         }
     }
 

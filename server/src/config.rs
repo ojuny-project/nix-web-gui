@@ -40,6 +40,10 @@ pub struct ServeArgs {
     pub dev_password: Option<String>,
     #[arg(long, default_value_t = 43_200)]
     pub session_ttl_secs: u64,
+    #[arg(long, default_value_t = 16)]
+    pub max_sessions: usize,
+    #[arg(long)]
+    pub secure_cookie: bool,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -64,6 +68,8 @@ pub struct AppConfig {
     pub dev_auth: bool,
     pub dev_password: Option<String>,
     pub session_ttl: Duration,
+    pub max_sessions: usize,
+    pub secure_cookie: bool,
 }
 
 impl ServeArgs {
@@ -79,6 +85,8 @@ impl ServeArgs {
             dev_auth: self.dev_auth,
             dev_password: self.dev_password,
             session_ttl: Duration::from_secs(self.session_ttl_secs),
+            max_sessions: self.max_sessions,
+            secure_cookie: self.secure_cookie,
         }
     }
 }
