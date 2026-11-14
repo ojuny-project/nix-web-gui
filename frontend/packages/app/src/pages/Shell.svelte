@@ -30,18 +30,24 @@
 
   export let user: User;
   export let onLogout: () => void;
+  export let popout: string | null = null;
 
   let root = "";
   let search = "";
   let menus: ScanMenu[] = [];
   let hosts: string[] = [];
+  let hostname = "";
+  let recentFlakes: string[] = [];
   let systemOnly = false;
   let selectedHost = "";
   let selected = 0;
-  let view: "settings" | "flake" = "settings";
+  let view: "settings" | "flake" | "git" = "settings";
+  let popoutMode = false;
   let records: ScanRecord[] = [];
   let values: Record<string, ControlValue> = {};
+  let originalValues: Record<string, ControlValue> = {};
   let dirty: Set<string> = new Set();
+  let highlightPath = "";
   let advanced = false;
   let busy = false;
   let status = "";
@@ -62,6 +68,9 @@
   let editingName: string | null = null;
   let gitStatus: GitStatus | null = null;
   let gitBusy = false;
+  let gitDiff = "";
+  let gitDiffBusy = false;
+  let commitMessage = "";
   let liveApply = true;
   let autoGitSync = false;
   let expandDetailsDefault = false;
@@ -70,6 +79,7 @@
   let configBusy = false;
   let rebuildCommand = "";
   let terminalCommand = "";
+  let configFlakePath = "";
   let showAddFile = false;
   let fileTemplates: FileTemplate[] = [];
   let addFileKind = "nixos";
@@ -189,6 +199,27 @@
   ).sort(([left], [right]) => left.localeCompare(right)) as Array<
     [string, ScanMenu[]]
   >;
+  $: searchMatches = searchTerm
+    ? sortedMenus
+        .flatMap((menu) =>
+          menu.records
+            .filter(
+              (record) =>
+                (!record.hidden || advanced) &&
+                matchesRecord(record, searchTerm),
+            )
+            .map((record) => ({ menu, record })),
+        )
+        .slice(0, 40)
+    : [];
+
+  function matchesRecord(record: ScanRecord, term: string): boolean {
+    return (
+      record.path.toLowerCase().includes(term) ||
+      (record.label ?? "").toLowerCase().includes(term) ||
+      (record.description ?? "").toLowerCase().includes(term)
+    );
+  }
 
   onMount(() => {
     const syncTheme = () => {
@@ -197,6 +228,8 @@
     syncTheme();
     window.addEventListener("nix-web-gui:theme-change", syncTheme);
     window.addEventListener("keydown", onKeydown);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    popoutMode = Boolean(popout);
 
     loadCatalogs();
     rpc<WebConfig>("config.get", {}, user.csrf)
@@ -218,11 +251,17 @@
 
     getState()
       .then(async (state) => {
-        const initial = state.flake ?? localStorage.getItem("nix-web-gui.root");
+        hostname = state.hostname ?? "";
+        recentFlakes = state.recentFlakes ?? [];
+        const initial =
+          state.flake ??
+          state.configFlake ??
+          localStorage.getItem("nix-web-gui.root");
         if (initial) {
           root = initial;
           await openRoot(initial);
-          if (state.page) selectStartupPage(state.page);
+          if (popout) selectStartupPage(popout);
+          else if (state.page) selectStartupPage(state.page);
         }
       })
       .catch((cause) => {
@@ -232,8 +271,15 @@
     return () => {
       window.removeEventListener("nix-web-gui:theme-change", syncTheme);
       window.removeEventListener("keydown", onKeydown);
+      window.removeEventListener("beforeunload", onBeforeUnload);
     };
   });
+
+  function onBeforeUnload(event: BeforeUnloadEvent) {
+    if (dirty.size === 0) return;
+    event.preventDefault();
+    event.returnValue = "";
+  }
 
   function onKeydown(event: KeyboardEvent) {
     const modifier = event.ctrlKey || event.metaKey;
@@ -398,6 +444,7 @@
       config = await rpc<WebConfig>("config.get", {}, user.csrf);
       rebuildCommand = config.rebuild_command ?? "";
       terminalCommand = config.terminal_command ?? "";
+      configFlakePath = config.flake_path ?? "";
       showConfig = true;
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Cannot read config";
@@ -412,6 +459,7 @@
     try {
       const next: WebConfig = {
         ...config,
+        flake_path: configFlakePath.trim() || null,
         rebuild_command: rebuildCommand.trim() || null,
         terminal_command: terminalCommand.trim() || null,
       };
@@ -461,6 +509,75 @@
       error = cause instanceof Error ? cause.message : "Git sync failed";
     } finally {
       gitBusy = false;
+    }
+  }
+
+  async function openGit() {
+    view = "git";
+    gitDiff = "";
+    await refreshGit();
+  }
+
+  async function gitCommit() {
+    if (!root) return;
+    gitBusy = true;
+    error = "";
+    try {
+      const result = await rpc<{ commit: string }>(
+        "git.commit",
+        { message: commitMessage || "Update settings" },
+        user.csrf,
+      );
+      commitMessage = "";
+      status = `Committed ${result.commit}`;
+      await refreshGit();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Commit failed";
+    } finally {
+      gitBusy = false;
+    }
+  }
+
+  async function gitPush() {
+    if (!root) return;
+    gitBusy = true;
+    error = "";
+    try {
+      const result = await rpc<{ pushed: string }>("git.push", {}, user.csrf);
+      status = `Pushed to ${result.pushed}`;
+      await refreshGit();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Push failed";
+    } finally {
+      gitBusy = false;
+    }
+  }
+
+  async function gitPull() {
+    if (!root) return;
+    gitBusy = true;
+    error = "";
+    try {
+      await rpc("git.pull", {}, user.csrf);
+      status = "Pulled";
+      await refreshGit();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Pull failed";
+    } finally {
+      gitBusy = false;
+    }
+  }
+
+  async function loadGitDiff() {
+    gitDiffBusy = true;
+    error = "";
+    try {
+      const result = await rpc<{ diff: string }>("git.diff", {}, user.csrf);
+      gitDiff = result.diff.trim() ? result.diff : "No working-tree changes.";
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot read the diff";
+    } finally {
+      gitDiffBusy = false;
     }
   }
 
@@ -544,13 +661,16 @@
       const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
       menus = scanned.menus;
       hosts = scanned.hosts ?? [];
-      selectedHost = hosts[0] ?? "";
+      selectedHost = hosts.includes(hostname) ? hostname : hosts[0] ?? "";
       selected = 0;
       view = "settings";
       loadPage();
       localStorage.setItem("nix-web-gui.root", path);
       status = `Opened ${opened.menus} menus, ${opened.records} records`;
       refreshGit();
+      rpc("config.remember", { flake: path }, user.csrf).catch(() => {
+        // A read-only config directory must not block opening a flake.
+      });
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Cannot open the flake";
     } finally {
@@ -583,6 +703,7 @@
     values = Object.fromEntries(
       records.map((record) => [record.path, displayValue(record)]),
     );
+    originalValues = { ...values };
     dirty = new Set();
     showDiff = false;
     pageToken += 1;
@@ -621,6 +742,7 @@
         values = Object.fromEntries(
           records.map((record) => [record.path, displayValue(record)]),
         );
+        originalValues = { ...values };
       })
       .catch(() => {
         // Keep the scanned shape when metadata is unavailable.
@@ -631,6 +753,36 @@
     selected = sortedMenus.findIndex((candidate) => candidate.file === menu.file);
     view = "settings";
     loadPage();
+  }
+
+  function goToMatch(menu: ScanMenu, record: ScanRecord) {
+    selectMenu(menu);
+    highlightPath = record.path;
+    setTimeout(() => {
+      document
+        .getElementById(`control-${record.path.replaceAll(".", "-")}`)
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 150);
+    setTimeout(() => {
+      if (highlightPath === record.path) highlightPath = "";
+    }, 2400);
+  }
+
+  async function resetOption(record: ScanRecord) {
+    try {
+      await rpc("control.reset", { path: record.path }, user.csrf);
+      const original = originalValues[record.path];
+      values = {
+        ...values,
+        [record.path]: original ?? displayValue(record),
+      };
+      const next = new Set(dirty);
+      next.delete(record.path);
+      dirty = next;
+      status = `Reset ${record.label ?? record.path}`;
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot reset the value";
+    }
   }
 
   function displayValue(record: ScanRecord): ControlValue {
@@ -944,33 +1096,35 @@
   }
 </script>
 
-<div class="shell">
+<div class="shell" class:popout={popoutMode}>
   <header class="topbar">
     <div class="title">
       <span class="mark">N</span>
       <span>{root ? root.split("/").at(-1) : "Settings"}</span>
-      <input
-        class="search-input"
-        type="search"
-        bind:value={search}
-        placeholder="Search settings"
-        aria-label="Search settings"
-      />
-      {#if hosts.length}
-        <label class="inline">
-          <input
-            type="checkbox"
-            bind:checked={systemOnly}
-            onchange={applyHostFilter}
-          />
-          <span>System only</span>
-        </label>
-        {#if systemOnly}
-          <select bind:value={selectedHost} onchange={applyHostFilter}>
-            {#each hosts as host (host)}
-              <option value={host}>{host}</option>
-            {/each}
-          </select>
+      {#if !popoutMode}
+        <input
+          class="search-input"
+          type="search"
+          bind:value={search}
+          placeholder="Search settings"
+          aria-label="Search settings"
+        />
+        {#if hosts.length}
+          <label class="inline">
+            <input
+              type="checkbox"
+              bind:checked={systemOnly}
+              onchange={applyHostFilter}
+            />
+            <span>System only</span>
+          </label>
+          {#if systemOnly}
+            <select bind:value={selectedHost} onchange={applyHostFilter}>
+              {#each hosts as host (host)}
+                <option value={host}>{host}</option>
+              {/each}
+            </select>
+          {/if}
         {/if}
       {/if}
     </div>
@@ -981,32 +1135,57 @@
     </div>
   </header>
 
-  <aside class="sidebar">
-    <nav>
-      <button class:active={view === "flake"} onclick={openFlakeInputs}>
-        Flake Inputs
-      </button>
-      <p class="nav-label">Menus</p>
-      {#each menuGroups as [category, group] (category)}
-        {#if category}
-          <p class="nav-label">{category}</p>
-        {/if}
-        {#each group as menu (menu.file)}
-          <button
-            class:active={view === "settings" && currentMenu?.file === menu.file}
-            onclick={() => selectMenu(menu)}
-          >
-            {menu.displayname}
-          </button>
+  {#if !popoutMode}
+    <aside class="sidebar">
+      <nav>
+        <button class:active={view === "flake"} onclick={openFlakeInputs}>
+          Flake Inputs
+        </button>
+        <button class:active={view === "git"} onclick={openGit}>Git</button>
+        <p class="nav-label">Menus</p>
+        {#each menuGroups as [category, group] (category)}
+          {#if category}
+            <p class="nav-label">{category}</p>
+          {/if}
+          {#each group as menu (menu.file)}
+            <button
+              class:active={view === "settings" && currentMenu?.file === menu.file}
+              onclick={() => selectMenu(menu)}
+            >
+              {menu.displayname}
+            </button>
+          {/each}
         {/each}
-      {/each}
-      {#if sortedMenus.length === 0}
-        <p class="muted small">Open a flake to list menus.</p>
-      {/if}
-    </nav>
-  </aside>
+        {#if sortedMenus.length === 0}
+          <p class="muted small">Open a flake to list menus.</p>
+        {/if}
+      </nav>
+    </aside>
+  {/if}
 
   <main class="content">
+    {#if !popoutMode && searchTerm && searchMatches.length}
+      <Panel
+        title={`Search results (${searchMatches.length})`}
+        description="Matches across every menu."
+      >
+        <div class="search-results">
+          {#each searchMatches as match (match.menu.file + ":" + match.record.path)}
+            <button
+              type="button"
+              class="search-result"
+              onclick={() => goToMatch(match.menu, match.record)}
+            >
+              <span>{match.record.label ?? match.record.path}</span>
+              <span class="muted small">
+                {match.menu.displayname} · {match.record.path}
+              </span>
+            </button>
+          {/each}
+        </div>
+      </Panel>
+    {/if}
+
     {#if menus.length === 0}
       <Panel title="Open a flake" description="The directory is scanned for @menu and @option markers.">
         <form
@@ -1018,7 +1197,16 @@
         >
           <label>
             <span>Flake or configuration directory</span>
-            <input bind:value={root} placeholder="/home/den/repos/nixos-configs/dendrite" />
+            <input
+              bind:value={root}
+              list="recent-flakes"
+              placeholder="/home/den/repos/nixos-configs/dendrite"
+            />
+            <datalist id="recent-flakes">
+              {#each recentFlakes as recent (recent)}
+                <option value={recent}></option>
+              {/each}
+            </datalist>
           </label>
           <button type="submit" disabled={busy}>{busy ? "Opening..." : "Open"}</button>
         </form>
@@ -1092,8 +1280,70 @@
           </div>
         </form>
       </Panel>
+    {:else if view === "git"}
+      <Panel
+        title="Git"
+        description="Commit locally or push to the configured upstream."
+      >
+        {#if gitStatus}
+          <div class="git-summary">
+            <span class="chip mono">{gitStatus.branch}</span>
+            <span class="chip muted">{gitStatus.state}</span>
+            <span class="chip muted">{gitStatus.dirty ? "dirty" : "clean"}</span>
+            {#if gitStatus.upstream}
+              <span class="chip muted mono">{gitStatus.upstream}</span>
+            {/if}
+            {#if gitStatus.ahead}
+              <span class="chip">{gitStatus.ahead} ahead</span>
+            {/if}
+            {#if gitStatus.behind}
+              <span class="chip">{gitStatus.behind} behind</span>
+            {/if}
+          </div>
+        {:else}
+          <p class="muted">No git repository information. Open a flake first.</p>
+        {/if}
+        <div class="toolbar">
+          <button class="ghost" onclick={refreshGit} disabled={gitBusy}>
+            Refresh
+          </button>
+          <button class="ghost" onclick={gitPull} disabled={gitBusy}>Pull</button>
+          <button class="ghost" onclick={gitPush} disabled={gitBusy}>Push</button>
+          <span class="spacer"></span>
+          <button class="ghost" onclick={gitSync} disabled={gitBusy}>Sync</button>
+        </div>
+        <form
+          class="input-form"
+          onsubmit={(event) => {
+            event.preventDefault();
+            gitCommit();
+          }}
+        >
+          <label>
+            <span>Commit message</span>
+            <input bind:value={commitMessage} placeholder="Update settings" />
+          </label>
+          <div class="toolbar">
+            <span class="spacer"></span>
+            <button type="submit" disabled={gitBusy || !gitStatus?.dirty}>
+              Commit
+            </button>
+          </div>
+        </form>
+        <div class="toolbar">
+          <button class="ghost" onclick={loadGitDiff} disabled={gitDiffBusy}>
+            {gitDiffBusy ? "Loading..." : "Show diff"}
+          </button>
+        </div>
+        {#if gitDiff}
+          <pre class="diff">{gitDiff}</pre>
+        {/if}
+      </Panel>
     {:else}
-      <Panel title={sortedMenus[selected]?.displayname ?? "Settings"} description={sortedMenus[selected]?.description}>
+      <Panel
+        title={sortedMenus[selected]?.displayname ?? "Settings"}
+        description={sortedMenus[selected]?.description}
+      >
         <div class="toolbar">
           <label class="inline">
             <input type="checkbox" bind:checked={advanced} />
@@ -1117,46 +1367,58 @@
             <h3 class="group-heading">{group.name}</h3>
           {/if}
           {#each group.records as record (record.path)}
-            {#if record.children?.length}
-              <h3
-                class="submodule-heading"
-                style={`margin-left: ${(record.depth ?? 0) * 12}px`}
-              >
-                {record.label ?? record.path}
-              </h3>
-            {:else if record.widget === "secureboot"}
-              <Control
-                descriptor={descriptor(record)}
-                value={values[record.path]}
-                onchange={onChange}
-                expandDetails={expandDetailsDefault}
-              />
-              <SecureBootPanel
-                csrf={user.csrf}
-                configured={Boolean(values[record.path])}
-              />
-            {:else}
-              <Control
-                descriptor={descriptor(record)}
-                value={values[record.path]}
-                onchange={onChange}
-                expandDetails={expandDetailsDefault}
-              />
-              {#if record.widget === "wallpaper" || record.widget === "file" || record.widget === "icon"}
-                <MediaPicker
-                  {record}
-                  csrf={user.csrf}
+            <div
+              class="control-record"
+              class:highlight={highlightPath === record.path}
+            >
+              {#if record.children?.length}
+                <h3
+                  class="submodule-heading"
+                  style={`margin-left: ${(record.depth ?? 0) * 12}px`}
+                >
+                  {record.label ?? record.path}
+                </h3>
+              {:else if record.widget === "secureboot"}
+                <Control
+                  descriptor={descriptor(record)}
+                  value={values[record.path]}
                   onchange={onChange}
+                  expandDetails={expandDetailsDefault}
                 />
+                <SecureBootPanel
+                  csrf={user.csrf}
+                  configured={Boolean(values[record.path])}
+                />
+              {:else}
+                <Control
+                  descriptor={descriptor(record)}
+                  value={values[record.path]}
+                  onchange={onChange}
+                  expandDetails={expandDetailsDefault}
+                />
+                {#if record.widget === "wallpaper" || record.widget === "file" || record.widget === "icon"}
+                  <MediaPicker
+                    {record}
+                    csrf={user.csrf}
+                    onchange={onChange}
+                  />
+                {/if}
+                {#if record.path.endsWith(".hashedPassword")}
+                  <div class="inline-actions">
+                    <button class="ghost" onclick={() => setPassword(record)}>
+                      Set password
+                    </button>
+                  </div>
+                {/if}
+                {#if dirty.has(record.path) && !record.readonly}
+                  <div class="inline-actions">
+                    <button class="ghost" onclick={() => resetOption(record)}>
+                      Reset
+                    </button>
+                  </div>
+                {/if}
               {/if}
-              {#if record.path.endsWith(".hashedPassword")}
-                <div class="password-action">
-                  <button class="ghost" onclick={() => setPassword(record)}>
-                    Set password
-                  </button>
-                </div>
-              {/if}
-            {/if}
+            </div>
           {/each}
         {/each}
 
@@ -1262,6 +1524,19 @@
         <Panel title="Configure" description="The same config file as the desktop settings app.">
           <form class="input-form" onsubmit={saveConfig}>
             <label>
+              <span>Flake path</span>
+              <input
+                bind:value={configFlakePath}
+                list="config-recent-flakes"
+                placeholder="/home/den/repos/nixos-configs/dendrite"
+              />
+              <datalist id="config-recent-flakes">
+                {#each config.recent_flake_paths as recent (recent)}
+                  <option value={recent}></option>
+                {/each}
+              </datalist>
+            </label>
+            <label>
               <span>Rebuild command</span>
               <input bind:value={rebuildCommand} placeholder="sudo nixos-rebuild switch --flake .#host" />
             </label>
@@ -1342,14 +1617,16 @@
     {/if}
   </main>
 
-  <footer class="bottombar">
-    <div class="left">
-      <span class="muted small">{status}</span>
-    </div>
-    <div class="right">
-      <span class="chip muted">{dirty.size} staged</span>
-      <span class="chip muted">{engine}</span>
-      <span class="chip">{schemeById(themeName).name}</span>
-    </div>
-  </footer>
+  {#if !popoutMode}
+    <footer class="bottombar">
+      <div class="left">
+        <span class="muted small">{status}</span>
+      </div>
+      <div class="right">
+        <span class="chip muted">{dirty.size} staged</span>
+        <span class="chip muted">{engine}</span>
+        <span class="chip">{schemeById(themeName).name}</span>
+      </div>
+    </footer>
+  {/if}
 </div>

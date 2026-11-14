@@ -184,6 +184,9 @@ export type PreviewResult = {
 
 export type ServerState = {
   flake: string | null;
+  configFlake?: string | null;
+  recentFlakes?: string[];
+  hostname?: string | null;
   page: string | null;
   auth: "pam" | "dev";
   theme: ThemeState;

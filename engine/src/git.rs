@@ -64,8 +64,48 @@ pub fn pull_ff_only(dir: &str) -> Result<(), String> {
     run_git(dir, &["pull", "--ff-only"]).map(|_| ())
 }
 
+/// Unstaged working-tree diff together with the short status list. Untracked
+/// files appear in the status block because `git diff` cannot show them.
 pub fn diff(dir: &str) -> Result<String, String> {
-    run_git(dir, &["diff", "--stat"])
+    run_git(dir, &["rev-parse", "--is-inside-work-tree"])
+        .map_err(|_| "the flake directory is not a git repository".to_string())?;
+    let status = run_git(dir, &["status", "--porcelain", "--", "."])?;
+    let patch = run_git(dir, &["diff", "--no-color", "--", "."])?;
+    let mut out = String::new();
+    if !status.trim().is_empty() {
+        out.push_str("Status:\n");
+        out.push_str(status.trim_end());
+        out.push_str("\n\n");
+    }
+    out.push_str(&patch);
+    Ok(out)
+}
+
+/// Stage every change under the root and commit it without pushing.
+pub fn commit(dir: &str, message: &str) -> Result<String, String> {
+    if message.trim().is_empty() {
+        return Err("commit message is required".to_string());
+    }
+    run_git(dir, &["rev-parse", "--is-inside-work-tree"])
+        .map_err(|_| "the flake directory is not a git repository".to_string())?;
+    run_git(dir, &["add", "-A", "."])?;
+    run_git(dir, &["commit", "-m", message.trim()])?;
+    Ok(run_git(dir, &["rev-parse", "--short", "HEAD"])?
+        .trim()
+        .to_string())
+}
+
+/// Push the current branch to its configured upstream.
+pub fn push(dir: &str) -> Result<String, String> {
+    run_git(dir, &["rev-parse", "--is-inside-work-tree"])
+        .map_err(|_| "the flake directory is not a git repository".to_string())?;
+    let upstream = run_git(
+        dir,
+        &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+    )
+    .map_err(|_| "no upstream branch is configured".to_string())?;
+    run_git(dir, &["push"])?;
+    Ok(upstream.trim().to_string())
 }
 
 /// Stage the working tree, commit it, and push when the branch is current.
@@ -97,9 +137,8 @@ pub fn sync(dir: &str, message: &str) -> Result<(), String> {
         }
     }
 
-    run_git(dir, &["add", "-A", "."])?;
-    run_git(dir, &["commit", "-m", message.trim()])?;
-    run_git(dir, &["push"])?;
+    commit(dir, message)?;
+    push(dir)?;
     Ok(())
 }
 
@@ -155,5 +194,11 @@ mod tests {
         assert_eq!(classify("2\t0").unwrap(), RemoteState::Current);
         assert_eq!(classify("0\t2").unwrap(), RemoteState::Behind);
         assert_eq!(classify("1\t2").unwrap(), RemoteState::Diverged);
+    }
+
+    #[test]
+    fn rejects_an_empty_commit_message() {
+        assert!(commit("/tmp", "").is_err());
+        assert!(sync("/tmp", "  ").is_err());
     }
 }

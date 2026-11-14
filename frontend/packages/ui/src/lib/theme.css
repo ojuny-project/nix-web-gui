@@ -718,6 +718,63 @@ label {
   padding-bottom: 0.75rem;
 }
 
+.inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+}
+
+.control-record {
+  border-radius: 10px;
+  transition: background 0.35s ease;
+}
+
+.control-record.highlight {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.shell.popout {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "top"
+    "content";
+}
+
+.shell.popout .content {
+  padding: 0.9rem;
+}
+
+.search-results {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0 1rem 1rem;
+}
+
+.search-result {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-weight: 500;
+}
+
+.search-result:hover {
+  background: var(--surface-2);
+}
+
+.git-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0 1.1rem 0.75rem;
+}
+
 .media-picker {
   display: grid;
   gap: 0.5rem;

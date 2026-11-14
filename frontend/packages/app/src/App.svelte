@@ -7,6 +7,8 @@
 
   let user: User | null = null;
   let loading = true;
+  const popoutPage =
+    new URLSearchParams(window.location.search).get("popout") ?? null;
 
   onMount(async () => {
     watchTheme().catch((error) => console.error("theme", error));
@@ -31,7 +33,7 @@
 {#if loading}
   <main class="boot">Loading...</main>
 {:else if user}
-  <Shell {user} {onLogout} />
+  <Shell {user} {onLogout} popout={popoutPage} />
 {:else}
   <Login {onLogin} />
 {/if}

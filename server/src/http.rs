@@ -164,12 +164,23 @@ async fn me(State(state): State<AppState>, jar: CookieJar) -> Result<Json<Value>
 
 async fn get_state(State(state): State<AppState>, jar: CookieJar) -> Result<Json<Value>, ApiError> {
     require_session(&state, &jar)?;
+    let config = nix_web_gui_engine::config::WebConfig::load();
     Ok(Json(json!({
-        "flake": state.config.flake,
+        "flake": state.config.flake.clone().or(config.flake_path.clone()),
+        "configFlake": config.flake_path,
+        "recentFlakes": config.recent_flake_paths,
+        "hostname": hostname(),
         "page": state.config.startup_page,
         "auth": if state.config.dev_auth { "dev" } else { "pam" },
         "theme": state.theme.current(),
     })))
+}
+
+fn hostname() -> Option<String> {
+    std::fs::read_to_string("/etc/hostname")
+        .ok()
+        .map(|text| text.trim().to_string())
+        .filter(|text| !text.is_empty())
 }
 
 fn session_id(jar: &CookieJar) -> Option<String> {

@@ -1,9 +1,8 @@
 # TODO
 
-Missing or partial work in nix-web-gui. The current slice builds, the engine and
-server tests pass, the frontend check and build pass, and the per-user worker VM
-test passes. The minimal package and minimal-flag check are the last verification
-items.
+Missing or partial work in nix-web-gui. The engine, server, frontend, worker VM
+test, minimal package, and minimal-flag check pass. The remaining items below are
+feature and hardening gaps.
 
 ## Verification gaps
 
@@ -11,8 +10,8 @@ items.
       passes: alice login, worker RPC, scan, staged edit, save, wrong-password
       rejection, and bob allowlist rejection.
 - [x] Build the default package through the VM test.
-- [ ] Build the minimal package and run `checks.minimal-flag` against the
-      committed tree.
+- [x] Build the minimal package and run `checks.minimal-flag` against the
+      committed tree. Both pass.
 - [ ] Run the full `nix flake check` matrix.
 - [ ] Add Playwright coverage for login, open, edit, save, diff, add file, add
       option, flake inputs, apply, rebuild, and media selection.
@@ -130,12 +129,13 @@ items.
 
 ## Engine and flows
 
-- [ ] Server-side `visibleWhen` save skipping. The app hides controls, but a
-      staged value that becomes hidden can still be saved.
-- [ ] Stale-file conflict detection. Two tabs or users can overwrite each other.
+- [x] Server-side `visibleWhen` save skipping. `SettingsSession::pending_edits`
+      evaluates each gate against the staged values and skips hidden controls.
+- [x] Stale-file conflict detection. The session records size and mtime per
+      scanned file and rejects a save when an edited file changed on disk.
 - [ ] Package validation through `nixd::query_errors` before save.
-- [ ] A per-option reset/default action in the UI. `control.reset` exists but no
-      control exposes it.
+- [x] A per-option reset action. Dirty controls show Reset, which calls
+      `control.reset` and restores the scanned value.
 - [ ] Apply queue and single-command semantics on the server. The current client
       debounce can issue overlapping `apply.run` calls.
 - [ ] Streamed scan, update-check, apply, save, and rebuild progress. Only theme
@@ -144,10 +144,11 @@ items.
 - [ ] `flake.input.addAll` and the missing-input banner.
 - [ ] Flake input scan buttons and update-check progress in the UI.
 - [ ] Nixpkgs card edit form and pinned-revision refresh.
-- [ ] Separate Git commit and push actions. Only combined sync exists.
-- [ ] Git diff UI. `git.diff` exists but no page renders it.
-- [ ] Config `flake_path` should drive the initial open; it is currently only
-      displayed.
+- [x] Separate Git commit and push actions, with a Git page for status, pull,
+      push, commit, sync, and diff.
+- [x] Git diff UI. `git.diff` returns the status list plus the unstaged patch.
+- [x] Config `flake_path` drives the initial open, updates on open, and is
+      editable in the config panel.
 - [ ] `terminal_command` is unused by the web rebuild path. Document this or
       remove it from the panel.
 - [ ] Rebuild output is returned at the end of a blocking RPC. It is not
@@ -188,14 +189,15 @@ items.
 
 ## Frontend UX
 
-- [ ] `?popout=<page>` detached-page behavior. Only the CLI `--popout` launcher
-      exists.
-- [ ] Unsaved-changes prompt on tab close or navigation.
-- [ ] Conflict prompt after a stale scan.
-- [ ] Global search result navigation and highlight. Search currently filters
-      the current page and menu list.
-- [ ] Automatic current-host detection. The system-only filter relies on a
-      manual host selector.
+- [x] `?popout=<page>` detached-page behavior. The app hides navigation and
+      opens the matching menu when the query parameter is present.
+- [x] Unsaved-changes prompt on tab close.
+- [x] Conflict prompt after a stale scan. The save error names the changed files
+      and asks for a reload.
+- [x] Global search result navigation and highlight. Search lists matches from
+      every menu and jumps to the control.
+- [x] Automatic current-host detection. The matching host is preselected in the
+      system-only selector.
 - [ ] Sectioned Advanced area. Advanced controls are filtered but not grouped.
 - [ ] Menu icons and category collapse.
 - [ ] Responsive and accessibility audit.

@@ -209,6 +209,18 @@ pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
                 .map(|_| json!({ "saved": true }))
                 .map_err(|error| (-32012, error))
         })(),
+        "config.remember" => (|| {
+            let flake = string_param(&params, "flake");
+            if flake.trim().is_empty() {
+                return Err((-32010, "flake is required".to_string()));
+            }
+            let mut config = WebConfig::load();
+            config.remember(flake.trim());
+            config
+                .save()
+                .map(|_| json!({ "remembered": true }))
+                .map_err(|error| (-32012, error))
+        })(),
         "apply.run" => with_settings(session, |settings| {
             let path = string_param(&params, "path");
             let value = string_param(&params, "value");
@@ -244,6 +256,17 @@ pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
             let message = string_param(&params, "message");
             git::sync(&settings.root, &message)
                 .map(|_| json!({ "synced": true }))
+                .map_err(|error| (-32012, error))
+        }),
+        "git.commit" => with_settings(session, |settings| {
+            let message = string_param(&params, "message");
+            git::commit(&settings.root, &message)
+                .map(|commit| json!({ "commit": commit }))
+                .map_err(|error| (-32012, error))
+        }),
+        "git.push" => with_settings(session, |settings| {
+            git::push(&settings.root)
+                .map(|upstream| json!({ "pushed": upstream }))
                 .map_err(|error| (-32012, error))
         }),
         "flake.inputs" => with_settings(session, |settings| {

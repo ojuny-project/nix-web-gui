@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use nix_settings_gui::dsl::WidgetKind;
 use nix_settings_gui::metadata::{self, Target};
@@ -15,6 +15,8 @@ pub struct SettingsSession {
     target_checked: bool,
     descriptors: HashMap<String, Value>,
     child_records: HashMap<String, Record>,
+    /// Size and modification time of every scanned file when it was read.
+    file_fingerprints: HashMap<String, String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -30,6 +32,7 @@ impl SettingsSession {
     pub fn open(root: impl Into<String>) -> Result<Self, String> {
         let root = root.into();
         let scanned = scan::scan_root(&root)?;
+        let file_fingerprints = fingerprints(&scanned);
         Ok(Self {
             root,
             scanned,
@@ -38,11 +41,13 @@ impl SettingsSession {
             target_checked: false,
             descriptors: HashMap::new(),
             child_records: HashMap::new(),
+            file_fingerprints,
         })
     }
 
     pub fn reload(&mut self) -> Result<(), String> {
         self.scanned = scan::scan_root(&self.root)?;
+        self.file_fingerprints = fingerprints(&self.scanned);
         self.target = None;
         self.target_checked = false;
         self.descriptors.clear();
@@ -336,11 +341,20 @@ impl SettingsSession {
     }
 
     pub fn pending_edits(&self) -> Result<Vec<edit::PendingEdit>, String> {
+        let values = self.current_values();
         let mut edits = Vec::new();
         for (path, value) in &self.staged {
             let record = self
                 .record(path)
                 .ok_or_else(|| format!("unknown option path: {path}"))?;
+            if record.spec.readonly {
+                continue;
+            }
+            if let Some(visibility) = &record.spec.visible_when {
+                if !visibility.holds(resolve_dependency(&values, &visibility.path)) {
+                    continue;
+                }
+            }
             edits.push(edit::PendingEdit {
                 file: record.file.clone(),
                 start: record.byte_start,
@@ -349,6 +363,50 @@ impl SettingsSession {
             });
         }
         Ok(edits)
+    }
+
+    /// The value each record would have after the staged edits are written.
+    /// Used to evaluate `visibleWhen` gates on save, so a disabled parent can
+    /// never commit its children's staged values.
+    fn current_values(&self) -> HashMap<String, String> {
+        let mut values = HashMap::new();
+        for record in self.records().chain(self.child_records.values()) {
+            let path = record.path();
+            let value = self
+                .staged
+                .get(&path)
+                .cloned()
+                .unwrap_or_else(|| record.value.clone());
+            values.insert(path, value);
+        }
+        values
+    }
+
+    /// Fail before any write when a file changed on disk after it was scanned.
+    /// Two tabs or two users can then no longer overwrite each other silently.
+    fn verify_unchanged(&self, edits: &[edit::PendingEdit]) -> Result<(), String> {
+        let mut seen = HashSet::new();
+        let mut conflicts = Vec::new();
+        for pending in edits {
+            if !seen.insert(pending.file.clone()) {
+                continue;
+            }
+            let Some(previous) = self.file_fingerprints.get(&pending.file) else {
+                continue;
+            };
+            let current = file_fingerprint(&pending.file);
+            if &current != previous {
+                conflicts.push(pending.file.clone());
+            }
+        }
+        if conflicts.is_empty() {
+            return Ok(());
+        }
+        conflicts.sort();
+        Err(format!(
+            "these files changed on disk since they were opened: {}. Reload before saving.",
+            conflicts.join(", ")
+        ))
     }
 
     pub fn preview(&self) -> Result<Vec<PreviewEdit>, String> {
@@ -374,11 +432,47 @@ impl SettingsSession {
         if edits.is_empty() {
             return Ok(0);
         }
+        self.verify_unchanged(&edits)?;
         let files = edit::apply(&edits, &self.root)?;
         self.staged.clear();
         self.reload()?;
         Ok(files)
     }
+}
+
+fn fingerprints(scanned: &scan::ScanResult) -> HashMap<String, String> {
+    let mut files = HashMap::new();
+    for record in scanned.menus.iter().flat_map(|menu| menu.records.iter()) {
+        files
+            .entry(record.file.clone())
+            .or_insert_with(|| file_fingerprint(&record.file));
+    }
+    files
+}
+
+fn file_fingerprint(path: &str) -> String {
+    match std::fs::metadata(path) {
+        Ok(metadata) => {
+            let modified = metadata
+                .modified()
+                .ok()
+                .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|duration| duration.as_nanos())
+                .unwrap_or_default();
+            format!("{}:{modified}", metadata.len())
+        }
+        Err(_) => String::new(),
+    }
+}
+
+/// Look up a `visibleWhen` governing value, tolerating the `config.` wrapper
+/// the scanner can record around annotated module bodies.
+fn resolve_dependency<'a>(values: &'a HashMap<String, String>, path: &str) -> Option<&'a str> {
+    values
+        .get(path)
+        .or_else(|| values.get(&format!("config.{path}")))
+        .or_else(|| path.strip_prefix("config.").and_then(|rest| values.get(rest)))
+        .map(String::as_str)
 }
 
 fn is_composite_widget(widget: WidgetKind) -> bool {
@@ -479,6 +573,63 @@ mod tests {
             .find(|descriptor| descriptor["path"] == "services.exampleRows")
             .expect("table descriptor");
         assert_eq!(table["table"]["rows"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn skips_staged_children_hidden_by_their_parent() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-visible-when-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules")).unwrap();
+        let file = root.join("modules/system.nix");
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"switch\"; label = \"Enable\"; */\n  services.demo.enable = true;\n  /* @option widget = \"text\"; label = \"Name\"; visibleWhen.path = \"services.demo.enable\"; visibleWhen.equals = true; */\n  services.demo.name = \"keep\";\n}\n",
+        )
+        .unwrap();
+
+        let mut session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        session.set("services.demo.enable", "false").unwrap();
+        session.set("services.demo.name", "\"changed\"").unwrap();
+        assert_eq!(session.apply().unwrap(), 1);
+
+        let saved = std::fs::read_to_string(&file).unwrap();
+        assert!(saved.contains("services.demo.enable = false;"));
+        assert!(saved.contains("services.demo.name = \"keep\";"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn rejects_saving_over_a_file_changed_on_disk() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-stale-file-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules")).unwrap();
+        let file = root.join("modules/system.nix");
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"text\"; label = \"Hostname\"; */\n  networking.hostName = \"before\";\n}\n",
+        )
+        .unwrap();
+
+        let mut session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        session.set("networking.hostName", "\"mine\"").unwrap();
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"text\"; label = \"Hostname\"; */\n  networking.hostName = \"changed externally\";\n}\n",
+        )
+        .unwrap();
+
+        let error = session.apply().unwrap_err();
+        assert!(error.contains("changed on disk"), "{error}");
+        assert!(std::fs::read_to_string(&file)
+            .unwrap()
+            .contains("changed externally"));
+        let _ = std::fs::remove_dir_all(root);
     }
 
     /// Gate: annotations inside lists, map, mkMerge, and `lib.mkIf` bodies stay
