@@ -677,6 +677,20 @@ label {
   min-width: 7rem;
 }
 
+.table-field .row-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.table-field tr.row-hidden {
+  opacity: 0.6;
+}
+
+button.tiny {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
 .search-input {
   width: min(22rem, 30vw);
   margin-left: 0.75rem;
@@ -775,6 +789,18 @@ label {
   padding: 0 1.1rem 0.75rem;
 }
 
+.structure-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.toolbar button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .media-picker {
   display: grid;
   gap: 0.5rem;
@@ -785,6 +811,35 @@ label {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
   gap: 0.5rem;
+}
+
+.media-entry {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.media-item.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.button-like {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.button-like:hover {
+  background: var(--surface-2);
+}
+
+.media-delete {
+  justify-self: end;
 }
 
 .media-item {

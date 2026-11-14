@@ -88,7 +88,7 @@
       {disabled}
       onchange={change}
     />
-  {:else if descriptor.widget === "list" || descriptor.widget === "packages" || descriptor.widget === "nixosmodules" || descriptor.widget === "hmmodules"}
+  {:else if descriptor.widget === "list" || descriptor.widget === "packages" || descriptor.widget === "nixos-modules" || descriptor.widget === "hm-modules"}
     <ListInput
       {id}
       items={Array.isArray(value) ? (value as string[]) : []}
@@ -107,8 +107,10 @@
       {id}
       columns={descriptor.table?.columns ?? []}
       columnTypes={descriptor.table?.columnTypes ?? []}
+      choices={descriptor.table?.choices ?? descriptor.choices ?? []}
       list={descriptor.widget === "table-list"}
       keyEditable={descriptor.table?.keyEditable ?? false}
+      firstValueEditable={descriptor.table?.firstValueEditable ?? false}
       rows={tableRows}
       {disabled}
       onchange={change}

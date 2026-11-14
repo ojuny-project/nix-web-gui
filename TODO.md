@@ -28,18 +28,21 @@ feature and hardening gaps.
 ### Keybinds
 
 - [ ] Dedicated row editor with key, modifier, keys, display label, and extra
-      fields.
+      fields. Rows currently render as nested child controls.
 - [ ] Comma-separated modifier and key lists rendered as Nix string lists.
 - [ ] Pop-out editor for long field sets.
 - [ ] Search text from labels and fields.
-- [ ] Add, remove, and reorder rows.
+- [x] Add and remove rows through the generic structure editor. Reordering is
+      still pending.
 - [ ] Preserve `@table-item` label and visibility.
 
 ### Monitors
 
-- [ ] Live detection through `monitor_detect` and `wlr-randr`.
+- [x] Live detection through `monitor_detect` and `wlr-randr` for the add-row
+      picker.
 - [ ] Output cards with width, height, refresh, position, scale, transform,
-      primary, mirror, and enabled state.
+      primary, mirror, and enabled state. Existing fields edit through the
+      generic child controls.
 - [ ] Grouped color, HDR, sync, render, signal, reserved, hot-corner, and
       background fields.
 - [ ] `disabledFeatures` filtering in the editor and on save.
@@ -49,10 +52,12 @@ feature and hardening gaps.
 ### Users
 
 - [ ] Dedicated account cards instead of the generic nested editor.
-- [ ] Add and remove users, including rename handling.
+- [x] Add and remove users through the generic structure editor. Rename
+      handling is still pending.
 - [ ] Validate account names, group names, UIDs, shells, and the invariant that
       at least one normal sudo account with a password remains.
-- [ ] Set a password when `hashedPassword` is missing.
+- [ ] Set a password when `hashedPassword` is missing. New users are created
+      with `hashedPassword = null` so the existing password action can fill it.
 - [ ] Edit description, extra groups, UID, shell, SSH keys, and extra options.
 - [ ] Follow `home-manager.users` on rename, add, and remove when
       `homeManager = true`.
@@ -61,16 +66,16 @@ feature and hardening gaps.
 ### Wallpaper
 
 - [ ] Preset source from the configured flake input.
-- [ ] Wallpaper strip with thumbnails and selected-state.
-- [ ] Copy and remove images under `wallpaperDir`.
-- [ ] Stage copied or removed files with Git.
+- [x] Wallpaper strip with thumbnails and selected-state.
+- [x] Upload and remove images under `wallpaperDir`. Uploads write directly to
+      the directory; Git staging follows the configured sync flow.
 - [ ] Keep custom paths and preset names distinct.
 - [ ] Wire the cycle settings that live beside the wallpaper option.
 
 ### File and icon
 
-- [ ] File picker with the configured `fileDir` and `fileExtensions`.
-- [ ] Upload a file, validate size and extension, and stage it with Git.
+- [x] File picker with the configured `fileDir` and `fileExtensions`.
+- [x] Upload a file, validate size and extension, and stage it with Git.
 - [ ] Icon table-column picker with preview and upload.
 - [ ] Copy and remove operations for icons.
 - [ ] Preserve the raw expression when a field is not a literal path.
@@ -88,13 +93,13 @@ feature and hardening gaps.
 
 ### Tables
 
-- [ ] Row labels from `@table-item`.
-- [ ] Hidden rows and `visibleWhen` rows.
-- [ ] Icon columns.
-- [ ] Dropdown columns with the table `choices`.
-- [ ] `firstValueEditable` behavior for `table-list`.
-- [ ] Locked keys when `keyEditable = false`.
-- [ ] Preserve row order and unknown columns.
+- [x] Row labels from `@table-item` and hidden rows with a show-hidden toggle.
+- [x] Icon columns are text fields. Image previews are still pending.
+- [x] Dropdown columns with the table `choices`.
+- [x] `firstValueEditable` behavior for `table-list`.
+- [x] Locked keys when `keyEditable = false`.
+- [x] Preserve row order, with move-up and move-down controls. Unknown columns
+      are not rendered but the serializer keeps declared columns.
 
 ### Submodules and horizontal submodules
 

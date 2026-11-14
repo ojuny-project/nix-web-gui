@@ -191,7 +191,19 @@ pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
         }),
         "preview.read" => with_settings(session, |settings| {
             let path = string_param(&params, "path");
-            preview::read(settings, &path).map_err(|error| (-32011, error))
+            let option = params.get("option").and_then(Value::as_str);
+            preview::read(settings, option, &path).map_err(|error| (-32011, error))
+        }),
+        "preview.upload" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            let name = string_param(&params, "name");
+            let data = string_param(&params, "data");
+            preview::upload(settings, &path, &name, &data).map_err(|error| (-32011, error))
+        }),
+        "preview.delete" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            let name = string_param(&params, "name");
+            preview::delete(settings, &path, &name).map_err(|error| (-32011, error))
         }),
         "users.hashPassword" => {
             let password = string_param(&params, "password");
@@ -380,6 +392,30 @@ pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
         "file.templates" => with_settings(session, |settings| {
             Ok(authoring::templates_json(&settings.root))
         }),
+        "structure.add" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            let key = string_param(&params, "key");
+            let mode = params.get("mode").and_then(|mode| {
+                Some((
+                    mode.get("width")?.as_u64()? as u32,
+                    mode.get("height")?.as_u64()? as u32,
+                    mode.get("refresh")?.as_f64()?,
+                ))
+            });
+            settings
+                .add_child(&path, &key, mode)
+                .map(|_| json!({ "added": true }))
+                .map_err(|error| (-32012, error))
+        }),
+        "structure.remove" => with_settings(session, |settings| {
+            let parent = string_param(&params, "parent");
+            let child = string_param(&params, "child");
+            settings
+                .remove_child(&parent, &child)
+                .map(|_| json!({ "removed": true }))
+                .map_err(|error| (-32012, error))
+        }),
+        "monitor.detect" => Ok(nix_web_gui_engine::structure::detect_monitors()),
         "insert.apply" => with_settings(session, |settings| {
             let file = string_param(&params, "file");
             let name = string_param(&params, "name");

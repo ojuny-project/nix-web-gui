@@ -438,6 +438,156 @@ impl SettingsSession {
         self.reload()?;
         Ok(files)
     }
+
+    /// Add one row to an attribute-set or list composite widget such as users,
+    /// keybinds, monitors, or docker. The row template is widget-specific.
+    pub fn add_child(
+        &mut self,
+        parent_path: &str,
+        key: &str,
+        mode: Option<(u32, u32, f64)>,
+    ) -> Result<(), String> {
+        if !self.staged.is_empty() {
+            return Err("save or discard staged changes before adding a row".to_string());
+        }
+        let record = self
+            .record(parent_path)
+            .cloned()
+            .ok_or_else(|| format!("unknown option path: {parent_path}"))?;
+        let widget = crate::render::choose_widget(&record, None);
+        let template = crate::structure::child_template(widget, mode, None)?;
+        let kind = nix_settings_gui::value::classify(&record.value);
+        let offset = closing_offset(&record.value, kind)?;
+        let insertion = match kind {
+            nix_settings_gui::value::ValueKind::AttrSet => {
+                if key.trim().is_empty() {
+                    return Err("row key is required".to_string());
+                }
+                let path = crate::structure::attr_path(key.trim())?;
+                format!("\n  {path} = {template};\n")
+            }
+            nix_settings_gui::value::ValueKind::List => format!("\n  {template}\n"),
+            _ => {
+                return Err(format!(
+                    "{} is not an attribute set or list",
+                    widget_name(widget)
+                ))
+            }
+        };
+        let pending = edit::PendingEdit {
+            file: record.file.clone(),
+            start: record.byte_start + offset,
+            end: record.byte_start + offset,
+            value: insertion,
+        };
+        edit::apply(&[pending], &self.root)?;
+        self.reload()
+    }
+
+    /// Remove one child from an attribute-set or list composite widget.
+    pub fn remove_child(&mut self, parent_path: &str, child_path: &str) -> Result<(), String> {
+        if !self.staged.is_empty() {
+            return Err("save or discard staged changes before removing a row".to_string());
+        }
+        let parent = self
+            .record(parent_path)
+            .cloned()
+            .ok_or_else(|| format!("unknown option path: {parent_path}"))?;
+        let parent_segments = parent.path_segments().to_vec();
+        let child_segments: Vec<String> = child_path
+            .split('.')
+            .filter(|segment| !segment.is_empty())
+            .map(str::to_string)
+            .collect();
+        let Some(relative) = child_segments.strip_prefix(parent_segments.as_slice()) else {
+            return Err("the row is not inside the selected widget".to_string());
+        };
+        if relative.is_empty() {
+            return Err("the selected widget itself cannot be removed".to_string());
+        }
+
+        let kind = nix_settings_gui::value::classify(&parent.value);
+        let candidates = if kind == nix_settings_gui::value::ValueKind::List {
+            scan::scan_value(&parent.value)
+        } else {
+            scan::scan_value_direct(&parent.value)
+        };
+        let child = candidates
+            .into_iter()
+            .find(|candidate| candidate.segments == relative)
+            .ok_or_else(|| "cannot locate the row value".to_string())?;
+        let start_absolute = parent.byte_start + child.byte_start;
+        let end_absolute = parent.byte_start + child.byte_end;
+
+        let text = std::fs::read_to_string(&parent.file)
+            .map_err(|error| format!("cannot read {}: {error}", parent.file))?;
+        let (mut start, mut end) = match nix_settings_gui::value::classify(&parent.value) {
+            nix_settings_gui::value::ValueKind::AttrSet => {
+                let (assignments, _) =
+                    scan::sibling_assignments(&text, start_absolute, end_absolute)
+                        .ok_or_else(|| "cannot locate the row assignment".to_string())?;
+                let assignment = assignments
+                    .iter()
+                    .find(|assignment| {
+                        assignment.value_start <= start_absolute
+                            && assignment.value_end >= end_absolute
+                    })
+                    .ok_or_else(|| "cannot locate the row assignment".to_string())?;
+                (assignment.full_start, assignment.full_end)
+            }
+            nix_settings_gui::value::ValueKind::List => (start_absolute, end_absolute),
+            _ => return Err("the parent value is not an attribute set or list".to_string()),
+        };
+        while start > 0 && matches!(text.as_bytes()[start - 1], b' ' | b'\t') {
+            start -= 1;
+        }
+        while end < text.len() && matches!(text.as_bytes()[end], b' ' | b'\t' | b'\r') {
+            end += 1;
+        }
+        if end < text.len() && text.as_bytes()[end] == b'\n' {
+            end += 1;
+        }
+
+        let pending = edit::PendingEdit {
+            file: parent.file.clone(),
+            start,
+            end,
+            value: String::new(),
+        };
+        edit::apply(&[pending], &self.root)?;
+        self.reload()
+    }
+}
+
+fn widget_name(widget: WidgetKind) -> String {
+    crate::render::widget_name(widget)
+}
+
+/// Offset of the closing `}` or `]` of a composite value, relative to the
+/// value text. A new row is inserted just before it.
+fn closing_offset(value: &str, kind: nix_settings_gui::value::ValueKind) -> Result<usize, String> {
+    use rnix::SyntaxKind;
+    let (node_kind, token_kind) = match kind {
+        nix_settings_gui::value::ValueKind::AttrSet => {
+            (SyntaxKind::NODE_ATTR_SET, SyntaxKind::TOKEN_R_BRACE)
+        }
+        nix_settings_gui::value::ValueKind::List => {
+            (SyntaxKind::NODE_LIST, SyntaxKind::TOKEN_R_BRACK)
+        }
+        _ => return Err("value is not an attribute set or list".to_string()),
+    };
+    let parsed = rnix::Root::parse(value);
+    let root = parsed.syntax();
+    let node = root
+        .descendants()
+        .find(|node| node.kind() == node_kind)
+        .ok_or_else(|| "cannot locate the composite value".to_string())?;
+    let token = node
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .find(|token| token.kind() == token_kind)
+        .ok_or_else(|| "cannot locate the closing delimiter".to_string())?;
+    Ok(usize::from(token.text_range().start()))
 }
 
 fn fingerprints(scanned: &scan::ScanResult) -> HashMap<String, String> {
@@ -629,6 +779,41 @@ mod tests {
         assert!(std::fs::read_to_string(&file)
             .unwrap()
             .contains("changed externally"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn adds_and_removes_composite_rows() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-structure-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules")).unwrap();
+        let file = root.join("modules/system.nix");
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"users\"; label = \"Users\"; */\n  users.users = {\n    alice = { isNormalUser = true; };\n  };\n  /* @option widget = \"keybinds\"; label = \"Binds\"; */\n  keybinds = {\n    reload = { modifier = [ \"Mod4\" ]; keys = [ \"r\" ]; };\n  };\n}\n",
+        )
+        .unwrap();
+
+        let mut session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        session.add_child("users.users", "bob", None).unwrap();
+        let saved = std::fs::read_to_string(&file).unwrap();
+        assert!(saved.contains("bob ="));
+        assert!(saved.contains("isNormalUser = true;"));
+
+        session
+            .remove_child("users.users", "users.users.bob")
+            .unwrap();
+        let saved = std::fs::read_to_string(&file).unwrap();
+        assert!(!saved.contains("bob ="));
+        assert!(saved.contains("alice ="));
+
+        session.add_child("keybinds", "terminal", None).unwrap();
+        let saved = std::fs::read_to_string(&file).unwrap();
+        assert!(saved.contains("terminal ="));
+        assert!(saved.contains("modifier = [ ];"));
         let _ = std::fs::remove_dir_all(root);
     }
 

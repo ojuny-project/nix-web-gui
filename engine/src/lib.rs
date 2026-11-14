@@ -17,6 +17,7 @@ pub mod preview;
 pub mod render;
 pub mod secureboot;
 pub mod session;
+pub mod structure;
 pub mod users;
 pub mod theme;
 

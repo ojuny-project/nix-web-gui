@@ -94,6 +94,20 @@
   let optionLabel = "";
   let optionValue = "";
   let optionBusy = false;
+  let structureTarget: ScanRecord | null = null;
+  let structureKey = "";
+  let structureMode: { width: number; height: number; refresh: number } | null =
+    null;
+  let structureBusy = false;
+  let detectedOutputs: Array<{
+    name: string;
+    make?: string | null;
+    model?: string | null;
+    enabled: boolean;
+    width?: number | null;
+    height?: number | null;
+    refresh?: number | null;
+  }> = [];
 
   const optionWidgets = [
     "switch",
@@ -300,6 +314,7 @@
       showAddFile = false;
       showAddOption = false;
       showConfig = false;
+      structureTarget = null;
       insert = null;
     }
   }
@@ -785,12 +800,123 @@
     }
   }
 
+  const addableWidgets = new Set([
+    "users",
+    "keybinds",
+    "monitors",
+    "docker",
+    "menu",
+    "submodule",
+    "horizontal-submodule",
+    "grid-configuration",
+  ]);
+
+  function parentOf(record: ScanRecord): ScanRecord | null {
+    return (
+      records.find((candidate) =>
+        candidate.children?.some((child) => child.path === record.path),
+      ) ?? null
+    );
+  }
+
+  function canAddRow(record: ScanRecord): boolean {
+    return addableWidgets.has(record.widget ?? "") && dirty.size === 0;
+  }
+
+  function canRemoveRow(record: ScanRecord): boolean {
+    const parent = parentOf(record);
+    return Boolean(
+      parent && addableWidgets.has(parent.widget ?? "") && dirty.size === 0,
+    );
+  }
+
+  async function openStructureAdd(record: ScanRecord) {
+    structureTarget = record;
+    structureKey = "";
+    structureMode = null;
+    detectedOutputs = [];
+    error = "";
+    if (record.widget === "monitors") {
+      try {
+        const detected = await rpc<{
+          outputs: typeof detectedOutputs;
+        }>("monitor.detect", {}, user.csrf);
+        detectedOutputs = detected.outputs;
+        if (detectedOutputs.length > 0) chooseOutput(detectedOutputs[0]);
+      } catch {
+        // Manual output names remain available when detection fails.
+      }
+    }
+    if (record.widget === "users") structureKey = "newuser";
+  }
+
+  function chooseOutput(output: (typeof detectedOutputs)[number]) {
+    structureKey = output.name;
+    structureMode = {
+      width: output.width ?? 1920,
+      height: output.height ?? 1080,
+      refresh: output.refresh ?? 60,
+    };
+  }
+
+  async function addStructureRow(event: SubmitEvent) {
+    event.preventDefault();
+    if (!structureTarget) return;
+    structureBusy = true;
+    error = "";
+    try {
+      await rpc(
+        "structure.add",
+        {
+          path: structureTarget.path,
+          key: structureKey,
+          mode: structureMode,
+        },
+        user.csrf,
+      );
+      status = `Added ${structureKey || "row"}`;
+      structureTarget = null;
+      await reloadStructure();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot add the row";
+    } finally {
+      structureBusy = false;
+    }
+  }
+
+  async function removeStructureRow(record: ScanRecord) {
+    const parent = parentOf(record);
+    if (!parent) return;
+    if (!confirm(`Remove ${record.label ?? record.path}?`)) return;
+    error = "";
+    try {
+      await rpc(
+        "structure.remove",
+        { parent: parent.path, child: record.path },
+        user.csrf,
+      );
+      status = `Removed ${record.label ?? record.path}`;
+      await reloadStructure();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot remove the row";
+    }
+  }
+
+  async function reloadStructure() {
+    const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
+    menus = scanned.menus;
+    const file = currentMenu?.file;
+    const index = sortMenus(menus).findIndex((menu) => menu.file === file);
+    selected = index >= 0 ? index : 0;
+    loadPage();
+  }
+
   function displayValue(record: ScanRecord): ControlValue {
     if (
       record.widget === "list" ||
       record.widget === "packages" ||
-      record.widget === "nixosmodules" ||
-      record.widget === "hmmodules"
+      record.widget === "nixos-modules" ||
+      record.widget === "hm-modules"
     ) {
       return record.list ?? [];
     }
@@ -1372,12 +1498,22 @@
               class:highlight={highlightPath === record.path}
             >
               {#if record.children?.length}
-                <h3
-                  class="submodule-heading"
-                  style={`margin-left: ${(record.depth ?? 0) * 12}px`}
-                >
-                  {record.label ?? record.path}
-                </h3>
+                <div class="structure-heading">
+                  <h3
+                    class="submodule-heading"
+                    style={`margin-left: ${(record.depth ?? 0) * 12}px`}
+                  >
+                    {record.label ?? record.path}
+                  </h3>
+                  {#if canAddRow(record)}
+                    <button
+                      class="ghost tiny"
+                      onclick={() => openStructureAdd(record)}
+                    >
+                      Add row
+                    </button>
+                  {/if}
+                </div>
               {:else if record.widget === "secureboot"}
                 <Control
                   descriptor={descriptor(record)}
@@ -1414,6 +1550,13 @@
                   <div class="inline-actions">
                     <button class="ghost" onclick={() => resetOption(record)}>
                       Reset
+                    </button>
+                  </div>
+                {/if}
+                {#if canRemoveRow(record)}
+                  <div class="inline-actions">
+                    <button class="ghost" onclick={() => removeStructureRow(record)}>
+                      Remove row
                     </button>
                   </div>
                 {/if}
@@ -1514,6 +1657,90 @@
               </button>
               <button type="submit" disabled={optionBusy}>
                 {optionBusy ? "Adding..." : "Add option"}
+              </button>
+            </div>
+          </form>
+        </Panel>
+      {/if}
+
+      {#if structureTarget}
+        <Panel
+          title={`Add row to ${structureTarget.label ?? structureTarget.path}`}
+          description="The row is written immediately; staged edits must be saved or discarded first."
+        >
+          <form class="input-form" onsubmit={addStructureRow}>
+            <label>
+              <span>
+                {structureTarget.widget === "users"
+                  ? "User name"
+                  : structureTarget.widget === "monitors"
+                    ? "Output name"
+                    : structureTarget.widget === "keybinds"
+                      ? "Bind name"
+                      : "Row key"}
+              </span>
+              <input bind:value={structureKey} />
+            </label>
+            {#if structureTarget.widget === "monitors"}
+              {#if detectedOutputs.length > 0}
+                <div class="toolbar">
+                  {#each detectedOutputs as output (output.name)}
+                    <button
+                      type="button"
+                      class="ghost"
+                      class:active={output.name === structureKey}
+                      onclick={() => chooseOutput(output)}
+                    >
+                      {output.name}
+                      {output.width ? `${output.width}x${output.height}` : ""}
+                    </button>
+                  {/each}
+                </div>
+              {:else}
+                <p class="muted small">
+                  No compositor outputs detected. Enter the output name manually.
+                </p>
+              {/if}
+              {#if structureMode}
+                <div class="toolbar">
+                  <label class="inline">
+                    <span>Width</span>
+                    <input
+                      type="number"
+                      bind:value={structureMode.width}
+                    />
+                  </label>
+                  <label class="inline">
+                    <span>Height</span>
+                    <input
+                      type="number"
+                      bind:value={structureMode.height}
+                    />
+                  </label>
+                  <label class="inline">
+                    <span>Refresh</span>
+                    <input
+                      type="number"
+                      bind:value={structureMode.refresh}
+                    />
+                  </label>
+                </div>
+              {/if}
+            {/if}
+            <div class="toolbar">
+              <span class="spacer"></span>
+              <button
+                type="button"
+                class="ghost"
+                onclick={() => (structureTarget = null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={structureBusy || !structureKey.trim()}
+              >
+                {structureBusy ? "Adding..." : "Add row"}
               </button>
             </div>
           </form>

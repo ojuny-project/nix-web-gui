@@ -4,7 +4,19 @@ use nix_settings_gui::value::{self, ValueKind};
 use serde_json::Value;
 
 pub fn widget_name(widget: WidgetKind) -> String {
-    format!("{widget:?}").to_lowercase()
+    let raw = format!("{widget:?}");
+    let mut out = String::with_capacity(raw.len() + 4);
+    for (index, character) in raw.chars().enumerate() {
+        if character.is_ascii_uppercase() {
+            if index > 0 {
+                out.push('-');
+            }
+            out.push(character.to_ascii_lowercase());
+        } else {
+            out.push(character);
+        }
+    }
+    out
 }
 
 pub fn parse_widget(name: &str) -> Option<WidgetKind> {
@@ -392,6 +404,20 @@ mod tests {
         assert_eq!(choice_literal("gnome"), "\"gnome\"");
         assert_eq!(choice_literal("true"), "true");
         assert_eq!(choice_literal("42"), "42");
+    }
+
+    #[test]
+    fn emits_kebab_case_widget_names() {
+        assert_eq!(widget_name(WidgetKind::TableAttrset), "table-attrset");
+        assert_eq!(widget_name(WidgetKind::TableList), "table-list");
+        assert_eq!(
+            widget_name(WidgetKind::HorizontalSubmodule),
+            "horizontal-submodule"
+        );
+        assert_eq!(widget_name(WidgetKind::IconTheme), "icon-theme");
+        assert_eq!(widget_name(WidgetKind::GridConfiguration), "grid-configuration");
+        assert_eq!(widget_name(WidgetKind::NixosModules), "nixos-modules");
+        assert_eq!(widget_name(WidgetKind::Switch), "switch");
     }
 
     #[test]

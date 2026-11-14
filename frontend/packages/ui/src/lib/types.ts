@@ -10,8 +10,8 @@ export type WidgetKind =
   | "package"
   | "packages"
   | "list"
-  | "nixosmodules"
-  | "hmmodules"
+  | "nixos-modules"
+  | "hm-modules"
   | "color"
   | "submodule"
   | "horizontal-submodule"
@@ -79,6 +79,7 @@ export type TableDescriptor = {
   list: boolean;
   columns: string[];
   columnTypes?: string[] | null;
+  choices?: string[] | null;
   keyEditable: boolean;
   firstValueEditable: boolean;
   rows: TableRow[];

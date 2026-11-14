@@ -10,7 +10,7 @@ pub fn record_json(record: &Record) -> Value {
         "value": record.value,
         "label": record.spec.label,
         "description": record.spec.description,
-        "widget": record.spec.widget.map(|widget| format!("{widget:?}").to_lowercase()),
+        "widget": record.spec.widget.map(crate::render::widget_name),
         "choices": record.spec.choices,
         "disabledFeatures": record.spec.disabled_features,
         "list": nix_settings_gui::value::list_items(&record.value),
@@ -48,6 +48,7 @@ fn table_json(record: &Record) -> Value {
         "list": list,
         "columns": record.spec.columns.clone().unwrap_or_default(),
         "columnTypes": record.spec.column_types.clone().unwrap_or_default(),
+        "choices": record.spec.choices.clone().unwrap_or_default(),
         "keyEditable": record.spec.key_editable,
         "firstValueEditable": record.spec.first_value_editable,
         "rows": rows.iter().map(|row| {
