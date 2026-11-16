@@ -59,6 +59,8 @@
   let diff = "";
   let showDiff = false;
   let rebuildOutput = "";
+  let rebuildRunning = false;
+  let cancelRequested = false;
   let themeName = "everforest-dark-hard";
   let engine = "loading";
   let insert: { menuFile: string; marker: ScanInsert; snippet: ScanSnippet } | null =
@@ -269,6 +271,7 @@
     window.addEventListener("nix-web-gui:theme-change", syncTheme);
     window.addEventListener("keydown", onKeydown);
     window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("nix-web-gui:progress", onProgress);
     popoutMode = Boolean(popout);
 
     loadCatalogs();
@@ -312,8 +315,21 @@
       window.removeEventListener("nix-web-gui:theme-change", syncTheme);
       window.removeEventListener("keydown", onKeydown);
       window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("nix-web-gui:progress", onProgress);
     };
   });
+
+  function onProgress(event: Event) {
+    const detail = (event as CustomEvent).detail as {
+      params?: { job?: string; line?: string };
+    };
+    if (detail?.params?.job !== "rebuild") return;
+    const next = [...rebuildOutput.split("\n"), detail.params.line ?? ""]
+      .filter((line, index, lines) => line !== "" || index === lines.length - 1)
+      .slice(-500);
+    rebuildOutput = next.join("\n");
+    status = "Rebuilding...";
+  }
 
   function onBeforeUnload(event: BeforeUnloadEvent) {
     if (dirty.size === 0) return;
@@ -938,7 +954,12 @@
   }
 
   function canAddRow(record: ScanRecord): boolean {
-    return addableWidgets.has(record.widget ?? "") && dirty.size === 0;
+    const structuredList =
+      record.widget === "list" && (record.children?.length ?? 0) > 0;
+    return (
+      (addableWidgets.has(record.widget ?? "") || structuredList) &&
+      dirty.size === 0
+    );
   }
 
   function canRenameRow(record: ScanRecord): boolean {
@@ -1436,6 +1457,8 @@
   async function saveAndRebuild() {
     if (!(await save())) return;
     busy = true;
+    rebuildRunning = true;
+    cancelRequested = false;
     error = "";
     status = "Rebuilding...";
     try {
@@ -1443,9 +1466,33 @@
       rebuildOutput = result.output.trim();
       status = "Rebuild finished";
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : "Rebuild failed";
+      if (!cancelRequested) {
+        error = cause instanceof Error ? cause.message : "Rebuild failed";
+      } else if (root) {
+        dirty = new Set();
+        try {
+          await rpc("session.open", { root }, user.csrf);
+          const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
+          menus = scanned.menus;
+          loadPage();
+          status = "Rebuild cancelled; the session was reopened";
+        } catch {
+          status = "Rebuild cancelled; reopen the flake to continue";
+        }
+      }
     } finally {
       busy = false;
+      rebuildRunning = false;
+    }
+  }
+
+  async function cancelJob() {
+    cancelRequested = true;
+    try {
+      await rpc("job.cancel", {}, user.csrf);
+      status = "Cancellation requested";
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot cancel the job";
     }
   }
 
@@ -1793,9 +1840,13 @@
           <button class="ghost" onclick={openAddOption}>Add option</button>
           <button class="ghost" onclick={discard}>Discard</button>
           <button class="ghost" onclick={preview}>Diff</button>
-          <button class="ghost" onclick={saveAndRebuild} disabled={busy || dirty.size === 0}>
-            Save &amp; rebuild
-          </button>
+          {#if rebuildRunning}
+            <button class="ghost" onclick={cancelJob}>Cancel</button>
+          {:else}
+            <button class="ghost" onclick={saveAndRebuild} disabled={busy || dirty.size === 0}>
+              Save &amp; rebuild
+            </button>
+          {/if}
           <button onclick={save} disabled={busy || dirty.size === 0}>
             {busy ? "Saving..." : "Save"}
           </button>

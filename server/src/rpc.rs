@@ -15,6 +15,15 @@ use nix_web_gui_engine::users;
 use serde_json::{json, Value};
 
 pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
+    handle_with_progress(session, request, &mut |_| {})
+}
+
+/// Dispatch one request and forward progress notifications to the caller.
+pub fn handle_with_progress(
+    session: &mut Option<SettingsSession>,
+    request: &Value,
+    progress: &mut dyn FnMut(Value),
+) -> Value {
     let id = request.get("id").cloned().unwrap_or(Value::Null);
     let method = request
         .get("method")
@@ -252,9 +261,14 @@ pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
                 .map_err(|error| (-32012, error))
         }),
         "rebuild.run" => with_settings(session, |settings| {
-            apply::rebuild(&settings.root)
-                .map(|output| json!({ "output": output }))
-                .map_err(|error| (-32012, error))
+            apply::rebuild_streaming(&settings.root, |line| {
+                progress(json!({
+                    "method": "progress",
+                    "params": { "job": "rebuild", "line": line },
+                }));
+            })
+            .map(|output| json!({ "output": output }))
+            .map_err(|error| (-32012, error))
         }),
         "git.status" => with_settings(session, |settings| {
             git::status(&settings.root)

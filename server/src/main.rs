@@ -114,6 +114,7 @@ fn build_state(config: Arc<config::AppConfig>) -> AppState {
     };
 
     let sessions = Arc::new(SessionStore::default());
+    let (progress, _) = tokio::sync::broadcast::channel(256);
 
     AppState {
         config,
@@ -121,6 +122,8 @@ fn build_state(config: Arc<config::AppConfig>) -> AppState {
         theme,
         engine,
         throttle: Arc::new(crate::auth::LoginThrottle::new()),
+        progress,
+        pids: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
     }
 }
 

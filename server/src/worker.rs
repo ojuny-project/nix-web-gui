@@ -15,7 +15,10 @@ pub fn run_stdio() -> Result<(), Box<dyn Error>> {
             continue;
         }
         let response = match serde_json::from_str::<Value>(&line) {
-            Ok(request) => rpc::handle(&mut session, &request),
+            Ok(request) => rpc::handle_with_progress(&mut session, &request, &mut |note| {
+                let _ = writeln!(stdout, "{note}");
+                let _ = stdout.flush();
+            }),
             Err(error) => serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": Value::Null,

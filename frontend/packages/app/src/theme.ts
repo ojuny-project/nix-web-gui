@@ -17,5 +17,15 @@ export async function watchTheme(): Promise<EventSource> {
 
   source.addEventListener("theme", update);
   source.addEventListener("theme.changed", update);
+  source.addEventListener("progress", (event: MessageEvent) => {
+    try {
+      const payload = JSON.parse(event.data);
+      window.dispatchEvent(
+        new CustomEvent("nix-web-gui:progress", { detail: payload }),
+      );
+    } catch {
+      // Ignore a malformed progress note.
+    }
+  });
   return source;
 }

@@ -1,4 +1,5 @@
-use std::process::Command;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
 
 use nix_settings_gui::apply::{plain_value, substitute};
 use nix_settings_gui::model::Record;
@@ -52,9 +53,13 @@ pub fn with_reloads(command: String, reload_mango: bool, reload_dms: bool) -> St
     command
 }
 
-/// Load the shared desktop config and run its rebuild command through a shell.
-/// The web frontend cannot open a terminal, so terminal_command is ignored.
-pub fn rebuild(root: &str) -> Result<String, String> {
+/// Load the shared desktop config and run its rebuild command through a shell,
+/// forwarding each output line. The web frontend cannot open a terminal, so
+/// terminal_command is ignored.
+pub fn rebuild_streaming(
+    root: &str,
+    mut on_line: impl FnMut(&str),
+) -> Result<String, String> {
     let config = WebConfig::load();
     let command = config
         .rebuild_command
@@ -65,7 +70,39 @@ pub fn rebuild(root: &str) -> Result<String, String> {
         config.reload_mango_on_rebuild,
         config.reload_dms_on_rebuild,
     );
-    run_shell(root, &command)
+    let mut child = Command::new("sh")
+        .arg("-lc")
+        .arg(format!("{command} 2>&1"))
+        .current_dir(root)
+        .stdout(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("cannot run rebuild command: {error}"))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "cannot capture rebuild output".to_string())?;
+    let mut output = String::new();
+    let mut last_line = String::new();
+    for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+        on_line(&line);
+        last_line = line.clone();
+        output.push_str(&line);
+        output.push('\n');
+    }
+    let status = child
+        .wait()
+        .map_err(|error| format!("cannot wait for rebuild: {error}"))?;
+    if status.success() {
+        Ok(output)
+    } else if last_line.trim().is_empty() {
+        Err(format!("rebuild command failed: {command}"))
+    } else {
+        Err(format!("rebuild command failed: {}", last_line.trim()))
+    }
+}
+
+pub fn rebuild(root: &str) -> Result<String, String> {
+    rebuild_streaming(root, |_| {})
 }
 
 #[cfg(test)]

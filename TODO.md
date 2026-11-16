@@ -153,9 +153,10 @@ feature and hardening gaps.
       `control.reset` and restores the scanned value.
 - [x] Serial apply queue in the client. One `apply.run` runs at a time and the
       latest value per path wins.
-- [ ] Streamed scan, update-check, apply, save, and rebuild progress. Only theme
-      events use SSE.
-- [ ] Cancellation for update checks, scans, and rebuilds.
+- [x] Streamed rebuild progress over SSE, with a Cancel action that terminates
+      the session worker and reopens the session.
+- [ ] Streamed scan, update-check, apply, and save progress.
+- [ ] Cancellation for update checks, scans, and saves.
 - [x] `flake.input.addAll` and the missing-input banner.
 - [x] Flake input check and update buttons in the UI. Progress is still a
       single blocking response.
@@ -167,8 +168,8 @@ feature and hardening gaps.
       editable in the config panel.
 - [x] `terminal_command` is no longer shown in the config panel. The stored
       value is preserved for the desktop app.
-- [ ] Rebuild output is rendered after the command finishes. It is not streamed
-      and cannot be cancelled.
+- [x] Rebuild output is streamed line by line and can be cancelled. The session
+      reopens after a cancel.
 - [ ] Apply and rebuild privilege escalation relies on the account's sudo
       configuration. There is no password re-auth or `sudo -S` implementation.
 

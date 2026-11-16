@@ -50,7 +50,7 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Git status, pull, push, commit, sync | git actions | `git.*` | Git page | yes | implemented |
 | Working-tree diff | diff dialog | `git.diff` | Git page diff panel | yes | implemented |
 | Apply command | live apply | `apply.run` | serial client apply queue | yes | implemented |
-| Rebuild | terminal | `rebuild.run` | blocking call, output not rendered | yes | partial |
+| Rebuild | terminal | `rebuild.run`, `job.cancel` | streamed output panel with Cancel | yes | implemented |
 | Menu | row editor | `control.setTyped`, `structure.*` | generic rows | no | partial |
 | Plugins | plugin editor | `control.setTyped`, `structure.*` | generic rows | no | partial |
 | Bar | tile editor | `control.setTyped` | structured list sections | no | partial |
@@ -108,17 +108,18 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 
 - The generic nested editor replaces dedicated keybind, monitor, user-card, and
   Ojuny renderers. The desktop layouts, tile catalog, bar and dock tile
-  actions, grid canvas, and plugin registry are still pending.
+  actions, grid canvas, and plugin registry are still pending. Tile rows for
+  bar and dock can be added with an id and edited as structured list elements.
 - Wallpaper preset sources and custom path handling are pending.
 - Icon-theme and cursor-theme preview sheets are pending.
 - Secure Boot has no per-action privileged re-authentication. Actions run in the
   root parent and fail clearly outside it.
-- Rebuild output is returned in one blocking response. Scan, save, apply, and
-  rebuild progress is not streamed and cannot be cancelled.
+- Rebuild output streams and can be cancelled by terminating the session
+  worker. Scan, save, apply, and update checks remain blocking.
 - Full PAM `system-auth`, account expiry, and multi-factor modules are pending.
 - Built-in TLS is pending.
-- Playwright and frontend unit tests, the parity manifest check, and the full
-  `nix flake check` matrix are pending.
+- Playwright and frontend unit tests and the full `nix flake check` matrix are
+  pending. `checks.parity` exists.
 - The portable flake input and release workflow are pending.
 
 ## Documented limitation

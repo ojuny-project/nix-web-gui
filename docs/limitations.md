@@ -169,20 +169,26 @@ Limits:
   root parent and fail outside it. There is no per-action password
   re-authentication.
 - The Lanzaboote flake input is still added from the Flake Inputs page.
-- Setup and rebuild output is returned at the end of one blocking call.
+- Setup output is returned at the end of one blocking call. Rebuild output
+  streams line by line.
 
 ## Streaming and cancellation
 
-Only the theme uses SSE. `GET /api/events` sends `theme`, `theme.changed`, and
-`heartbeat`. Everything else is a request and a response:
+`GET /api/events` sends `theme`, `theme.changed`, `progress`, and `heartbeat`.
+Only `rebuild.run` emits progress notes, one per output line. The shell appends
+them to the Rebuild output panel and offers a Cancel button while a rebuild is
+running. Cancelling sends `job.cancel`, which terminates the session worker and
+reopens the session.
+
+Everything else is a request and a response:
 
 - `scan` and `page.describe` return when complete.
 - `edits.apply` writes and rescans in one call.
-- `apply.run` and `rebuild.run` run a shell command and return at the end.
+- `apply.run` runs a shell command and returns at the end.
 - `flake.update.check` runs every requested input check before returning.
 
-There is no progress stream for scan, save, apply, update check, or rebuild.
-There is no cancellation for update checks, scans, or rebuilds.
+There is no progress stream or cancellation for scan, save, apply, or update
+checks.
 
 The client serializes live apply calls with one queue and keeps the latest value
 per path, so a debounce cannot run two `apply.run` calls at once. The server does

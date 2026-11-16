@@ -194,7 +194,9 @@ client apply queue runs one command at a time.
 ## Save and rebuild
 
 `Ctrl+S` or `Cmd+S` saves. `Ctrl+Shift+S` or `Cmd+Shift+S` saves and then calls
-`rebuild.run`. The toolbar has no Save & rebuild button.
+`rebuild.run`. The toolbar Save & rebuild button starts it after a successful
+save. Output lines stream into the Rebuild output panel, and Cancel is available
+while the command runs.
 
 `rebuild.run` runs `rebuild_command` from the shared config in the flake root,
 appending `mmsg dispatch reload_config` and `dms kill && mmsg dispatch spawn_shell,dms run`

@@ -4,6 +4,7 @@ use nix_settings_gui::dsl::WidgetKind;
 /// attribute value, without the `key =` prefix for attribute sets.
 pub fn child_template(
     widget: WidgetKind,
+    key: &str,
     mode: Option<(u32, u32, f64)>,
     label: Option<&str>,
 ) -> Result<String, String> {
@@ -26,6 +27,13 @@ pub fn child_template(
             crate::render::quote(label.unwrap_or("New entry"))
         ),
         WidgetKind::Plugins => "{ enable = true; }".to_string(),
+        WidgetKind::List => {
+            if key.trim().is_empty() {
+                "{ }".to_string()
+            } else {
+                format!("{{ id = {}; }}", crate::render::quote(key.trim()))
+            }
+        }
         WidgetKind::Submodule
         | WidgetKind::HorizontalSubmodule
         | WidgetKind::GridConfiguration
@@ -100,10 +108,10 @@ mod tests {
 
     #[test]
     fn builds_users_and_keybind_templates() {
-        assert!(child_template(WidgetKind::Users, None, None)
+        assert!(child_template(WidgetKind::Users, "", None, None)
             .unwrap()
             .contains("isNormalUser = true"));
-        assert!(child_template(WidgetKind::Keybinds, None, None)
+        assert!(child_template(WidgetKind::Keybinds, "", None, None)
             .unwrap()
             .contains("modifier = [ ]"));
     }

@@ -11,8 +11,9 @@ to an `engine` call. Method names and error codes follow the existing
 - `POST /api/login`, `POST /api/logout`, and `POST /api/rpc` reject an `Origin`
   that does not match the request `Host`. A missing `Origin` is allowed for CLI
   clients.
-- `GET /api/events` is the authenticated SSE stream for theme changes and
-  heartbeats. Progress and cancellation events are not implemented.
+- `GET /api/events` is the authenticated SSE stream for theme changes, rebuild
+  progress lines, and heartbeats. `job.cancel` terminates the session worker
+  that is running a job.
 - `GET /api/theme` returns the active base16 name.
 - `GET /api/state` returns the startup flake, recent flakes, hostname,
   authentication mode, startup page, and theme.
@@ -1316,18 +1317,18 @@ The contract is filled in as the engine slices land.
 
 | Group | Pending |
 |---|---|
-| Pages | metadata batching beyond `page.describe`, and streamed progress |
+| Pages | metadata batching beyond `page.describe`, and streamed scan progress |
 | Edits | a dedicated conflict prompt, plus streamed and cancellable save |
 | Authoring | every panel is reachable from the sidebar or the settings toolbar |
 | Flake | channel scan and reference suggestion UI |
 | Git | nothing on the RPC side; the page covers status, pull, push, commit, sync, and diff |
-| Apply | streamed and cancellable rebuild output |
+| Apply | streamed and cancellable scan, save, and update checks |
 | Secure Boot | per-action privileged re-authentication and streamed setup output |
 | Users | the account-card UI |
 | Previews | wallpaper preset sources, custom path handling, icon and cursor theme sheets, and table image thumbnails |
 | Catalogs | `catalog.themes`, `catalog.fonts`, `catalog.icons`, `catalog.cursors`, `plugins.registry`, `plugins.settings`, and `facter.detect` |
-| Tables | rendering undeclared columns |
-| Config | the settings panel UI is implemented without an opening control |
+| Tables | rendering undeclared columns and preserving `@table-item` comments |
+| Config | nothing; the sidebar Settings button opens the panel |
 
 ## Engine boundary
 

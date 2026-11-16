@@ -78,7 +78,15 @@ impl Worker {
         })
     }
 
-    pub async fn request(&mut self, request: &Value) -> Result<Value, String> {
+    pub fn pid(&self) -> Option<u32> {
+        self.child.id()
+    }
+
+    pub async fn request(
+        &mut self,
+        request: &Value,
+        mut progress: impl FnMut(Value),
+    ) -> Result<Value, String> {
         let mut line = serde_json::to_string(request)
             .map_err(|error| format!("cannot encode worker request: {error}"))?;
         line.push('\n');
@@ -91,17 +99,29 @@ impl Worker {
             .await
             .map_err(|error| format!("cannot flush the worker: {error}"))?;
 
-        let mut response = String::new();
-        let read = self
-            .stdout
-            .read_line(&mut response)
-            .await
-            .map_err(|error| format!("cannot read from the worker: {error}"))?;
-        if read == 0 {
-            return Err("the settings worker exited".to_string());
+        loop {
+            let mut response = String::new();
+            let read = self
+                .stdout
+                .read_line(&mut response)
+                .await
+                .map_err(|error| format!("cannot read from the worker: {error}"))?;
+            if read == 0 {
+                return Err("the settings worker exited".to_string());
+            }
+            let value: Value = serde_json::from_str(&response)
+                .map_err(|error| format!("invalid worker response: {error}"))?;
+            if value
+                .get("method")
+                .and_then(Value::as_str)
+                .map(|method| method == "progress")
+                .unwrap_or(false)
+            {
+                progress(value);
+                continue;
+            }
+            return Ok(value);
         }
-        serde_json::from_str(&response)
-            .map_err(|error| format!("invalid worker response: {error}"))
     }
 }
 

@@ -43,11 +43,16 @@ pub struct AppState {
     pub theme: Arc<ThemeStore>,
     pub engine: EngineMode,
     pub throttle: Arc<LoginThrottle>,
+    pub progress: broadcast::Sender<Value>,
+    pub pids: Arc<std::sync::Mutex<HashMap<String, u32>>>,
 }
 
 /// Drop per-session engine state whose browser session has expired.
 pub async fn purge_stale_engine(state: &AppState) {
     let live = state.sessions.ids();
+    if let Ok(mut pids) = state.pids.lock() {
+        pids.retain(|id, _| live.contains(id));
+    }
     match &state.engine {
         EngineMode::InProcess(settings) => {
             settings
@@ -254,6 +259,9 @@ async fn logout(
             }
             EngineMode::Workers(workers) => {
                 workers.lock().await.remove(&id);
+                if let Ok(mut pids) = state.pids.lock() {
+                    pids.remove(&id);
+                }
             }
         }
     }
@@ -357,6 +365,31 @@ async fn rpc(
                 "ojunyWidgets": cfg!(feature = "ojuny-widgets"),
             },
         })
+    } else if method == "job.cancel" {
+        let pid = state
+            .pids
+            .lock()
+            .ok()
+            .and_then(|mut pids| pids.remove(&id));
+        match pid {
+            Some(pid) => {
+                // SAFETY: kill only receives the pid recorded for this session.
+                unsafe {
+                    libc::kill(pid as i32, libc::SIGTERM);
+                }
+                tracing::warn!(user = %session.username, "cancelled the running worker");
+                json!({
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": { "cancelled": true },
+                })
+            }
+            None => json!({
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": { "code": -32000, "message": "no running job to cancel" },
+            }),
+        }
     } else if let Some(result) = secureboot_action(&method, &request.params) {
         match result {
             Ok(value) => json!({
@@ -375,7 +408,12 @@ async fn rpc(
             EngineMode::InProcess(settings) => {
                 let mut guard = settings.lock().await;
                 let settings = guard.entry(id.clone()).or_insert(None);
-                rpc::handle(settings, &request_value)
+                let progress = state.progress.clone();
+                let session_id = id.clone();
+                rpc::handle_with_progress(settings, &request_value, &mut |mut note| {
+                    note["session"] = json!(session_id);
+                    let _ = progress.send(note);
+                })
             }
             EngineMode::Workers(workers) => {
                 let worker = {
@@ -383,20 +421,32 @@ async fn rpc(
                     if let Some(worker) = guard.get(&id) {
                         worker.clone()
                     } else {
-                        let worker = Arc::new(AsyncMutex::new(
-                            Worker::spawn(&session.username).map_err(|error| {
-                                ApiError(StatusCode::BAD_GATEWAY, error)
-                            })?,
-                        ));
+                        let instance = Worker::spawn(&session.username)
+                            .map_err(|error| ApiError(StatusCode::BAD_GATEWAY, error))?;
+                        let pid = instance.pid();
+                        let worker = Arc::new(AsyncMutex::new(instance));
                         guard.insert(id.clone(), worker.clone());
+                        if let (Some(pid), Ok(mut pids)) = (pid, state.pids.lock()) {
+                            pids.insert(id.clone(), pid);
+                        }
                         worker
                     }
                 };
                 let mut worker = worker.lock().await;
-                let result = worker.request(&request_value).await;
+                let progress = state.progress.clone();
+                let session_id = id.clone();
+                let result = worker
+                    .request(&request_value, |mut note| {
+                        note["session"] = json!(session_id);
+                        let _ = progress.send(note);
+                    })
+                    .await;
                 drop(worker);
                 if result.is_err() {
                     workers.lock().await.remove(&id);
+                    if let Ok(mut pids) = state.pids.lock() {
+                        pids.remove(&id);
+                    }
                 }
                 result.map_err(|error| ApiError(StatusCode::BAD_GATEWAY, error))?
             }
@@ -450,9 +500,11 @@ async fn events(
     jar: CookieJar,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
     require_session(&state, &jar)?;
+    let id = session_id(&jar).ok_or_else(|| ApiError::unauthorized("not signed in"))?;
 
     let initial = state.theme.current();
     let mut receiver = state.theme.subscribe();
+    let mut progress = state.progress.subscribe();
     let stream = async_stream::stream! {
         yield event("theme", &initial);
         let mut heartbeat = tokio::time::interval(Duration::from_secs(15));
@@ -464,6 +516,17 @@ async fn events(
                 changed = receiver.recv() => {
                     match changed {
                         Ok(theme) => yield event("theme.changed", &theme),
+                        Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                        Err(broadcast::error::RecvError::Closed) => break,
+                    }
+                }
+                note = progress.recv() => {
+                    match note {
+                        Ok(value) => {
+                            if value.get("session").and_then(Value::as_str) == Some(id.as_str()) {
+                                yield Ok(Event::default().event("progress").data(value.to_string()));
+                            }
+                        }
                         Err(broadcast::error::RecvError::Lagged(_)) => continue,
                         Err(broadcast::error::RecvError::Closed) => break,
                     }
@@ -536,6 +599,8 @@ mod tests {
             theme: ThemeStore::new(theme_path),
             engine: EngineMode::InProcess(Arc::new(AsyncMutex::new(HashMap::new()))),
             throttle: Arc::new(LoginThrottle::new()),
+            progress: tokio::sync::broadcast::channel(16).0,
+            pids: Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
     }
 
@@ -745,6 +810,8 @@ mod engine_tests {
             theme: ThemeStore::new("/tmp/nix-web-gui-engine-test-theme".into()),
             engine: EngineMode::InProcess(Arc::new(AsyncMutex::new(HashMap::new()))),
             throttle: Arc::new(LoginThrottle::new()),
+            progress: tokio::sync::broadcast::channel(16).0,
+            pids: Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
     }
 
