@@ -4,100 +4,134 @@ The web UI is not a copy of the GTK window. It is the same set of actions with
 browser equivalents where the desktop depends on a local window, terminal, or
 file chooser.
 
+The `Test` column states the implementation status: `implemented`, `partial`, or
+`pending`. `Minimal` says whether the minimal package keeps the capability.
+
 | Action | Local GUI | Engine | Browser component | Minimal | Test |
 |---|---|---|---|---|---|
-| Open a flake | flake selector | `session.open` | app shell | yes | planned |
-| Reload from disk | reload button | `session.reload` | app shell | yes | planned |
-| Search options | search entry | `page.list` / search | app shell | yes | planned |
-| System-only filter | checkbox | `session.state` | app shell | yes | planned |
-| Advanced toggle | toggle | `control.describe` | app shell | yes | planned |
-| Switch | switch | `control.set` | UI switch | yes | planned |
-| Dropdown | dropdown | `control.set` | UI select | yes | planned |
-| Radio | radio | `control.set` | UI radio | yes | planned |
-| Spin | spin button | `control.set` | UI number | yes | planned |
-| Slider | scale | `control.set` | UI number | yes | planned |
-| Text | entry | `control.set` | UI text | yes | planned |
-| Multiline | text view | `control.set` | UI textarea | yes | planned |
-| Path | entry | `control.set` | UI text | yes | planned |
-| Color | color dialog | `control.set` | UI color | yes | planned |
-| Package and packages | package picker | `control.set` | UI text/list | yes | planned |
-| List | list editor | `control.set` | UI list | yes | planned |
-| Module list | module picker | `control.set` | UI list | yes | planned |
-| Submodule | nested controls | `control.set` | UI group | yes | planned |
-| Table | table editor | `control.set` | UI table | yes | planned |
-| Font, icon, cursor | preview chooser | `control.set` | UI chooser | yes | planned |
-| Theme | palette picker | `control.set` | UI theme picker | yes | planned |
-| Wallpaper | preview strip | `control.set` | UI preview | yes | planned |
-| File and icon pickers | native file chooser | upload | UI upload | yes | planned |
-| Keybinds | row editor | `control.set` | UI rows | yes | planned |
-| Monitors | card editor | `control.set` | UI cards | yes | planned |
-| Users | expander editor | `control.set` | UI users | yes | planned |
-| Facter | hardware profile | `control.set` | UI select | yes | planned |
-| Secure Boot | stage dialog | `secureboot.*` | UI wizard | yes | planned |
-| Save | save button | `edits.apply` | app shell | yes | planned |
-| Diff | diff dialog | `edits.preview` | app shell | yes | planned |
-| Add file | file dialog | `file.add` | app dialog | yes | planned |
-| Add option | option picker | `option.add` | app dialog | yes | planned |
-| Insert snippet | snippet dialog | `insert.apply` | app dialog | yes | planned |
-| Flake inputs | input list | `flake.inputs` | app page | yes | planned |
-| nixpkgs card | card | `flake.nixpkgs` | app page | yes | planned |
-| Update checks | progress rows | `flake.update.check` | app page | yes | planned |
-| Git sync | git button | `git.sync` | app shell | yes | planned |
-| Apply command | live apply | `apply.run` | UI status | yes | planned |
-| Rebuild | terminal | `rebuild.run` | app log | yes | planned |
-| Menu | row editor | `control.set` | UI menu | no | planned |
-| Plugins | plugin editor | `control.set` | UI plugins | no | planned |
-| Bar | tile editor | `control.set` | UI bar | no | planned |
-| Dock | tile editor | `control.set` | UI dock | no | planned |
-| Grid | card canvas | `control.set` | UI grid | no | planned |
-| Docker | row editor | `control.set` | UI docker | no | planned |
+| Open a flake | flake selector | `session.open`, `config.remember` | app shell | yes | implemented |
+| Reload from disk | reload button | `session.reload` | toolbar Reload button | yes | implemented |
+| Search options | search entry | `page.list` / `scan` | global results with jump and highlight | yes | implemented |
+| System-only filter | checkbox | `scan` with `host` | app shell, current host preselected | yes | implemented |
+| Advanced toggle | toggle | `control.describe` | Advanced section for advanced and hidden controls | yes | implemented |
+| Switch | switch | `control.setTyped` | UI switch | yes | implemented |
+| Dropdown | dropdown | `control.setTyped` | UI select | yes | implemented |
+| Radio | radio | `control.setTyped` | UI radio | yes | implemented |
+| Spin | spin button | `control.setTyped` | UI number | yes | implemented |
+| Slider | scale | `control.setTyped` | UI number with range | yes | implemented |
+| Text | entry | `control.setTyped` | UI text | yes | implemented |
+| Multiline | text view | `control.setTyped` | UI textarea | yes | implemented |
+| Path | entry | `control.setTyped` | UI text, no path picker | yes | implemented |
+| Color | color dialog | `control.setTyped` | UI color | yes | implemented |
+| Package and packages | package picker | `control.setTyped`, nixd validation | UI text or string list | yes | implemented |
+| Plain string list | list editor | `control.setTyped` | UI list | yes | implemented |
+| Module list | module picker | `control.setTyped` | UI list | yes | implemented |
+| Submodule | nested controls | `control.setTyped` | generic child controls | yes | partial |
+| Table | table editor | `control.setTyped` | hidden rows, labels, locked keys, typed and dropdown cells, move, icon upload | yes | implemented |
+| Composite rows | nested controls | `structure.add`, `structure.remove`, `structure.rename` | add and remove rows; rename attribute-set rows | yes | partial |
+| Font, icon, cursor | preview chooser | `control.setTyped`, `catalog.styles` | select with filtering and font preview | yes | partial |
+| Theme | palette picker | `control.setTyped` | searchable swatch picker | yes | implemented |
+| Wallpaper | preview strip | `preview.*` | picker, upload, delete | yes | partial |
+| File and icon pickers | native file chooser | `preview.upload`, `preview.delete` | media picker and table icon picker | yes | implemented |
+| Keybinds | row editor | `control.setTyped`, `structure.*` | generic rows | yes | partial |
+| Monitors | card editor | `control.setTyped`, `structure.*`, `monitor.detect` | generic rows plus output detection | yes | partial |
+| Users | expander editor | `control.setTyped`, `structure.*` | generic rows, validation, home-manager sync | yes | partial |
+| Facter | hardware profile | `control.setTyped` | UI select | yes | implemented |
+| Secure Boot | stage dialog | `secureboot.*` | status panel plus setup actions | yes | partial |
+| Save | save button | `edits.apply` | app shell | yes | implemented |
+| Diff | diff dialog | `edits.preview` | staged-change panel | yes | implemented |
+| Add file | file dialog | `file.add`, `file.templates` | sidebar Add file button and panel | yes | implemented |
+| Add option | option picker | `option.add` | app dialog | yes | implemented |
+| Insert snippet | snippet dialog | `insert.apply` | app dialog | yes | implemented |
+| Flake inputs | input list | `flake.inputs`, `flake.input.*` | Flake Inputs page | yes | implemented |
+| Missing inputs | input list | `flake.input.addAll` | banner and Declare all | yes | implemented |
+| nixpkgs card | card | `flake.inputs`, `flake.update` | card with Check, Refresh, Edit | yes | implemented |
+| Update checks | progress rows | `flake.update.check` | per-input Check button | yes | implemented |
+| Git status, pull, push, commit, sync | git actions | `git.*` | Git page | yes | implemented |
+| Working-tree diff | diff dialog | `git.diff` | Git page diff panel | yes | implemented |
+| Apply command | live apply | `apply.run` | serial client apply queue | yes | implemented |
+| Rebuild | terminal | `rebuild.run` | blocking call, output not rendered | yes | partial |
+| Menu | row editor | `control.setTyped`, `structure.*` | generic rows | no | partial |
+| Plugins | plugin editor | `control.setTyped`, `structure.*` | generic rows | no | partial |
+| Bar | tile editor | `control.setTyped` | structured list sections | no | partial |
+| Dock | tile editor | `control.setTyped` | structured list sections | no | partial |
+| Grid | card canvas | `control.setTyped`, `structure.*` | generic rows | no | partial |
+| Docker | row editor | `control.setTyped`, `structure.*` | generic rows | no | partial |
+| Config and flake path | settings dialog | `config.get`, `config.set`, `config.remember` | sidebar Settings button and panel | yes | implemented |
 
-## Current implementation
+## Implemented end to end
 
-Implemented end to end:
-
-- Open a flake, scan pages, stage and save changes, preview a diff, discard.
-- Switch, dropdown, radio, spin, slider, text, multiline, path, color, package,
-  list, packages, module list, theme, and facter controls.
+- Open a flake, scan pages, stage and save changes, preview a diff, and discard.
+- The typed controls: switch, dropdown, radio, spin, slider, text, multiline,
+  path, color, package, packages, plain list, module list, theme, and facter.
 - Nested submodule controls with prefixed paths and staged child edits.
-- Generic nested editors for users, monitors, docker, menu, bar, dock, grid,
-  plugins, and keybinds until their dedicated renderers land.
-- Font, icon-theme, and cursor-theme value selectors from the shared catalog,
-  including package sidecar updates.
+- The table editor: hidden rows, row labels, locked keys, static first cells for
+  `table-list`, bool, text, dropdown, and icon/image cells, move up and down, and
+  add and remove.
+- Composite row add and remove through `structure.*` for users, keybinds,
+  monitors, docker, menu, submodule, horizontal-submodule, and
+  grid-configuration. Rename is offered for users, keybinds, monitors, docker,
+  menu, and grid-configuration. User changes follow `home-manager.users` when
+  present.
+- User validation before save: valid account names, unique positive UIDs,
+  `pkgs.*` shells, and at least one normal sudo account with a password.
+- Font, icon-theme, and cursor-theme selectors from the shared catalog, with
+  monospace and variant filtering and a font preview.
 - A Secure Boot status card with firmware mode, setup mode, key bundle, keys,
-  Lanzaboote state, signed files, Windows, BitLocker, ESP space, and warnings.
-- A basic `table-attrset` and `table-list` editor with columns, typed cells,
-  row add and remove, and key editing.
-- A user password action that generates a yescrypt or SHA-512 hash and stages
-  it into an existing `hashedPassword` field.
-- A media picker for wallpaper and file widgets. It lists files in the widget
-  directory, shows image previews, and stages the selected relative value.
+  Lanzaboote state, signed files, Windows, BitLocker, ESP space, warnings, and
+  the stage title and detail.
+- Secure Boot key create or migrate, enrollment with the Microsoft and
+  firmware-builtin options, configuration write into the owning module, rebuild,
+  and reboot.
+- A user password action that generates a yescrypt or SHA-512 hash and stages it
+  into a `hashedPassword` field.
+- A media picker for wallpaper and file widgets with listing, image previews,
+  upload, and delete. Table icon and image columns upload into `iconDir`.
 - A root-parent and per-user worker boundary with runtime PATH tooling.
-- Global search over menus and controls.
-- A system-only filter with a host selector backed by the scan import graph.
+- Global search with result navigation and highlight, system-only host
+  filtering with current-host preselection, and grouped advanced and hidden
+  controls.
 - `visibleWhen` visibility gates, imported-from origins, live-apply config
   respect, automatic ff-only Git pull on open, and commit-and-push after save
   when `auto_git_sync` is enabled.
 - `page.describe` metadata through nixd and the eval fallback.
-- Add file, add option, and insert snippet.
-- Flake input list, nixpkgs card, add/edit/delete, channels, scans, update check,
-  and update.
-- Git status, diff, pull, and sync.
-- Live apply and Save & rebuild.
-- Config panel backed by the shared desktop config file.
-- Base16 theme follow over SSE.
+- Add file through `file.add`, add option, and insert snippet.
+- Flake input list, nixpkgs card, add/edit/delete, add-all, per-input check and
+  update, and nixpkgs refresh.
+- The Git page: status, pull, push, commit, sync, and the working-tree diff.
+- Live apply with a serial client queue, and Save & rebuild.
+- Config `flake_path` drives the initial open, opening a flake calls
+  `config.remember`, and the config form exposes the path.
+- Base16 theme follow over SSE, theme search, and swatches.
 
-Not yet implemented:
+## Partial and pending
 
-- Table row labels, hidden rows, icon columns, and dropdown columns are not yet
-  rendered in the web table editor. Dedicated keybind, monitor, user-card,
-  wallpaper upload, icon upload, and Ojuny renderers are still pending. Secure
-  Boot setup actions still need the privileged re-auth flow. The generic nested
-  editor and raw fallback are placeholders, not full parity.
-- Automated parity tests for the rows above.
-- Worker isolation and the remaining auth hardening.
-- Playwright tests. The NixOS VM auth test exists and checks service startup,
-  alice login, wrong-password rejection, and bob allowlist rejection.
+- The generic nested editor replaces dedicated keybind, monitor, user-card, and
+  Ojuny renderers. The desktop layouts, tile catalog, bar and dock tile
+  actions, grid canvas, and plugin registry are still pending.
+- Wallpaper preset sources and custom path handling are pending.
+- Icon-theme and cursor-theme preview sheets are pending.
+- Secure Boot has no per-action privileged re-authentication. Actions run in the
+  root parent and fail clearly outside it.
+- Rebuild output is returned in one blocking response. Scan, save, apply, and
+  rebuild progress is not streamed and cannot be cancelled.
+- Full PAM `system-auth`, account expiry, and multi-factor modules are pending.
+- Built-in TLS is pending.
+- Playwright and frontend unit tests, the parity manifest check, and the full
+  `nix flake check` matrix are pending.
+- The portable flake input and release workflow are pending.
+
+## Documented limitation
+
+The scanner keeps the documented module-shape rule. An `@option` inside
+`lib.mkMerge`, a list literal, `map`, `forEach`, `lib.optionalAttrs`, or a
+`lib.mkIf` body is ignored. Keep annotated assignments in a plain attribute set.
+The fix is always to change the module shape, never to add list or apply-node
+descent to the scanner. The authoritative documents are
+`/home/den/repos/ojuny-template/docs/05-settings-gui-limitations.md`,
+`/home/den/repos/nix-settings-gui/docs/comment-syntax.md`,
+`/home/den/repos/nix-settings-gui/docs/architecture.md`, and
+`/home/den/repos/nix-settings-gui/docs/usage.md`.
 
 ## Gates
 
@@ -110,3 +144,7 @@ Not yet implemented:
   engine feature.
 - `gate-ui-boundary`: the UI package has no auth, router, or RPC client.
 - `gate-engine-boundary`: the engine has no server or frontend dependencies.
+
+`checks.parity` is implemented. It checks `tests/widget-names.txt` against
+`docs/widgets.md`, rejects the retired concatenated spellings in the docs and
+the dispatcher, and asserts that `record_json` uses `render::widget_name`.

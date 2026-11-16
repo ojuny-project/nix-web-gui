@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import {
     Control,
+    OJUNY_WIDGETS,
+    OJUNY_WIDGET_KINDS,
     Panel,
     schemeById,
     type ControlDescriptor,
@@ -56,6 +58,7 @@
   let error = "";
   let diff = "";
   let showDiff = false;
+  let rebuildOutput = "";
   let themeName = "everforest-dark-hard";
   let engine = "loading";
   let insert: { menuFile: string; marker: ScanInsert; snippet: ScanSnippet } | null =
@@ -444,6 +447,7 @@
   }
 
   async function openAddFile() {
+    view = "settings";
     error = "";
     try {
       fileTemplates = await rpc<FileTemplate[]>("file.templates", {}, user.csrf);
@@ -545,7 +549,29 @@
     }
   }
 
+  function promptOpenFlake() {
+    const next = prompt("Flake or configuration directory", root);
+    if (next && next.trim()) openRoot(next.trim());
+  }
+
+  async function reloadFromDisk() {
+    if (dirty.size > 0 && !confirm("Discard staged changes and reload from disk?")) {
+      return;
+    }
+    try {
+      await rpc("session.reload", {}, user.csrf);
+      const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
+      menus = scanned.menus;
+      hosts = scanned.hosts ?? [];
+      loadPage();
+      status = "Reloaded from disk";
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot reload";
+    }
+  }
+
   async function openConfig() {
+    view = "settings";
     error = "";
     try {
       config = await rpc<WebConfig>("config.get", {}, user.csrf);
@@ -1413,7 +1439,8 @@
     error = "";
     status = "Rebuilding...";
     try {
-      await rpc<{ output: string }>("rebuild.run", {}, user.csrf);
+      const result = await rpc<{ output: string }>("rebuild.run", {}, user.csrf);
+      rebuildOutput = result.output.trim();
       status = "Rebuild finished";
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Rebuild failed";
@@ -1487,6 +1514,9 @@
           Flake Inputs
         </button>
         <button class:active={view === "git"} onclick={openGit}>Git</button>
+        <button onclick={promptOpenFlake}>Open flake</button>
+        <button onclick={openAddFile}>Add file</button>
+        <button class:active={showConfig} onclick={openConfig}>Settings</button>
         <p class="nav-label">Menus</p>
         {#each menuGroups as [category, group] (category)}
           {#if category}
@@ -1759,9 +1789,13 @@
             <span>Advanced</span>
           </label>
           <span class="spacer"></span>
+          <button class="ghost" onclick={reloadFromDisk}>Reload</button>
           <button class="ghost" onclick={openAddOption}>Add option</button>
           <button class="ghost" onclick={discard}>Discard</button>
           <button class="ghost" onclick={preview}>Diff</button>
+          <button class="ghost" onclick={saveAndRebuild} disabled={busy || dirty.size === 0}>
+            Save &amp; rebuild
+          </button>
           <button onclick={save} disabled={busy || dirty.size === 0}>
             {busy ? "Saving..." : "Save"}
           </button>
@@ -1780,7 +1814,11 @@
               class="control-record"
               class:highlight={highlightPath === record.path}
             >
-              {#if record.children?.length}
+              {#if !OJUNY_WIDGETS && OJUNY_WIDGET_KINDS.has(record.widget ?? "")}
+                <p class="muted">
+                  This Ojuny widget is not available in the minimal build.
+                </p>
+              {:else if record.children?.length}
                 <div class="structure-heading">
                   <h3
                     class="submodule-heading"
@@ -2075,10 +2113,6 @@
               <span>Rebuild command</span>
               <input bind:value={rebuildCommand} placeholder="sudo nixos-rebuild switch --flake .#host" />
             </label>
-            <label>
-              <span>Terminal command</span>
-              <input bind:value={terminalCommand} placeholder="Unused by the web frontend" />
-            </label>
             <label class="inline">
               <input type="checkbox" bind:checked={config.live_apply} />
               <span>Apply changes immediately</span>
@@ -2143,6 +2177,12 @@
       {#if showDiff}
         <Panel title="Pending changes" description="Nothing is written until Save.">
           <pre class="diff">{diff}</pre>
+        </Panel>
+      {/if}
+
+      {#if rebuildOutput}
+        <Panel title="Rebuild output" description="Captured when the command finished.">
+          <pre class="diff">{rebuildOutput}</pre>
         </Panel>
       {/if}
     {/if}

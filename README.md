@@ -24,31 +24,47 @@ this product's login flow.
 
 Implemented end to end:
 
-- Device-account login through PAM, browser sessions, CSRF, SSE theme updates.
+- Device-account login through PAM, browser sessions, CSRF, login throttling,
+  session caps, secure cookies, Origin checks, CSP, audit logging, and SSE theme
+  updates.
 - Root parent plus per-user worker isolation. The worker runs with the account's
   uid, gid, groups, HOME, and XDG paths.
-- Scan, menu categories, groups, search, system-only host filtering, advanced
-  and hidden controls, visibleWhen gates, imported-from origins.
+- Scan, menu categories with collapse, global search with jump and highlight,
+  system-only host filtering with current-host detection, advanced and hidden
+  grouping, visibleWhen gates, imported-from origins.
 - Switch, dropdown, radio, spin, slider, text, multiline, path, color, package,
   packages, list, module list, theme, facter, font, icon, cursor, submodule,
   table, wallpaper, and file controls.
-- Save, diff, discard, live apply, Save & rebuild.
-- Add file, add option, and insert snippet.
-- Flake inputs, nixpkgs card, Git sync, config, startup page, and automatic Git
-  pull or commit-and-push when configured.
-- Font, icon, and cursor package sidecars.
-- User password hashing into an existing `hashedPassword` field.
-- Media picker for wallpaper and file directories.
-- Secure Boot status card.
-- Default and minimal packages with a minimal-build Ojuny notice.
+- Save, diff, discard, per-option reset, live apply with a serial queue,
+  package validation, stale-file conflict detection, and Save & rebuild.
+- Add file, add option, insert snippet, reload from disk, and an unsaved-change
+  guard.
+- Flake inputs with missing-input declarations, per-input check and update,
+  nixpkgs refresh, Git status, diff, pull, push, commit, sync, config, startup
+  page, and automatic Git pull or commit-and-push when configured.
+- Font previews, monospace and variant filtering, searchable theme swatches,
+  media upload and delete, icon-column upload, and composite row add, remove,
+  and rename. User rows validate the account invariant and follow
+  `home-manager.users`.
+- Secure Boot status plus key creation, migration, enrollment, config writes,
+  rebuild, and reboot from the root service account.
+- Default and minimal packages. The minimal UI hides Ojuny records entirely and
+  shows the unavailable notice.
+- `checks.parity`, `checks.boundaries`, `checks.minimal-flag`, and the NixOS
+  worker/auth VM test.
 
 Not yet implemented:
 
-- Dedicated keybind, monitor, user-card, wallpaper upload, icon upload, and
-  Ojuny bar, dock, menu, plugins, grid, and docker editors. These currently use
-  the generic nested editor or a raw Nix fallback.
-- Secure Boot setup actions that create keys, enroll keys, rebuild, or reboot.
-- Playwright tests and the full `nix flake check` matrix.
+- Dedicated Ojuny menu, plugins, bar, dock, grid, and docker editors, tile
+  catalogs, and the grid canvas. Existing values edit through the generic
+  structured renderer.
+- Dedicated keybind, monitor, and user cards. Their rows support add, remove,
+  rename, and field editing through the generic renderer.
+- Wallpaper preset sources, icon and cursor theme preview sheets, and custom
+  wallpaper paths.
+- Streamed and cancellable scan, save, apply, and rebuild output.
+- Playwright and frontend unit tests, a portable release flake input, release
+  workflow, and prebuilt binaries.
 
 The NixOS VM auth test passes. It verifies service startup, alice login,
 wrong-password rejection, bob allowlist rejection, worker RPC, scan, staged

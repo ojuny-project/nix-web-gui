@@ -230,6 +230,12 @@ pub fn serialize_table(record: &Record, list: bool, value: &Value) -> Result<Str
             let kind = types.get(index).map(String::as_str).unwrap_or_default();
             body.push(format!("{} = {};", quote(column), table_cell(kind, &cell)?));
         }
+        for (column, cell) in fields {
+            if columns.iter().any(|declared| declared == column) {
+                continue;
+            }
+            body.push(format!("{} = {};", quote(column), table_cell("", cell)?));
+        }
         let body = body.join(" ");
         if list {
             rendered.push(format!("{{ {body} }}"));
@@ -390,12 +396,12 @@ mod tests {
         let value = serde_json::json!({
             "rows": [{
                 "key": "",
-                "fields": { "name": "one", "enabled": "true" }
+                "fields": { "name": "one", "enabled": "true", "extra": "kept" }
             }]
         });
         assert_eq!(
             serialize_table(&record, true, &value).unwrap(),
-            "[ { \"name\" = \"one\"; \"enabled\" = true; } ]"
+            "[ { \"name\" = \"one\"; \"enabled\" = true; \"extra\" = \"kept\"; } ]"
         );
     }
 

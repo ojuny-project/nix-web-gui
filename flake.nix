@@ -62,6 +62,11 @@
               ${self.packages.${system}.nix-web-gui-minimal}/share/nix-web-gui/dist
             touch $out
           '';
+          parity = pkgs.runCommand "check-parity" { } ''
+            cd ${self}
+            ${pkgs.bash}/bin/bash tests/check-parity.sh .
+            touch $out
+          '';
         } // lib.optionalAttrs (system == "x86_64-linux") {
           nixos-test-auth = import ./tests/nixos-test-auth.nix {
             inherit self pkgs system;

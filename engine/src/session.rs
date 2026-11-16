@@ -543,7 +543,13 @@ impl SettingsSession {
             end: record.byte_start + offset,
             value: insertion,
         };
-        edit::apply(&[pending], &self.root)?;
+        let mut edits = vec![pending];
+        if widget == WidgetKind::Users {
+            if let Some(home) = home_add_edit(&record, key.trim()) {
+                edits.push(home);
+            }
+        }
+        edit::apply(&edits, &self.root)?;
         self.reload()
     }
 
@@ -702,6 +708,8 @@ impl SettingsSession {
         let start_absolute = parent.byte_start + child.byte_start;
         let end_absolute = parent.byte_start + child.byte_end;
 
+        let parent_widget = crate::render::choose_widget(&parent, None);
+        let parent_widget = crate::render::choose_widget(&parent, None);
         let text = std::fs::read_to_string(&parent.file)
             .map_err(|error| format!("cannot read {}: {error}", parent.file))?;
         let (mut start, mut end) = match nix_settings_gui::value::classify(&parent.value) {
@@ -737,9 +745,88 @@ impl SettingsSession {
             end,
             value: String::new(),
         };
-        edit::apply(&[pending], &self.root)?;
+        let mut edits = vec![pending];
+        if parent_widget == WidgetKind::Users {
+            if let Some(key) = relative.last() {
+                if let Some(home) = home_remove_edit(&parent, key) {
+                    edits.push(home);
+                }
+            }
+        }
+        edit::apply(&edits, &self.root)?;
         self.reload()
     }
+}
+
+fn home_users_assignment(text: &str, parent: &Record) -> Option<scan::SiblingAssignment> {
+    let (assignments, _) = scan::sibling_assignments(text, parent.byte_start, parent.byte_end)?;
+    assignments.into_iter().find(|assignment| {
+        assignment.segments.len() == 2
+            && matches!(
+                assignment.segments[0].as_str(),
+                "home-manager" | "homeManager"
+            )
+            && assignment.segments[1] == "users"
+    })
+}
+
+fn home_add_edit(parent: &Record, key: &str) -> Option<edit::PendingEdit> {
+    let text = std::fs::read_to_string(&parent.file).ok()?;
+    let home = home_users_assignment(&text, parent)?;
+    if nix_settings_gui::value::classify(&home.value)
+        != nix_settings_gui::value::ValueKind::AttrSet
+    {
+        return None;
+    }
+    let offset = closing_offset(&home.value, nix_settings_gui::value::ValueKind::AttrSet).ok()?;
+    let version = scan::scan_value_direct(&home.value)
+        .into_iter()
+        .find_map(|user| {
+            scan::scan_value_direct(&user.value)
+                .into_iter()
+                .find(|field| field.segments == ["home", "stateVersion"])
+                .map(|field| field.value)
+        })
+        .unwrap_or_else(|| "\"25.05\"".to_string());
+    let attr = crate::structure::attr_path(key).ok()?;
+    Some(edit::PendingEdit {
+        file: parent.file.clone(),
+        start: home.value_start + offset,
+        end: home.value_start + offset,
+        value: format!("\n  {attr} = {{ home.stateVersion = {version}; }};\n"),
+    })
+}
+
+fn home_remove_edit(parent: &Record, key: &str) -> Option<edit::PendingEdit> {
+    let text = std::fs::read_to_string(&parent.file).ok()?;
+    let home = home_users_assignment(&text, parent)?;
+    let child = scan::scan_value_direct(&home.value)
+        .into_iter()
+        .find(|child| child.segments == [key.to_string()])?;
+    let start = home.value_start + child.byte_start;
+    let end = home.value_start + child.byte_end;
+    let (assignments, _) = scan::sibling_assignments(&text, start, end)?;
+    let assignment = assignments
+        .iter()
+        .filter(|assignment| assignment.value_start <= start && assignment.value_end >= end)
+        .min_by_key(|assignment| assignment.value_end - assignment.value_start)?;
+    let mut start = assignment.full_start;
+    let mut end = assignment.full_end;
+    while start > 0 && matches!(text.as_bytes()[start - 1], b' ' | b'\t') {
+        start -= 1;
+    }
+    while end < text.len() && matches!(text.as_bytes()[end], b' ' | b'\t' | b'\r') {
+        end += 1;
+    }
+    if end < text.len() && text.as_bytes()[end] == b'\n' {
+        end += 1;
+    }
+    Some(edit::PendingEdit {
+        file: parent.file.clone(),
+        start,
+        end,
+        value: String::new(),
+    })
 }
 
 fn widget_name(widget: WidgetKind) -> String {
@@ -1145,6 +1232,7 @@ mod tests {
         session.add_child("users.users", "bob", None).unwrap();
         let saved = std::fs::read_to_string(&file).unwrap();
         assert!(saved.contains("bob ="));
+        assert!(saved.matches("bob =").count() >= 2);
         assert!(saved.contains("isNormalUser = true;"));
 
         session

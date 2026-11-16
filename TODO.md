@@ -34,7 +34,8 @@ feature and hardening gaps.
 - [ ] Search text from labels and fields.
 - [x] Add and remove rows through the generic structure editor. Reordering is
       still pending.
-- [ ] Preserve `@table-item` label and visibility.
+- [ ] Preserve `@table-item` label and visibility comments when a row is edited
+      through the web table editor. The values survive; the directives do not.
 
 ### Monitors
 
@@ -59,8 +60,7 @@ feature and hardening gaps.
       with `hashedPassword = null` so the existing password action can fill it.
 - [x] Edit description, extra groups, UID, shell, SSH keys, and extra options
       through the generic child controls.
-- [x] Follow `home-manager.users` on rename. Add and remove still need the
-      sibling block update.
+- [x] Follow `home-manager.users` on rename, add, and remove.
 - [ ] Separate sudo switch. Sudo is expressed through `extraGroups`.
 
 ### Wallpaper
@@ -99,7 +99,7 @@ feature and hardening gaps.
 - [x] `firstValueEditable` behavior for `table-list`.
 - [x] Locked keys when `keyEditable = false`.
 - [x] Preserve row order, with move-up and move-down controls. Unknown columns
-      are not rendered but the serializer keeps declared columns.
+      are not rendered but the serializer writes them back unchanged.
 
 ### Submodules and horizontal submodules
 
@@ -136,9 +136,10 @@ feature and hardening gaps.
       generically.
 - [ ] Tile catalog and `@widget-preset` fields.
 - [ ] Theme, font, icon, and cursor DMS catalogs.
-- [ ] The minimal build currently only marks Ojuny controls unavailable. It has
-      no dedicated Ojuny components to exclude, so the default/minimal
-      difference is mostly the notice and the backend feature flag.
+- [ ] The minimal build hides every Ojuny record, including its children, and
+      shows the unavailable notice. It has no dedicated Ojuny components to
+      exclude, so the default and minimal trees still share the generic
+      renderer code.
 
 ## Engine and flows
 
@@ -164,10 +165,10 @@ feature and hardening gaps.
 - [x] Git diff UI. `git.diff` returns the status list plus the unstaged patch.
 - [x] Config `flake_path` drives the initial open, updates on open, and is
       editable in the config panel.
-- [ ] `terminal_command` is unused by the web rebuild path. Document this or
-      remove it from the panel.
-- [ ] Rebuild output is returned at the end of a blocking RPC. It is not
-      streamed and cannot be cancelled.
+- [x] `terminal_command` is no longer shown in the config panel. The stored
+      value is preserved for the desktop app.
+- [ ] Rebuild output is rendered after the command finishes. It is not streamed
+      and cannot be cancelled.
 - [ ] Apply and rebuild privilege escalation relies on the account's sudo
       configuration. There is no password re-auth or `sudo -S` implementation.
 
@@ -203,8 +204,8 @@ feature and hardening gaps.
       the desktop repository.
 - [ ] Add a container image if self-hosting is in scope.
 - [ ] Add frontend unit tests and a browser test package to the flake checks.
-- [ ] Add a `checks.parity` manifest check. `docs/parity.md` is documentation,
-      not an enforced gate.
+- [x] Add a `checks.parity` gate. It checks widget names against
+      `docs/widgets.md` and rejects the retired concatenated spellings.
 - [ ] Add a minimal-build test that proves no Ojuny renderer ships. The current
       `checks.minimal-flag` only proves the notice is present.
 
