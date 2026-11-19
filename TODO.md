@@ -150,7 +150,7 @@ feature and hardening gaps.
 - [x] Generic grid registry ids are offered when adding a card.
 - [x] `@widget-preset` tiles are offered when adding bar and dock entries and
       their defaults are written.
-- [ ] Preset-specific field editors (`@widget-preset-field`) in the add dialog.
+- [x] Preset field metadata renders literal inputs in the add dialog.
 - [ ] Theme, font, icon, and cursor DMS catalogs.
 - [x] The minimal build hides every Ojuny record, including its children, and
       shows the unavailable notice.

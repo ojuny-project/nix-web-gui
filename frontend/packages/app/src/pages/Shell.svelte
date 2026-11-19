@@ -2480,6 +2480,28 @@
                     </button>
                   {/each}
                 </div>
+                {@const selected = presets.find(
+                  (preset) => preset.id === structureKey,
+                )}
+                {#if selected?.fields.length}
+                  <div class="input-form">
+                    {#each selected.fields as field (field.name)}
+                      <label>
+                        <span>{field.label || field.name}</span>
+                        <input
+                          value={structureDefaults[field.name] ?? ""}
+                          placeholder={field.description ?? field.widget ?? "Nix literal"}
+                          oninput={(event) => {
+                            structureDefaults = {
+                              ...structureDefaults,
+                              [field.name]: event.currentTarget.value,
+                            };
+                          }}
+                        />
+                      </label>
+                    {/each}
+                  </div>
+                {/if}
               {/if}
             {/if}
             {#if structureTarget.widget === "grid-configuration" && structureTarget.gridRegistry?.length}
