@@ -1419,6 +1419,22 @@
     });
   }
 
+  async function previewIcon(
+    record: ScanRecord,
+    value: string,
+  ): Promise<string | null> {
+    try {
+      const preview = await rpc<{ mime: string; data: string }>(
+        "preview.icon",
+        { path: record.path, name: value },
+        user.csrf,
+      );
+      return `data:${preview.mime};base64,${preview.data}`;
+    } catch {
+      return null;
+    }
+  }
+
   function toBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
     let binary = "";
@@ -1915,6 +1931,7 @@
                   onchange={onChange}
                   expandDetails={expandDetailsDefault}
                   onIconPick={(current) => pickIcon(record, current)}
+                  onIconPreview={(value) => previewIcon(record, value)}
                 />
                 {#if record.widget === "font"}
                   <p

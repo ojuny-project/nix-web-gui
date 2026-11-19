@@ -221,6 +221,11 @@ pub fn handle_with_progress(
             let name = string_param(&params, "name");
             preview::delete(settings, &path, &name).map_err(|error| (-32011, error))
         }),
+        "preview.icon" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            let name = string_param(&params, "name");
+            preview::read_named(settings, &path, &name).map_err(|error| (-32011, error))
+        }),
         "users.hashPassword" => {
             let password = string_param(&params, "password");
             users::hash_password(&password)

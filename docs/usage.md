@@ -288,7 +288,8 @@ For a `wallpaper` or `file` record, a media grid is rendered under the control:
 Wallpaper images accept `png`, `jpg`, `jpeg`, `webp`, `svg`, and `gif`. File
 widgets accept those image types plus `pdf`, `txt`, and `md`, or the extensions
 declared on the option. Table icon and image columns use a file picker that
-uploads into `iconDir` and stages the returned file name in the cell. Uploads
+uploads into `iconDir`, shows a thumbnail, and stages the returned file name in
+the cell. Uploads
 and deletes write directly to the media directory; Git sees them through the
 configured sync flow.
 

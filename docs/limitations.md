@@ -138,12 +138,10 @@ buttons, move up and down, add, and remove.
 
 Remaining gaps:
 
-- Columns not declared in `columns` are not rendered, and the serializer writes
-  only the declared columns. Unknown fields are dropped from a table edit.
+- Columns not declared in `columns` are not rendered. The serializer writes
+  their existing values back unchanged, so a row edit does not drop them.
 - A table with no declared columns falls back to the raw textarea, and the
   serializer rejects that string with `table has no columns`.
-- Icon and image columns show a text value and an upload button, not an image
-  thumbnail.
 
 ## Secure Boot setup actions
 

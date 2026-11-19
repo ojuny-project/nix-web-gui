@@ -25,6 +25,9 @@
   export let onIconPick:
     | ((current: string) => Promise<string | null>)
     | undefined = undefined;
+  export let onIconPreview:
+    | ((value: string) => Promise<string | null>)
+    | undefined = undefined;
 
   $: id = `control-${descriptor.path.replaceAll(".", "-")}`;
   $: disabled = descriptor.readonly === true;
@@ -118,6 +121,7 @@
       {disabled}
       onchange={change}
       {onIconPick}
+      {onIconPreview}
     />
   {:else if rawWidgets.has(descriptor.widget)}
     <Textarea

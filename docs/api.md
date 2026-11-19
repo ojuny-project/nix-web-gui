@@ -1345,9 +1345,9 @@ The contract is filled in as the engine slices land.
 | Apply | streamed and cancellable scan, save, and update checks |
 | Secure Boot | per-action privileged re-authentication and streamed setup output |
 | Users | the account-card UI |
-| Previews | wallpaper preset sources, custom path handling, icon and cursor theme sheets, and table image thumbnails |
+| Previews | wallpaper preset sources, custom path handling, and icon and cursor theme sheets |
 | Catalogs | `catalog.themes`, `catalog.fonts`, `catalog.icons`, `catalog.cursors`, `plugins.registry`, `plugins.settings`, and `facter.detect` |
-| Tables | rendering undeclared columns and preserving `@table-item` comments |
+| Tables | rendering undeclared columns |
 | Config | nothing; the sidebar Settings button opens the panel |
 
 ## Engine boundary

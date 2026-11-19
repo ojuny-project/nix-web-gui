@@ -14,7 +14,35 @@
   export let onIconPick:
     | ((current: string) => Promise<string | null>)
     | undefined = undefined;
+  export let onIconPreview:
+    | ((value: string) => Promise<string | null>)
+    | undefined = undefined;
   let picking = false;
+  let iconPreviews: Record<string, string> = {};
+  let loadingIcons = new Set<string>();
+  $: iconValues = columns.flatMap((column, index) =>
+    columnTypes[index] === "icon" || columnTypes[index] === "image"
+      ? rows.map((row) => row.fields[column] ?? "").filter(Boolean)
+      : [],
+  );
+  $: for (const value of iconValues) {
+    void loadIconPreview(value);
+  }
+
+  async function loadIconPreview(value: string) {
+    if (!onIconPreview || iconPreviews[value] || loadingIcons.has(value)) return;
+    loadingIcons.add(value);
+    try {
+      const preview = await onIconPreview(value);
+      if (preview) {
+        iconPreviews = { ...iconPreviews, [value]: preview };
+      }
+    } catch {
+      // Keep the text value when the icon cannot be read.
+    } finally {
+      loadingIcons.delete(value);
+    }
+  }
 
   async function pickIcon(row: TableRow, column: string) {
     if (!onIconPick) return;
@@ -137,6 +165,13 @@
                 />
               {:else if (columnTypes[columnIndex] === "icon" || columnTypes[columnIndex] === "image") && onIconPick}
                 <div class="icon-cell">
+                  {#if iconPreviews[row.fields[column] ?? ""]}
+                    <img
+                      class="icon-thumb"
+                      src={iconPreviews[row.fields[column] ?? ""]}
+                      alt=""
+                    />
+                  {/if}
                   <input
                     value={row.fields[column] ?? ""}
                     {disabled}

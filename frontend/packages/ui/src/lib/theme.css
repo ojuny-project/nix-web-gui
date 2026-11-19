@@ -722,6 +722,14 @@ button.tiny {
   min-width: 6rem;
 }
 
+.icon-thumb {
+  width: 1.4rem;
+  height: 1.4rem;
+  object-fit: contain;
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+
 .search-input {
   width: min(22rem, 30vw);
   margin-left: 0.75rem;

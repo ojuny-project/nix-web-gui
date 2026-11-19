@@ -34,8 +34,8 @@ feature and hardening gaps.
 - [ ] Search text from labels and fields.
 - [x] Add and remove rows through the generic structure editor. Reordering is
       still pending.
-- [ ] Preserve `@table-item` label and visibility comments when a row is edited
-      through the web table editor. The values survive; the directives do not.
+- [x] Preserve `@table-item` label, hidden, and `visibleWhen` directives when a
+      row is edited through the web table editor.
 
 ### Monitors
 
@@ -94,7 +94,7 @@ feature and hardening gaps.
 ### Tables
 
 - [x] Row labels from `@table-item` and hidden rows with a show-hidden toggle.
-- [x] Icon columns are text fields. Image previews are still pending.
+- [x] Icon and image columns upload a file and show a thumbnail.
 - [x] Dropdown columns with the table `choices`.
 - [x] `firstValueEditable` behavior for `table-list`.
 - [x] Locked keys when `keyEditable = false`.

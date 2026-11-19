@@ -85,12 +85,38 @@ pub fn read(
             return Err("preview path is outside the media directory".to_string());
         }
     }
+    encode_file(&path)
+}
+
+/// Read one file from a media directory by name, used by table icon cells.
+pub fn read_named(
+    session: &SettingsSession,
+    option_path: &str,
+    name: &str,
+) -> Result<Value, String> {
+    let record = session
+        .record(option_path)
+        .ok_or_else(|| format!("unknown option path: {option_path}"))?;
+    let (directory, _) = media_directory(session, record)?;
+    let name = safe_file_name(name)?;
+    let root = session_root(session)?;
+    let directory = directory
+        .canonicalize()
+        .map_err(|error| format!("cannot resolve {}: {error}", directory.display()))?;
+    let path = paths::confine(&root, &directory.join(name)).map_err(|error| error.to_string())?;
+    if !path.starts_with(&directory) {
+        return Err("preview path is outside the media directory".to_string());
+    }
+    encode_file(&path)
+}
+
+fn encode_file(path: &Path) -> Result<Value, String> {
     if !path.is_file() {
         return Err("preview path is not a file".to_string());
     }
-    let data = std::fs::read(&path)
+    let data = std::fs::read(path)
         .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-    let mime = mime_for(&path);
+    let mime = mime_for(path);
     let encoded = base64::engine::general_purpose::STANDARD.encode(data);
     Ok(json!({ "mime": mime, "data": encoded }))
 }

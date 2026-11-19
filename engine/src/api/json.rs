@@ -34,7 +34,7 @@ pub fn record_json(record: &Record) -> Value {
         "keyEditable": record.spec.key_editable,
         "applyCommand": record.spec.apply_command,
         "origin": record.origin,
-        "visibleWhen": record.spec.visible_when,
+        "visibleWhen": record.spec.visible_when.as_ref().map(visibility_json),
         "table": table_json(record),
     })
 }
@@ -61,9 +61,19 @@ fn table_json(record: &Record) -> Value {
                 "key": row.key,
                 "label": row.spec.label,
                 "hidden": row.spec.hidden,
+                "visibleWhen": row.spec.visible_when.as_ref().map(visibility_json),
                 "fields": fields,
             })
         }).collect::<Vec<_>>(),
+    })
+}
+
+fn visibility_json(visibility: &nix_settings_gui::dsl::Visibility) -> Value {
+    json!({
+        "path": visibility.path,
+        "equals": visibility.equals,
+        "equalsAny": visibility.equals_any,
+        "notEquals": visibility.not_equals,
     })
 }
 

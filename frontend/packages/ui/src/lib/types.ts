@@ -72,6 +72,12 @@ export type TableRow = {
   key: string;
   label?: string | null;
   hidden?: boolean;
+  visibleWhen?: {
+    path: string;
+    equals?: string | null;
+    equalsAny?: string[];
+    notEquals?: string | null;
+  } | null;
   fields: Record<string, string>;
 };
 

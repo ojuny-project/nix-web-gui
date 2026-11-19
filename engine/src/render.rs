@@ -237,10 +237,11 @@ pub fn serialize_table(record: &Record, list: bool, value: &Value) -> Result<Str
             body.push(format!("{} = {};", quote(column), table_cell("", cell)?));
         }
         let body = body.join(" ");
+        let comment = row_comment(object);
         if list {
-            rendered.push(format!("{{ {body} }}"));
+            rendered.push(format!("{comment}{{ {body} }}"));
         } else {
-            rendered.push(format!("{} = {{ {body} }};", quote(key)));
+            rendered.push(format!("{comment}{} = {{ {body} }};", quote(key)));
         }
     }
 
@@ -248,6 +249,47 @@ pub fn serialize_table(record: &Record, list: bool, value: &Value) -> Result<Str
         Ok(format!("[ {} ]", rendered.join(" ")))
     } else {
         Ok(format!("{{ {} }}", rendered.join(" ")))
+    }
+}
+
+fn row_comment(row: &serde_json::Map<String, Value>) -> String {
+    let mut parts = Vec::new();
+    if let Some(label) = row.get("label").and_then(Value::as_str) {
+        if !label.is_empty() {
+            parts.push(format!("label = {};", string_literal(label)));
+        }
+    }
+    if row.get("hidden").and_then(Value::as_bool) == Some(true) {
+        parts.push("hidden = true;".to_string());
+    }
+    if let Some(visibility) = row.get("visibleWhen").and_then(Value::as_object) {
+        if let Some(path) = visibility.get("path").and_then(Value::as_str) {
+            parts.push(format!("visibleWhen.path = {};", string_literal(path)));
+        }
+        if let Some(equals) = visibility.get("equals").and_then(Value::as_str) {
+            parts.push(format!("visibleWhen.equals = {equals};"));
+        }
+        if let Some(equals_any) = visibility.get("equalsAny").and_then(Value::as_array) {
+            let values: Vec<String> = equals_any
+                .iter()
+                .filter_map(Value::as_str)
+                .map(string_literal)
+                .collect();
+            if !values.is_empty() {
+                parts.push(format!(
+                    "visibleWhen.equals = [ {} ];",
+                    values.join(" ")
+                ));
+            }
+        }
+        if let Some(not_equals) = visibility.get("notEquals").and_then(Value::as_str) {
+            parts.push(format!("visibleWhen.notEquals = {not_equals};"));
+        }
+    }
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!("/* @table-item {} */\n", parts.join(" "))
     }
 }
 
@@ -403,6 +445,26 @@ mod tests {
             serialize_table(&record, true, &value).unwrap(),
             "[ { \"name\" = \"one\"; \"enabled\" = true; \"extra\" = \"kept\"; } ]"
         );
+    }
+
+    #[test]
+    fn preserves_table_item_directives() {
+        let mut record = Record::default();
+        record.spec.columns = Some(vec!["name".to_string()]);
+        let value = serde_json::json!({
+            "rows": [{
+                "key": "one",
+                "label": "First",
+                "hidden": true,
+                "visibleWhen": { "path": "services.demo", "equals": "true" },
+                "fields": { "name": "one" }
+            }]
+        });
+        let rendered = serialize_table(&record, false, &value).unwrap();
+        assert!(rendered.contains(
+            "/* @table-item label = \"First\"; hidden = true; visibleWhen.path = \"services.demo\"; visibleWhen.equals = true; */"
+        ));
+        assert!(rendered.contains("\"one\" = { \"name\" = \"one\"; }"));
     }
 
     #[test]
