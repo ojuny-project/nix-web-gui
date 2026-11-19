@@ -132,6 +132,11 @@ The check set is:
 Tagged releases run the workflow in `.github/workflows/release.yml`, which builds
 both packages and publishes a tarball with `SHA256SUMS`.
 
+A manual browser smoke test lives in `tests/ui-smoke.mjs`. Start a dev server with
+`NIX_WEB_GUI_SKIP_METADATA=1`, launch headless Chromium with
+`--remote-debugging-port=9223`, and run `node tests/ui-smoke.mjs`. It checks the
+card layout, keybind CSV fields, and the add, rename, and remove actions.
+
 ## Theme
 
 The browser follows the device base16 scheme. `modules/ojuny-theme.nix`
