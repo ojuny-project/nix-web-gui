@@ -85,7 +85,7 @@ Not yet implemented:
 - Playwright and frontend unit tests, a remote flake input for
   `nix-settings-gui`, `binary-url.json`, and prebuilt binary update checks. The
   flake currently pins `nix-settings-gui` with `git+file` at NSG commit
-  `4b93ee5`.
+  `95779de`.
 
 The NixOS VM auth test passes. It verifies service startup, alice login,
 wrong-password rejection, bob login through an allowed group but refusal to read

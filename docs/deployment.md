@@ -55,7 +55,7 @@ nix-settings-gui.url = "git+file:///home/den/repos/nix-settings-gui";
 ```
 
 `flake.lock` locks that input to the NSG generalization commit
-`4b93ee506b2f89a73e772e117efbf4e37084356e`. The application builds against that
+`95779de003c77f7e90b7477f27e9b7096de8789a`. The application builds against that
 checkout, so a build outside this machine needs the repository at the same
 path. A release needs a remote flake input, for example
 `github:ojuny-project/nix-settings-gui`, before the tarball can build anywhere
