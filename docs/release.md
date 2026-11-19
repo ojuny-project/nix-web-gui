@@ -1,12 +1,9 @@
 # Release
 
-This document describes what a tagged release needs and what it produces. It
-does not change the flake. The maintainer edits `flake.nix` and `flake.lock` and
-the workflow in `/home/den/repos/ojuny-future-repos/nix-web-gui/.github/workflows/release.yml`
-does the rest.
-
-Nothing here runs in this repository today: `flake.nix` still pins the engine
-with a local path and a `v*` tag builds only what the flake exposes.
+This document describes what a tagged release needs and what it produces. The
+flake pins the engine to GitHub, and
+`/home/den/repos/ojuny-future-repos/nix-web-gui/.github/workflows/release.yml`
+builds the packages and the container image on a `v*` tag.
 
 ## Release inputs
 
@@ -47,12 +44,8 @@ The tag is reproducible only when `flake.lock` is committed. A tag that points
 at a commit whose lock still names `file:///home/den/repos/nix-settings-gui`
 fails on the runner.
 
-There is a conflict between the lock and the prose in
-`/home/den/repos/ojuny-future-repos/nix-web-gui/README.md`,
-`/home/den/repos/ojuny-future-repos/nix-web-gui/docs/deployment.md`, and
-`/home/den/repos/ojuny-future-repos/nix-web-gui/docs/parity.md`, which name NSG
-The flake pins the GitHub revision `3f3a980`. Check the locked rev before cutting a tag
-instead of trusting the prose.
+The flake and the prose both name the GitHub revision `3f3a980`. Check the
+locked rev before cutting a tag instead of trusting the prose.
 
 ## Tagged artifacts
 
@@ -61,7 +54,7 @@ The `release` workflow runs on `v*` tags on `ubuntu-latest` and publishes:
 | Artifact | Contents |
 |---|---|
 | `nix-web-gui-<tag>-x86_64-linux.tar.gz` | `default/` and `minimal/`, each with `bin/nix-web-gui` and `share/nix-web-gui` |
-| `nix-web-gui-<tag>-x86_64-linux-container.tar.gz` | Optional OCI image tarball, present only when `packages.x86_64-linux.container` exists |
+| `nix-web-gui-<tag>-x86_64-linux-container.tar.gz` | OCI image tarball from `packages.x86_64-linux.container` |
 | `SHA256SUMS` | One line per published tarball, generated with `sha256sum` |
 
 `default/` is `packages.default` (`withOjunyWidgets = true`). `minimal/` is
@@ -76,7 +69,8 @@ The image step probes the flake first:
 nix eval --raw .#packages.x86_64-linux.container.name
 ```
 
-When the attribute is missing the step prints a skip message and the release
+The attribute is always present in this tree, so the probe protects a fork that
+removes it. When it is missing the step prints a skip message and the release
 keeps the tagged tarball and `SHA256SUMS` behaviour. When it exists the tarball
 is added to `SHA256SUMS` and to the `gh release create` asset list. The workflow
 references `packages.<system>.container` but does not create it.

@@ -149,7 +149,7 @@ login:
 
 - `pam_unix` authentication, account expiry, and password rules from the NixOS
   defaults;
-- `pam_faillock` when `security.pam.services.system-auth.logFailures` is set;
+- `pam_faillock` lines added to `security.pam.services.system-auth.text`;
 - MFA modules enabled on `system-auth`: `googleAuthenticator`, `duoSecurity`,
   `u2f`, `oath`, `yubicoAuth`, and `otpwAuth`;
 - LDAP through `users.ldap.enable` and `users.ldap.loginPam`;

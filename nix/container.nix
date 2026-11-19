@@ -11,9 +11,7 @@
 # an authenticating reverse proxy fronts the listener. Use the NixOS module
 # (`services.nix-web-gui`) for PAM-backed, per-user workers.
 #
-# The flake does not expose this file yet. A maintainer wires it as
-# `packages.<system>.container = import ./nix/container.nix { inherit pkgs;
-# package = self.packages.${system}.default; };`.
+# The flake exposes this file as `packages.<system>.container`.
 {
   pkgs,
   package,

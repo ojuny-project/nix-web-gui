@@ -152,9 +152,10 @@ them up through the includes:
 - MFA: set the per-service options on `security.pam.services.system-auth`, such
   as `googleAuthenticator.enable`, `duoSecurity.enable`, `u2f.enable`,
   `yubicoAuth`, or `otpwAuth`, and enroll the tokens or keys for each account.
-- Faillock: set `security.pam.services.system-auth.logFailures = true;` and tune
-  the lockout thresholds in `/etc/security/faillock.conf`. The server's own
-  five-failure throttle is separate and still applies.
+- Faillock: NixOS has no faillock option. Add `pam_faillock.so` lines to
+  `security.pam.services.system-auth.text` with `preauth`, `authfail`, and
+  `account` controls, and tune the thresholds in `/etc/security/faillock.conf`.
+  The server's own five-failure throttle is separate and still applies.
 - LDAP: set `users.ldap.enable = true;` and `users.ldap.loginPam = true;`, plus
   the LDAP server and base settings. `pam_ldap` then joins the `system-auth`
   stack.
@@ -197,8 +198,9 @@ Without both, evaluation fails with:
 nix-web-gui: set allowRemote and a non-empty allowedGroups list before binding a non-loopback address.
 ```
 
-`allowRemote` is a configuration gate, not a hardening feature. The open items
-in `/home/den/repos/ojuny-future-repos/nix-web-gui/TODO.md` still apply.
+`allowRemote` is a configuration gate, not a hardening feature. The remaining
+open item in `/home/den/repos/ojuny-future-repos/nix-web-gui/TODO.md` is the
+undecided binary release manifest.
 
 ## Reverse proxy
 

@@ -1,8 +1,8 @@
 # Limitations
 
 This file collects the documented limits of the web UI. It is not a bug list.
-Items marked pending point to `/home/den/repos/ojuny-future-repos/nix-web-gui/TODO.md`,
-which is the working list. The authoritative module-shape rule is
+The working list is `/home/den/repos/ojuny-future-repos/nix-web-gui/TODO.md`. The
+authoritative module-shape rule is
 `/home/den/repos/ojuny-template/docs/05-settings-gui-limitations.md`.
 
 ## Module shape rule
@@ -125,13 +125,13 @@ as row cards. The exact mapping is in
 - `grid-configuration`: cards use the placement canvas with `col`, `row`, `w`,
   and `h`, drag and resize handles, and `gridRegistry` ids as add-row choices.
 - `menu`, `plugins`: row cards. The plugin add dialog lists the DMS registry and
-  offers uninstalled entries. `plugins.settings` returns QML, but no QML
-  controls are rendered. Provider assistance for menus is still pending.
+  offers uninstalled entries. `plugins.settings` QML renders as schema-driven
+  controls, and menus have the provider assistant with inline field help.
 - `wallpaper` and `file`: the media picker lists, previews, uploads, and deletes
   files. A wallpaper with `presetSource` also lists generated presets using
   `presetOption`, and the picker offers a Default preset that stages `null`.
-  Uploads and deletes run `git add`. Custom path handling beyond the option's
-  directory fields is pending.
+  Uploads and deletes run `git add`. Paths outside the option's directory
+  fields are not browsable.
 - `secureboot`: see below.
 
 Row add, remove, rename, and list move are refused while staged edits exist.
@@ -237,15 +237,11 @@ Implemented in `/home/den/repos/ojuny-future-repos/nix-web-gui/server/src/http.r
 - a strict CSP and standard security headers;
 - structured tracing for login, logout, rate limits, and every RPC.
 
-Pending from `/home/den/repos/ojuny-future-repos/nix-web-gui/TODO.md`:
-
-- explicit MFA, faillock, LDAP, and Kerberos VM coverage.
-
 The service includes a repository-declared `system-auth` PAM service, so
 `pam_unix`, account expiry, faillock, MFA, LDAP, and Kerberos modules configured
 there apply to web login. Account expiry has a VM assertion; the other modules
-are inherited but not tested. TLS is intentionally out of scope for the
-local-only design.
+are inherited but depend on operator provisioning. TLS is intentionally out of
+scope for the local-only design.
 
 ## UI flows with limited rendering
 

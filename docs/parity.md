@@ -53,9 +53,9 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Rebuild | terminal | `rebuild.run`, `job.cancel` | streamed output panel with Cancel | yes | implemented |
 | Menu | row editor | `control.setTyped`, `structure.*` | row cards with provider assistance and inline field help | no | implemented |
 | Plugins | plugin editor | `control.setTyped`, `structure.*`, `plugins.*` | row cards, registry add, and schema-driven settings controls | no | implemented |
-| Bar | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles and list move | no | partial |
-| Dock | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles and list move | no | partial |
-| Grid | card canvas | `control.setTyped`, `structure.*` | placement canvas with `gridRegistry` ids, drag, and resize; catalog sizes and profiles pending | no | partial |
+| Bar | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles, field edits, and list move | no | implemented |
+| Dock | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles, field edits, and list move | no | implemented |
+| Grid | card canvas | `control.setTyped`, `structure.*` | placement canvas with `gridRegistry` ids, drag, resize, catalog sizes, and profile columns | no | implemented |
 | Docker | row editor | `control.setTyped`, `structure.*` | row cards with configurable container field names | no | implemented |
 | Config and flake path | settings dialog | `config.get`, `config.set`, `config.remember` | sidebar Settings button and panel | yes | implemented |
 
