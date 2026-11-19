@@ -141,9 +141,11 @@ and no arbitrary root command.
 
 The NixOS module declares `security.pam.services.system-auth` and points
 `security.pam.services.nix-web-gui.text` at it with four `include` lines: one
-each for `auth`, `account`, `password`, and `session`. The service contains no
-module lines of its own, so every module configured on `system-auth` applies to
-a web login:
+each for `auth`, `account`, `password`, and `session`. NixOS has no built-in
+`system-auth`, so the module creates it as an ordinary PAM service; the name is
+only the shared stack this repository includes. The service contains no module
+lines of its own, so every module configured on `system-auth` applies to a web
+login:
 
 - `pam_unix` authentication, account expiry, and password rules from the NixOS
   defaults;

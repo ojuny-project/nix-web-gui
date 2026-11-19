@@ -71,15 +71,28 @@ fn table_json(record: &Record) -> Value {
         "keyEditable": record.spec.key_editable,
         "firstValueEditable": record.spec.first_value_editable,
         "rows": rows.iter().map(|row| {
-            let fields: Map<String, Value> = row.fields.iter()
-                .map(|(key, value)| (key.clone(), json!(value)))
-                .collect();
+            let mut fields = Map::new();
+            let mut raw_expressions = Map::new();
+            for (key, value) in &row.fields {
+                match crate::render::table_string_value(value) {
+                    Some(text) => {
+                        fields.insert(key.clone(), json!(text));
+                    }
+                    None => {
+                        if crate::render::table_cell_is_raw(value) {
+                            raw_expressions.insert(key.clone(), Value::Bool(true));
+                        }
+                        fields.insert(key.clone(), json!(value));
+                    }
+                }
+            }
             json!({
                 "key": row.key,
                 "label": row.spec.label,
                 "hidden": row.spec.hidden,
                 "visibleWhen": row.spec.visible_when.as_ref().map(visibility_json),
                 "fields": fields,
+                "rawExpressions": raw_expressions,
             })
         }).collect::<Vec<_>>(),
     })
@@ -161,4 +174,39 @@ pub fn page_json(menu: &MenuModel) -> Value {
         "hidden": menu.spec.hidden,
         "records": menu.records.iter().map(|record| record.path()).collect::<Vec<_>>(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marks_non_string_table_cells_as_raw() {
+        let mut record = Record::default();
+        record.spec.widget = Some(WidgetKind::TableList);
+        record.spec.columns = Some(vec![
+            "name".to_string(),
+            "icon".to_string(),
+            "enabled".to_string(),
+            "width".to_string(),
+        ]);
+        record.spec.column_types = Some(vec![
+            "str".to_string(),
+            "icon".to_string(),
+            "bool".to_string(),
+            "int".to_string(),
+        ]);
+        record.value =
+            r#"[ { name = "one"; icon = ./icons/one.png; enabled = true; width = 42; } ]"#
+                .to_string();
+
+        let table = table_json(&record);
+        let row = &table["rows"][0];
+        assert_eq!(row["fields"]["name"], "one");
+        assert_eq!(row["fields"]["icon"], "./icons/one.png");
+        assert_eq!(row["rawExpressions"]["icon"], true);
+        assert_eq!(row["rawExpressions"]["enabled"], true);
+        assert_eq!(row["rawExpressions"]["width"], true);
+        assert!(row["rawExpressions"].get("name").is_none());
+    }
 }

@@ -28,6 +28,9 @@
   export let onIconPreview:
     | ((value: string) => Promise<string | null>)
     | undefined = undefined;
+  export let onIconDelete:
+    | ((value: string) => Promise<void>)
+    | undefined = undefined;
   export let csvList = false;
 
   $: id = `control-${descriptor.path.replaceAll(".", "-")}`;
@@ -141,6 +144,7 @@
       onchange={change}
       {onIconPick}
       {onIconPreview}
+      {onIconDelete}
     />
   {:else if rawWidgets.has(descriptor.widget)}
     <Textarea

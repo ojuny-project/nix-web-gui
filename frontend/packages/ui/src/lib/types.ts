@@ -79,6 +79,7 @@ export type TableRow = {
     notEquals?: string | null;
   } | null;
   fields: Record<string, string>;
+  rawExpressions?: Record<string, boolean>;
 };
 
 export type TableDescriptor = {

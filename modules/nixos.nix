@@ -130,7 +130,14 @@ in
       }
     ];
 
-    security.pam.services.nix-web-gui = { };
+    security.pam.services.system-auth = { };
+
+    security.pam.services.nix-web-gui.text = ''
+      auth include system-auth
+      account include system-auth
+      password include system-auth
+      session include system-auth
+    '';
 
     environment.etc."nix-web-gui/theme".text = cfg.theme + "\n";
 

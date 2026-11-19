@@ -17,7 +17,11 @@
   export let onIconPreview:
     | ((value: string) => Promise<string | null>)
     | undefined = undefined;
+  export let onIconDelete:
+    | ((value: string) => Promise<void> | void)
+    | undefined = undefined;
   let picking = false;
+  let deleting: Record<string, boolean> = {};
   let iconPreviews: Record<string, string> = {};
   let loadingIcons = new Set<string>();
   $: iconValues = columns.flatMap((column, index) =>
@@ -49,9 +53,26 @@
     picking = true;
     try {
       const selected = await onIconPick(row.fields[column] ?? "");
-      if (selected != null) updateCell(row, column, selected);
+      if (selected != null) updateCell(row, column, selected, true);
     } finally {
       picking = false;
+    }
+  }
+
+  async function removeIcon(row: TableRow, column: string) {
+    if (!onIconDelete) return;
+    const value = row.fields[column] ?? "";
+    if (!value) return;
+    deleting = { ...deleting, [value]: true };
+    try {
+      await onIconDelete(value);
+      updateCell(row, column, "", true);
+    } catch {
+      // Keep the value when the file could not be removed.
+    } finally {
+      const next = { ...deleting };
+      delete next[value];
+      deleting = next;
     }
   }
 
@@ -72,14 +93,64 @@
     });
   }
 
-  function updateCell(row: TableRow, column: string, value: string) {
+  function updateCell(
+    row: TableRow,
+    column: string,
+    value: string,
+    clearRaw = false,
+  ) {
     const index = indexOf(row);
     onchange({
-      rows: rows.map((current, position) =>
-        position === index
-          ? { ...current, fields: { ...current.fields, [column]: value } }
-          : current,
-      ),
+      rows: rows.map((current, position) => {
+        if (position !== index) return current;
+        const rawExpressions = { ...(current.rawExpressions ?? {}) };
+        if (clearRaw) delete rawExpressions[column];
+        const next: TableRow = {
+          ...current,
+          fields: { ...current.fields, [column]: value },
+        };
+        if (Object.keys(rawExpressions).length > 0) {
+          next.rawExpressions = rawExpressions;
+        } else {
+          delete next.rawExpressions;
+        }
+        return next;
+      }),
+    });
+  }
+
+  function supportsRaw(columnIndex: number): boolean {
+    const type = (columnTypes[columnIndex] ?? "").toLowerCase();
+    return (
+      type === "" ||
+      type === "str" ||
+      type === "string" ||
+      type === "text" ||
+      type === "icon" ||
+      type === "image"
+    );
+  }
+
+  function isRaw(row: TableRow, column: string): boolean {
+    return row.rawExpressions?.[column] === true;
+  }
+
+  function setRaw(row: TableRow, column: string, raw: boolean) {
+    const index = indexOf(row);
+    onchange({
+      rows: rows.map((current, position) => {
+        if (position !== index) return current;
+        const rawExpressions = { ...(current.rawExpressions ?? {}) };
+        if (raw) rawExpressions[column] = true;
+        else delete rawExpressions[column];
+        const next: TableRow = { ...current };
+        if (Object.keys(rawExpressions).length > 0) {
+          next.rawExpressions = rawExpressions;
+        } else {
+          delete next.rawExpressions;
+        }
+        return next;
+      }),
     });
   }
 
@@ -163,7 +234,7 @@
                       event.currentTarget.checked ? "true" : "false",
                     )}
                 />
-              {:else if (columnTypes[columnIndex] === "icon" || columnTypes[columnIndex] === "image") && onIconPick}
+              {:else if columnTypes[columnIndex] === "icon" || columnTypes[columnIndex] === "image"}
                 <div class="icon-cell">
                   {#if iconPreviews[row.fields[column] ?? ""]}
                     <img
@@ -178,15 +249,41 @@
                     oninput={(event) =>
                       updateCell(row, column, event.currentTarget.value)}
                   />
-                  <button
-                    type="button"
-                    class="ghost tiny"
-                    disabled={disabled || picking}
-                    onclick={() => pickIcon(row, column)}
-                  >
-                    Pick
-                  </button>
+                  {#if onIconPick}
+                    <button
+                      type="button"
+                      class="ghost tiny"
+                      disabled={disabled || picking}
+                      onclick={() => pickIcon(row, column)}
+                    >
+                      Pick
+                    </button>
+                  {/if}
+                  {#if onIconDelete}
+                    <button
+                      type="button"
+                      class="ghost tiny"
+                      disabled={disabled ||
+                        !row.fields[column] ||
+                        deleting[row.fields[column] ?? ""] === true}
+                      onclick={() => removeIcon(row, column)}
+                    >
+                      Delete
+                    </button>
+                  {/if}
                 </div>
+                {#if supportsRaw(columnIndex)}
+                  <label class="inline small">
+                    <input
+                      type="checkbox"
+                      checked={isRaw(row, column)}
+                      {disabled}
+                      onchange={(event) =>
+                        setRaw(row, column, event.currentTarget.checked)}
+                    />
+                    <span>Raw expression</span>
+                  </label>
+                {/if}
               {:else if columnTypes[columnIndex] === "dropdown" && choices.length > 0}
                 <select
                   value={row.fields[column] ?? ""}
@@ -205,6 +302,18 @@
                   oninput={(event) =>
                     updateCell(row, column, event.currentTarget.value)}
                 />
+                {#if supportsRaw(columnIndex)}
+                  <label class="inline small">
+                    <input
+                      type="checkbox"
+                      checked={isRaw(row, column)}
+                      {disabled}
+                      onchange={(event) =>
+                        setRaw(row, column, event.currentTarget.checked)}
+                    />
+                    <span>Raw expression</span>
+                  </label>
+                {/if}
               {/if}
             </td>
           {/each}

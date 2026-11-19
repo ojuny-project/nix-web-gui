@@ -1373,6 +1373,9 @@
       return {
         rows: (record.table?.rows ?? []).map((row) => ({
           key: row.key,
+          label: row.label,
+          hidden: row.hidden,
+          rawExpressions: row.rawExpressions,
           fields: { ...row.fields },
         })),
       };
@@ -1689,6 +1692,11 @@
       input.click();
       void current;
     });
+  }
+
+  async function deleteIcon(record: ScanRecord, value: string) {
+    const name = value.split("/").at(-1) ?? value;
+    await rpc("preview.deleteIcon", { path: record.path, name }, user.csrf);
   }
 
   async function previewIcon(
@@ -2226,6 +2234,7 @@
                   expandDetails={expandDetailsDefault}
                   onIconPick={(current) => pickIcon(record, current)}
                   onIconPreview={(value) => previewIcon(record, value)}
+                  onIconDelete={(value) => deleteIcon(record, value)}
                   csvList={isKeybindCsv(record)}
                 />
                 {#if record.widget === "font"}

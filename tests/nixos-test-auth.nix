@@ -33,6 +33,13 @@ pkgs.testers.nixosTest {
       password = "secret";
     };
 
+    users.users.expired = {
+      isNormalUser = true;
+      extraGroups = [ "weblogin" ];
+      password = "secret";
+      expires = "2020-01-01";
+    };
+
     environment.systemPackages = [ pkgs.curl pkgs.jq ];
   };
 
@@ -155,6 +162,14 @@ pkgs.testers.nixosTest {
         "curl -fsS -X POST http://127.0.0.1:8787/api/login "
         "-H 'content-type: application/json' "
         "-d '{\"username\":\"carol\",\"password\":\"secret\"}'"
+    )
+
+    machine.succeed("grep -q 'auth include system-auth' /etc/pam.d/nix-web-gui")
+
+    machine.fail(
+        "curl -fsS -X POST http://127.0.0.1:8787/api/login "
+        "-H 'content-type: application/json' "
+        "-d '{\"username\":\"expired\",\"password\":\"secret\"}'"
     )
   '';
 }

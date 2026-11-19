@@ -159,6 +159,7 @@ export type TableRowJson = {
   key: string;
   label?: string | null;
   hidden?: boolean;
+  rawExpressions?: Record<string, boolean>;
   fields: Record<string, string>;
 };
 

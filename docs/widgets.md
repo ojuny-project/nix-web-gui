@@ -65,8 +65,8 @@ Dispatch order in `Control.svelte`:
 | `Submodule` | `submodule` | Generic child controls; textarea raw when it has no children |
 | `HorizontalSubmodule` | `horizontal-submodule` | Generic child controls; textarea raw when no children; `maxColumns` sets the card grid width |
 | `GridConfiguration` | `grid-configuration` | Placement canvas positioned by `col`, `row`, `w`, and `h`; drag and resize update those fields and `gridRegistry` ids seed new cards |
-| `TableAttrset` | `table-attrset` | `Table.svelte` when the descriptor declares columns |
-| `TableList` | `table-list` | `Table.svelte` when the descriptor declares columns |
+| `TableAttrset` | `table-attrset` | `Table.svelte` with raw-expression cells, icon delete, and typed columns |
+| `TableList` | `table-list` | `Table.svelte` with raw-expression cells, icon delete, and typed columns |
 | `Keybinds` | `keybinds` | Row cards; configurable `bindFields`, `bindFieldTypes`, `bindPreview`, `bindSort`, and `bindKeyField`; comma-separated list fields; add, remove, rename |
 | `Monitors` | `monitors` | Output cards on a draggable canvas that updates `xPos` and `yPos`; the add-row panel detects outputs and `disabledFeatures` hides fields |
 | `Theme` | `theme` | `ThemePicker.svelte` with search and swatches |

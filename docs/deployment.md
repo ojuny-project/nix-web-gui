@@ -98,8 +98,8 @@ services.nix-web-gui = {
 
 The module:
 
-- defines `security.pam.services.nix-web-gui` with
-  `auth required pam_unix.so` and `account required pam_unix.so`;
+- declares `security.pam.services.system-auth` and includes it from
+  `security.pam.services.nix-web-gui` for auth, account, password, and session;
 - writes `services.nix-web-gui.theme` and a newline to
   `/etc/nix-web-gui/theme`;
 - starts `nix-web-gui serve` as `root` with `NoNewPrivileges = false`,
@@ -125,13 +125,46 @@ root. See `/home/den/repos/ojuny-future-repos/nix-web-gui/docs/architecture.md`.
 ## PAM service
 
 Authentication runs in the root parent through
-`/home/den/repos/ojuny-future-repos/nix-web-gui/server/src/auth/pam.rs`. The
-module writes only an auth line and an account line with `pam_unix.so`. It does
-not include `system-auth`, password quality, expiry, or multi-factor modules.
+`/home/den/repos/ojuny-future-repos/nix-web-gui/server/src/auth/pam.rs`. It runs
+`pam_authenticate` and then `pam_acct_mgmt` against
+`services.nix-web-gui.pamService`, default `nix-web-gui`. The module declares
+`security.pam.services.system-auth` and writes
+`security.pam.services.nix-web-gui.text` with only these lines:
+
+```text
+auth include system-auth
+account include system-auth
+password include system-auth
+session include system-auth
+```
+
+NixOS has no built-in `system-auth`; the module's declaration creates it from
+the default NixOS rules. The web service has no module text of its own and
+inherits every module added to that stack. Out of the box the stack is the
+NixOS default: `pam_unix` auth, account, password, and session, which includes
+account expiry. The VM test asserts a successful login, a rejected wrong
+password, the group allowlist, cross-user denial, and a rejected login for an
+account whose `expires` date has passed.
+
+MFA, faillock, LDAP, and Kerberos are not provisioned or tested by this
+repository. An operator must add them to `system-auth`; the web service picks
+them up through the includes:
+
+- MFA: set the per-service options on `security.pam.services.system-auth`, such
+  as `googleAuthenticator.enable`, `duoSecurity.enable`, `u2f.enable`,
+  `yubicoAuth`, or `otpwAuth`, and enroll the tokens or keys for each account.
+- Faillock: set `security.pam.services.system-auth.logFailures = true;` and tune
+  the lockout thresholds in `/etc/security/faillock.conf`. The server's own
+  five-failure throttle is separate and still applies.
+- LDAP: set `users.ldap.enable = true;` and `users.ldap.loginPam = true;`, plus
+  the LDAP server and base settings. `pam_ldap` then joins the `system-auth`
+  stack.
+- Kerberos: set `security.pam.krb5.enable = true;` and configure
+  `security.krb5`. `pam_krb5` then joins the `system-auth` stack.
 
 If `services.nix-web-gui.pamService` is changed, define that PAM service
-yourself. The default is `nix-web-gui`. The account phase follows a successful
-authentication.
+yourself and include `system-auth` from it the same way. The account phase
+follows a successful authentication.
 
 ## Allowlist groups
 
@@ -239,15 +272,16 @@ authentication, runs the Secure Boot setup actions, and spawns per-user workers
 on the network. Before doing it:
 
 - There is no built-in TLS listener. The service is designed for loopback use; a proxy is the operator's responsibility.
-- PAM uses explicit `pam_unix.so` lines, without the full `system-auth` stack,
-  account expiry, or multi-factor modules.
+- PAM inherits the generated `system-auth` stack, including account expiry.
+  MFA, faillock, LDAP, and Kerberos apply only when the operator configures them
+  on `security.pam.services.system-auth`; the VM test does not cover them.
 - Secure Boot setup, rebuild, and reboot have no per-action password
   re-authentication; they run as the root service account.
 - Apply and rebuild for ordinary settings run as the signed-in account and
   depend on that account's sudo configuration.
 - The NixOS VM auth test covers cross-user isolation: bob can log in through the
   allowed group but cannot read alice's `0700` home. Carol is rejected by the
-  allowlist.
+  allowlist, and an account with a past `expires` date is rejected by PAM.
 - There is no Playwright coverage. `nix flake check` passes.
 
 Implemented protections include login throttling, the session cap and cleanup,

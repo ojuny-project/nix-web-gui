@@ -81,8 +81,8 @@ feature and hardening gaps.
 - [x] File picker with the configured `fileDir` and `fileExtensions`.
 - [x] Upload a file, validate size and extension, and stage it with Git.
 - [x] Icon table-column picker with upload into the configured `iconDir`.
-- [ ] Icon previews and copy and remove operations for icons.
-- [ ] Preserve the raw expression when a field is not a literal path.
+- [x] Icon previews, copy, upload, and delete helpers; the table exposes Delete.
+- [x] Table cells have a raw-expression toggle and preserve non-string expressions.
 
 ### Fonts, icons, cursors, theme
 
@@ -207,9 +207,14 @@ feature and hardening gaps.
       usable for CLI clients and are still gated by CSRF.
 - [x] Strict CSP and standard security headers.
 - [x] Use the NixOS-generated PAM stack for the service instead of explicit
-      `pam_unix.so` lines.
-- [ ] Add explicit MFA and faillock coverage; the generated stack inherits the
-      NixOS account and session modules configured for the service.
+      `pam_unix.so` lines. The module declares `security.pam.services.system-auth`
+      and includes it for auth, account, password, and session.
+- [x] VM coverage for an expired account: `users.users.expired` has
+      `expires = "2020-01-01"` and `/api/login` must reject it.
+- [ ] Add explicit MFA and faillock coverage. Both are inherited from the
+      `system-auth` stack, but the VM test does not provision tokens or
+      faillock settings.
+- [ ] Add LDAP and Kerberos inheritance coverage; both need external services.
 - [x] Audit log through structured tracing: login success and failure, rate
       limits, logout, and every RPC method with the account and outcome.
 - [x] Cross-user file-isolation VM test for bob against alice's flake.

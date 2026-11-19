@@ -347,10 +347,13 @@ pub fn quote(text: &str) -> String {
 }
 
 pub fn string_literal(text: &str) -> String {
-    if text.contains('\n') {
-        format!("''\n{text}\n''")
+    if !text.contains('\n') {
+        return quote(text);
+    }
+    if text.ends_with('\n') {
+        format!("''\n{text}''")
     } else {
-        quote(text)
+        format!("''\n{text}\n''")
     }
 }
 
@@ -374,6 +377,39 @@ pub fn expr_literal(raw: &str) -> String {
     } else {
         quote(text)
     }
+}
+
+/// Decode a plain string literal into the text a table editor shows. An
+/// interpolated string or any other expression returns `None`.
+pub fn table_string_value(text: &str) -> Option<String> {
+    let expr = rnix::Root::parse(text.trim())
+        .ok()
+        .ok()
+        .and_then(|root| root.expr())?;
+    let rnix::ast::Expr::Str(string) = expr else {
+        return None;
+    };
+    let mut out = String::new();
+    for part in string.normalized_parts() {
+        match part {
+            rnix::ast::InterpolPart::Literal(literal) => out.push_str(&literal),
+            rnix::ast::InterpolPart::Interpolation(_) => return None,
+        }
+    }
+    Some(out)
+}
+
+/// Whether scanned table-cell text must be written back as a raw Nix
+/// expression instead of being re-quoted as a string.
+pub fn table_cell_is_raw(text: &str) -> bool {
+    let trimmed = text.trim();
+    !trimmed.is_empty()
+        && table_string_value(trimmed).is_none()
+        && rnix::Root::parse(trimmed)
+            .ok()
+            .ok()
+            .and_then(|root| root.expr())
+            .is_some()
 }
 
 pub fn package_literal(raw: &str) -> String {
@@ -473,6 +509,45 @@ mod tests {
             serialize_table(&record, true, &value).unwrap(),
             "[ { \"name\" = \"one\"; \"enabled\" = true; \"extra\" = \"kept\"; } ]"
         );
+    }
+
+    #[test]
+    fn preserves_raw_expression_table_cells() {
+        let mut record = Record::default();
+        record.spec.columns = Some(vec!["icon".to_string(), "note".to_string()]);
+        record.spec.column_types = Some(vec!["icon".to_string(), "str".to_string()]);
+        let value = serde_json::json!({
+            "rows": [{
+                "key": "",
+                "fields": {
+                    "icon": "./icons/one.png",
+                    "note": "plain",
+                    "enabled": true,
+                    "width": 42,
+                    "extra": "null"
+                },
+                "rawExpressions": {
+                    "icon": true,
+                    "enabled": true,
+                    "width": true,
+                    "extra": true
+                }
+            }]
+        });
+        assert_eq!(
+            serialize_table(&record, true, &value).unwrap(),
+            "[ { \"icon\" = ./icons/one.png; \"note\" = \"plain\"; \"enabled\" = true; \"extra\" = null; \"width\" = 42; } ]"
+        );
+    }
+
+    #[test]
+    fn decodes_plain_table_strings_but_keeps_interpolation_raw() {
+        assert_eq!(table_string_value("\"one\""), Some("one".to_string()));
+        assert_eq!(table_string_value("''one''"), Some("one".to_string()));
+        assert_eq!(table_string_value("\"one ${two}\""), None);
+        assert!(table_cell_is_raw("pkgs.foo"));
+        assert!(table_cell_is_raw("42"));
+        assert!(!table_cell_is_raw("\"one\""));
     }
 
     #[test]

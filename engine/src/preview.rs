@@ -218,6 +218,85 @@ pub fn delete(session: &SettingsSession, option_path: &str, name: &str) -> Resul
     Ok(json!({ "deleted": name }))
 }
 
+/// Copy one icon or media file to a unique sibling name in the same media
+/// directory. The new name is returned as both `name` and `value`.
+pub fn copy_icon(
+    session: &SettingsSession,
+    option_path: &str,
+    name: &str,
+) -> Result<Value, String> {
+    let record = session
+        .record(option_path)
+        .ok_or_else(|| format!("unknown option path: {option_path}"))?;
+    let (directory, extensions) = media_directory(session, record)?;
+    let name = safe_file_name(name)?;
+    ensure_extension(&name, &extensions)?;
+
+    let root = session_root(session)?;
+    let directory = directory
+        .canonicalize()
+        .map_err(|error| format!("cannot resolve {}: {error}", directory.display()))?;
+    let source = paths::confine(&root, &directory.join(&name))
+        .map_err(|error| error.to_string())?;
+    if !source.starts_with(&directory) {
+        return Err("file is outside the media directory".to_string());
+    }
+    if !source.is_file() {
+        return Err("media file does not exist".to_string());
+    }
+
+    let target_name = copy_name(&directory, &name);
+    let target = crate::paths::confine_new(&root, &directory.join(&target_name))
+        .map_err(|error| error.to_string())?;
+    std::fs::copy(&source, &target)
+        .map_err(|error| format!("cannot copy {}: {error}", target.display()))?;
+    stage(&root, &target);
+    Ok(json!({
+        "name": target_name,
+        "value": target_name,
+        "path": target.display().to_string(),
+        "copiedFrom": name,
+    }))
+}
+
+/// Remove one icon or media file from the same media directory.
+pub fn delete_icon(
+    session: &SettingsSession,
+    option_path: &str,
+    name: &str,
+) -> Result<Value, String> {
+    delete(session, option_path, name)?;
+    Ok(json!({
+        "name": name,
+        "value": name,
+        "deleted": name,
+    }))
+}
+
+fn copy_name(directory: &Path, name: &str) -> String {
+    let path = Path::new(name);
+    let stem = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("icon");
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default();
+    let mut index = 1;
+    loop {
+        let candidate = if index == 1 {
+            format!("{stem}-copy.{extension}")
+        } else {
+            format!("{stem}-copy-{index}.{extension}")
+        };
+        if !directory.join(&candidate).exists() {
+            return candidate;
+        }
+        index += 1;
+    }
+}
+
 fn stage(root: &Path, path: &Path) {
     if let Ok(relative) = path.strip_prefix(root) {
         let _ = std::process::Command::new("git")
@@ -395,6 +474,57 @@ mod tests {
 
         assert!(upload(&session, "ojuny.wallpaper", "../escape.png", &data).is_err());
         assert!(upload(&session, "ojuny.wallpaper", "wall.exe", &data).is_err());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    fn icon_session(label: &str) -> (PathBuf, SettingsSession) {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-icon-{}-{:?}-{label}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules/icons")).unwrap();
+        let file = root.join("modules/system.nix");
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"table-list\"; columns = [ \"name\" \"icon\" ]; columnTypes = [ \"str\" \"icon\" ]; iconDir = \"./icons\"; */\n  ojuny.icons = [ { name = \"one\"; icon = \"./icons/one.png\"; } ];\n}\n",
+        )
+        .unwrap();
+        let session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        (std::fs::canonicalize(root).unwrap(), session)
+    }
+
+    #[test]
+    fn icon_copy_and_delete_reject_unsafe_names() {
+        let (root, session) = icon_session("reject");
+        assert!(copy_icon(&session, "ojuny.icons", "../escape.png").is_err());
+        assert!(copy_icon(&session, "ojuny.icons", "one.exe").is_err());
+        assert!(delete_icon(&session, "ojuny.icons", "../escape.png").is_err());
+        assert!(delete_icon(&session, "ojuny.icons", "one.exe").is_err());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn copies_and_deletes_an_icon_in_place() {
+        let (root, session) = icon_session("roundtrip");
+        let source = root.join("modules/icons/one.png");
+        std::fs::write(&source, b"icon-bytes").unwrap();
+
+        let copied = copy_icon(&session, "ojuny.icons", "one.png").unwrap();
+        assert_eq!(copied["value"], "one-copy.png");
+        let target = root.join("modules/icons/one-copy.png");
+        assert_eq!(std::fs::read(&target).unwrap(), b"icon-bytes");
+
+        let second = copy_icon(&session, "ojuny.icons", "one.png").unwrap();
+        assert_eq!(second["name"], "one-copy-2.png");
+
+        let removed = delete_icon(&session, "ojuny.icons", "one-copy.png").unwrap();
+        assert_eq!(removed["value"], "one-copy.png");
+        assert!(!target.exists());
+
+        delete_icon(&session, "ojuny.icons", "one.png").unwrap();
+        delete_icon(&session, "ojuny.icons", "one-copy-2.png").unwrap();
+        assert!(!source.exists());
         let _ = std::fs::remove_dir_all(root);
     }
 }

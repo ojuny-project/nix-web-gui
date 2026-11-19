@@ -265,6 +265,16 @@ pub fn handle_with_progress(
             let name = string_param(&params, "name");
             preview::read_named(settings, &path, &name).map_err(|error| (-32011, error))
         }),
+        "preview.copyIcon" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            let name = string_param(&params, "name");
+            preview::copy_icon(settings, &path, &name).map_err(|error| (-32011, error))
+        }),
+        "preview.deleteIcon" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            let name = string_param(&params, "name");
+            preview::delete_icon(settings, &path, &name).map_err(|error| (-32011, error))
+        }),
         "users.hashPassword" => {
             let password = string_param(&params, "password");
             users::hash_password(&password)
