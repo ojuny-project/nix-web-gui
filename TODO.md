@@ -13,9 +13,8 @@ feature and hardening gaps.
 - [x] Build the default package through the VM test.
 - [x] Build the minimal package and run `checks.minimal-flag` against the
       committed tree. Both pass.
-- [x] Run the full `nix flake check` matrix. Every check evaluated; packages and
-      static checks build. The final VM test is blocked only by a missing
-      `config.guess` store path that the network returned 502 for.
+- [x] Run the full `nix flake check` matrix. Packages, static checks, and the
+      worker VM test pass against the pinned NSG commit.
 - [ ] Add Playwright coverage for login, open, edit, save, diff, add file, add
       option, flake inputs, apply, rebuild, and media selection.
 - [ ] Add a desktop-vs-engine golden test for every widget literal. Engine tests
