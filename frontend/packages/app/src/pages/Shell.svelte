@@ -5,6 +5,7 @@
     OJUNY_WIDGETS,
     OJUNY_WIDGET_KINDS,
     Panel,
+    applyTheme,
     schemeById,
     type ControlDescriptor,
     type ControlValue,
@@ -1243,6 +1244,9 @@
 
     const record = records.find((candidate) => candidate.path === path);
     if (!record || record.readonly) return;
+    if (record.widget === "theme" && typeof value === "string" && value) {
+      applyTheme(value);
+    }
 
     const previous = timers.get(path);
     if (previous) clearTimeout(previous);

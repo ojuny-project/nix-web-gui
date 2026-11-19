@@ -92,8 +92,8 @@ feature and hardening gaps.
 - [x] Variant filtering for icon themes.
 - [x] Theme picker search and swatches instead of a plain select.
 - [ ] High-contrast palette behavior.
-- [ ] Live palette update from the theme `applyCommand`, not only from the
-      system theme file.
+- [x] Theme selection applies the palette immediately. External theme file
+      changes still arrive over SSE.
 
 ### Tables
 
