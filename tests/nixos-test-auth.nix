@@ -10,8 +10,10 @@ pkgs.testers.nixosTest {
     services.nix-web-gui = {
       enable = true;
       package = self.packages.${system}.default;
-      allowedGroups = [ "wheel" "users" ];
+      allowedGroups = [ "wheel" "weblogin" ];
     };
+
+    users.groups.weblogin = { };
 
     users.users.alice = {
       isNormalUser = true;
@@ -22,6 +24,7 @@ pkgs.testers.nixosTest {
 
     users.users.bob = {
       isNormalUser = true;
+      extraGroups = [ "weblogin" ];
       password = "secret";
     };
 

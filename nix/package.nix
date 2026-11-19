@@ -29,6 +29,11 @@ let
         "node_modules"
         "dist"
         "result"
+        "tests"
+        "docs"
+        ".github"
+        "TODO.md"
+        "README.md"
       ]) && !(lib.hasPrefix "result-" base);
   };
 in
