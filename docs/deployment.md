@@ -109,12 +109,9 @@ The module:
   `networking.firewall.allowedTCPPorts` only when `openFirewall` is true and
   the listen address is not `127.0.0.1`.
 
-`services.nix-web-gui.startupPage` is declared, and
-`/home/den/repos/ojuny-future-repos/nix-web-gui/modules/nixos.nix` computes a
-`--page` argument for it, but the `ExecStart` line in that file does not
-interpolate the argument. The module currently starts the service without
-`--page`, so the option has no effect. Pass `--page` manually or fix the
-`ExecStart` template.
+`services.nix-web-gui.startupPage` is passed to the service as `--page` by
+`/home/den/repos/ojuny-future-repos/nix-web-gui/modules/nixos.nix`. The server
+returns it from `/api/state`, and the shell opens that menu after login.
 
 The root parent needs `NoNewPrivileges = false` because it calls `setgroups`,
 `setgid`, and `setuid` before executing a worker, and because the Secure Boot

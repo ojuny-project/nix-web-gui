@@ -156,6 +156,7 @@ in
             ${flakeArg} \
             --session-ttl-secs ${toString cfg.sessionTtlSeconds} \
             --max-sessions ${toString cfg.maxSessions} \
+            ${pageArg} \
             ${optionalString cfg.secureCookie "--secure-cookie"} \
             ${allowedGroupArgs}
         '';

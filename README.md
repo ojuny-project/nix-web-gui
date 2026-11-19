@@ -128,9 +128,8 @@ account's uid, gid, groups, HOME, and XDG directories. `--dev-auth` uses an
 in-process engine for local development only.
 
 `services.nix-web-gui.allowRemote` must be set explicitly before a non-loopback
-address is accepted. `services.nix-web-gui.startupPage` is declared and computes
-a `--page` argument, but the current `ExecStart` template does not interpolate
-it, so the option has no effect until that line is fixed.
+address is accepted. `services.nix-web-gui.startupPage` is passed to the service
+as `--page`, so a signed-in browser opens that page first.
 
 ## Variants
 
