@@ -11,11 +11,12 @@ const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp", "svg", "gif"];
 const FILE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp", "svg", "pdf", "txt", "md"];
 const MAX_UPLOAD_BYTES: usize = 32 * 1024 * 1024;
 
-pub fn list(session: &SettingsSession, option_path: &str) -> Result<Value, String> {
+pub fn list(session: &mut SettingsSession, option_path: &str) -> Result<Value, String> {
     let record = session
         .record(option_path)
+        .cloned()
         .ok_or_else(|| format!("unknown option path: {option_path}"))?;
-    let (directory, extensions) = media_directory(session, record)?;
+    let (directory, extensions) = media_directory(session, &record)?;
     let root = session_root(session)?;
     let directory = directory
         .canonicalize()
@@ -63,7 +64,34 @@ pub fn list(session: &SettingsSession, option_path: &str) -> Result<Value, Strin
             .cmp(right["name"].as_str().unwrap_or_default())
     });
 
-    Ok(json!({ "files": files }))
+    let (presets, preset_error) = if record.spec.preset_source.is_some() {
+        match session.wallpaper_presets() {
+            Ok(presets) => (
+                presets
+                    .iter()
+                    .map(|preset| {
+                        let preview = Path::new(&preset.path)
+                            .metadata()
+                            .ok()
+                            .filter(|metadata| metadata.len() <= 4 * 1024 * 1024)
+                            .and_then(|_| encode_file(Path::new(&preset.path)).ok());
+                        json!({
+                            "name": preset.name,
+                            "label": preset.label,
+                            "path": preset.path,
+                            "preview": preview,
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+                Value::Null,
+            ),
+            Err(error) => (Vec::new(), json!(error)),
+        }
+    } else {
+        (Vec::new(), Value::Null)
+    };
+
+    Ok(json!({ "files": files, "presets": presets, "presetError": preset_error }))
 }
 
 pub fn read(

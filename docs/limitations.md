@@ -121,7 +121,8 @@ widgets. They use the generic nested editor. The exact mapping is in
 - `bar` and `dock`: list-valued sections with attribute-set elements are
   described as child controls. Lists of plain strings keep the list editor.
 - `wallpaper` and `file`: the media picker lists, previews, uploads, and deletes
-  files. Wallpaper preset sources and custom path handling are pending.
+  files. A wallpaper with `presetSource` also lists generated presets and their
+  previews; the preset name is staged. Wallpaper preset sources and custom path handling are pending.
 - `secureboot`: see below.
 
 Row add, remove, and rename are refused while staged edits exist. Rename is

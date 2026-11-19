@@ -72,6 +72,21 @@ impl SettingsSession {
         &self.scanned.declared_inputs
     }
 
+    /// Wallpaper presets generated from the widget's `presetSource` flake
+    /// input. The eval can realize store paths, so this is only called when a
+    /// wallpaper record declares a preset source.
+    pub fn wallpaper_presets(
+        &mut self,
+    ) -> Result<Vec<nix_settings_gui::metadata::WallpaperPreset>, String> {
+        let target = self
+            .target()
+            .ok_or_else(|| "no NixOS or Home Manager target found".to_string())?;
+        let set = metadata::wallpaper_set(&self.root, &target.as_arg())?;
+        let mut presets = set.presets;
+        presets.extend(set.user);
+        Ok(presets)
+    }
+
     pub fn menus_filtered(
         &self,
         host: Option<&str>,

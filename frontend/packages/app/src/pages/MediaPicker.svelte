@@ -1,12 +1,19 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { rpc, type PreviewFile, type ScanRecord } from "../api";
+  import {
+    rpc,
+    type PreviewFile,
+    type PreviewPreset,
+    type ScanRecord,
+  } from "../api";
 
   export let record: ScanRecord;
   export let csrf: string;
   export let onchange: (path: string, value: unknown) => void;
 
   let files: PreviewFile[] = [];
+  let presets: PreviewPreset[] = [];
+  let presetError = "";
   let previews: Record<string, string> = {};
   let busy = false;
   let error = "";
@@ -19,12 +26,14 @@
     busy = true;
     error = "";
     try {
-      const result = await rpc<{ files: PreviewFile[] }>(
-        "preview.list",
-        { path: record.path },
-        csrf,
-      );
+      const result = await rpc<{
+        files: PreviewFile[];
+        presets?: PreviewPreset[];
+        presetError?: string | null;
+      }>("preview.list", { path: record.path }, csrf);
       files = result.files;
+      presets = result.presets ?? [];
+      presetError = result.presetError ?? "";
       selected = String(record.value ?? "");
       const nextPreviews: Record<string, string> = {};
       for (const file of files
@@ -52,6 +61,11 @@
   function choose(file: PreviewFile) {
     selected = file.value;
     onchange(record.path, file.value);
+  }
+
+  function choosePreset(preset: PreviewPreset) {
+    selected = preset.name;
+    onchange(record.path, preset.name);
   }
 
   async function upload() {
@@ -133,6 +147,35 @@
   </div>
   {#if error}
     <p class="error">{error}</p>
+  {/if}
+  {#if presetError}
+    <p class="error">{presetError}</p>
+  {/if}
+  {#if presets.length}
+    <h4 class="media-heading">Presets</h4>
+    <div class="media-grid">
+      {#each presets as preset (preset.name)}
+        <button
+          class="media-item"
+          class:selected={selected === preset.name}
+          type="button"
+          onclick={() => choosePreset(preset)}
+        >
+          {#if preset.preview}
+            <img
+              src={`data:${preset.preview.mime};base64,${preset.preview.data}`}
+              alt={preset.label}
+            />
+          {:else}
+            <span class="media-placeholder">preset</span>
+          {/if}
+          <span class="media-name">{preset.label || preset.name}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+  {#if files.length}
+    <h4 class="media-heading">Files</h4>
   {/if}
   <div class="media-grid">
     {#each files as file (file.path)}

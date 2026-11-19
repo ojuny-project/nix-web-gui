@@ -67,11 +67,13 @@ feature and hardening gaps.
 
 ### Wallpaper
 
-- [ ] Preset source from the configured flake input.
+- [x] Preset source from the configured flake input, with previews and a
+      separate preset section.
 - [x] Wallpaper strip with thumbnails and selected-state.
 - [x] Upload and remove images under `wallpaperDir`. Uploads write directly to
       the directory; Git staging follows the configured sync flow.
-- [ ] Keep custom paths and preset names distinct.
+- [x] Keep custom paths and preset names distinct. Presets stage their name;
+      files stage their relative path.
 - [ ] Wire the cycle settings that live beside the wallpaper option.
 
 ### File and icon

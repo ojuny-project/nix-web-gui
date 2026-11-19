@@ -304,3 +304,10 @@ export type PreviewFile = {
   value: string;
   path: string;
 };
+
+export type PreviewPreset = {
+  name: string;
+  label: string;
+  path: string;
+  preview?: { mime: string; data: string } | null;
+};

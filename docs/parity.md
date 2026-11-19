@@ -31,7 +31,7 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Composite rows | nested controls | `structure.add`, `structure.remove`, `structure.rename` | add and remove rows; rename attribute-set rows | yes | partial |
 | Font, icon, cursor | preview chooser | `control.setTyped`, `catalog.styles` | select with filtering and font preview | yes | partial |
 | Theme | palette picker | `control.setTyped` | searchable swatch picker | yes | implemented |
-| Wallpaper | preview strip | `preview.*` | picker, upload, delete | yes | partial |
+| Wallpaper | preview strip | `preview.*` | picker, presets, upload, delete | yes | implemented |
 | File and icon pickers | native file chooser | `preview.upload`, `preview.delete` | media picker and table icon picker | yes | implemented |
 | Keybinds | row editor | `control.setTyped`, `structure.*` | generic rows | yes | partial |
 | Monitors | card editor | `control.setTyped`, `structure.*`, `monitor.detect` | generic rows plus output detection | yes | partial |
@@ -110,7 +110,7 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
   Ojuny renderers. The desktop layouts, tile catalog, bar and dock tile
   actions, grid canvas, and plugin registry are still pending. Tile rows for
   bar and dock can be added with an id and edited as structured list elements.
-- Wallpaper preset sources and custom path handling are pending.
+- Wallpaper cycle settings next to the option are pending.
 - Icon-theme and cursor-theme preview sheets are pending.
 - Secure Boot has no per-action privileged re-authentication. Actions run in the
   root parent and fail clearly outside it.
