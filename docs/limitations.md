@@ -114,10 +114,11 @@ widgets. They use the generic nested editor. The exact mapping is in
   panel detects outputs through `monitor.detect`.
 - `keybinds`: no dedicated row editor and no comma-list handling. Add, remove,
   and rename work on the rows.
-- `menu`, `plugins`, `bar`, `dock`, `grid-configuration`, `docker`: no dedicated
-  Ojuny editors, catalogs, grid canvas, drag, resize, or profiles. Existing rows
-  edit through the generic controls. Bar and dock tile rows can be added from
-  `@widget-preset` entries, including their defaults.
+- `menu`, `plugins`, `bar`, `dock`, `grid-configuration`, `docker`: rows render
+  as cards. Bar and dock tiles can be seeded from `@widget-preset` entries,
+  plugins can be added from the DMS registry, and grid cards use the placement
+  canvas. Provider assistance, plugin QML controls, grid drag/resize, catalogs,
+  and profiles are still pending.
 - `bar` and `dock`: list-valued sections with attribute-set elements are
   described as child controls. Lists of plain strings keep the list editor.
 - `wallpaper` and `file`: the media picker lists, previews, uploads, and deletes

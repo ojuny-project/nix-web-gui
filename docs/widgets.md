@@ -67,21 +67,21 @@ Dispatch order in `Control.svelte`:
 | `GridConfiguration` | `grid-configuration` | Card canvas positioned by `col`, `row`, `w`, and `h`; registry ids seed new cards |
 | `TableAttrset` | `table-attrset` | `Table.svelte` when the descriptor declares columns |
 | `TableList` | `table-list` | `Table.svelte` when the descriptor declares columns |
-| `Keybinds` | `keybinds` | Generic child controls with add, remove, and rename of rows |
-| `Monitors` | `monitors` | Output cards on a drag canvas that updates `xPos` and `yPos`; the add-row panel detects outputs |
+| `Keybinds` | `keybinds` | Row cards; configurable `bindFields`, comma list fields, previews, sorting, add, remove, and rename |
+| `Monitors` | `monitors` | Output cards on a drag canvas that updates `xPos` and `yPos`; the add-row panel detects outputs and `disabledFeatures` hides fields |
 | `Theme` | `theme` | `ThemePicker.svelte` with search and swatches |
 | `Wallpaper` | `wallpaper` | `Text.svelte` plus `MediaPicker.svelte` with presets, upload, and delete |
 | `File` | `file` | `Text.svelte` plus `MediaPicker.svelte` with upload and delete |
-| `Menu` | `menu` | Generic child controls with add, remove, and rename |
-| `Plugins` | `plugins` | Generic child controls; no row actions until the dedicated plugin editor lands |
-| `Bar` | `bar` | Generic child cards; `@widget-preset` entries can seed list rows |
-| `Dock` | `dock` | Generic child cards; `@widget-preset` entries can seed list rows |
+| `Menu` | `menu` | Row cards with add, remove, rename, and field editing |
+| `Plugins` | `plugins` | Row cards; the add dialog lists uninstalled DMS registry plugins |
+| `Bar` | `bar` | Tile cards; `@widget-preset` entries seed list rows and move/add/remove work |
+| `Dock` | `dock` | Tile cards; `@widget-preset` entries seed list rows and move/add/remove work |
 | `Font` | `font` | `Select.svelte` from `catalog.styles`; monospace filtering and a live font preview |
 | `IconTheme` | `icon-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails; variant filtering |
 | `CursorTheme` | `cursor-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails |
-| `Users` | `users` | Generic child controls with add, remove, and rename; `home-manager.users` follows when present |
+| `Users` | `users` | Account cards with add, remove, rename, validation, password action, and `home-manager.users` sync |
 | `Facter` | `facter` | `Select.svelte` with `auto` plus profile choices |
-| `Docker` | `docker` | Generic child controls with add, remove, and rename |
+| `Docker` | `docker` | Row cards with configurable container field names and add, remove, rename |
 | `SecureBoot` | `secureboot` | `Textarea.svelte` plus `SecureBootPanel.svelte` with the setup actions |
 | `Raw` | `raw` | `Textarea.svelte` |
 

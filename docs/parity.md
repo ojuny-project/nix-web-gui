@@ -33,9 +33,9 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Theme | palette picker | `control.setTyped` | searchable swatch picker | yes | implemented |
 | Wallpaper | preview strip | `preview.*` | picker, presets, upload, delete | yes | implemented |
 | File and icon pickers | native file chooser | `preview.upload`, `preview.delete` | media picker and table icon picker | yes | implemented |
-| Keybinds | row editor | `control.setTyped`, `structure.*` | generic rows | yes | partial |
-| Monitors | card editor | `control.setTyped`, `structure.*`, `monitor.detect` | generic rows plus output detection | yes | partial |
-| Users | expander editor | `control.setTyped`, `structure.*` | generic rows, validation, home-manager sync | yes | partial |
+| Keybinds | row editor | `control.setTyped`, `structure.*` | row cards with configurable schemas and CSV lists | yes | implemented |
+| Monitors | card editor | `control.setTyped`, `structure.*`, `monitor.detect` | output cards, drag canvas, output detection, disabled features | yes | implemented |
+| Users | expander editor | `control.setTyped`, `structure.*` | account cards, validation, home-manager sync | yes | implemented |
 | Facter | hardware profile | `control.setTyped` | UI select | yes | implemented |
 | Secure Boot | stage dialog | `secureboot.*` | status panel plus setup actions | yes | partial |
 | Save | save button | `edits.apply` | app shell | yes | implemented |
@@ -51,11 +51,11 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Working-tree diff | diff dialog | `git.diff` | Git page diff panel | yes | implemented |
 | Apply command | live apply | `apply.run` | serial client apply queue | yes | implemented |
 | Rebuild | terminal | `rebuild.run`, `job.cancel` | streamed output panel with Cancel | yes | implemented |
-| Menu | row editor | `control.setTyped`, `structure.*` | generic rows | no | partial |
-| Plugins | plugin editor | `control.setTyped`, `structure.*` | generic rows | no | partial |
+| Menu | row editor | `control.setTyped`, `structure.*` | row cards; no provider assistant | no | partial |
+| Plugins | plugin editor | `control.setTyped`, `structure.*`, `plugins.*` | row cards and registry add; QML controls pending | no | partial |
 | Bar | tile editor | `control.setTyped` | structured list sections | no | partial |
 | Dock | tile editor | `control.setTyped` | structured list sections | no | partial |
-| Grid | card canvas | `control.setTyped`, `structure.*` | generic rows | no | partial |
+| Grid | card canvas | `control.setTyped`, `structure.*` | placement canvas; drag/resize pending | no | partial |
 | Docker | row editor | `control.setTyped`, `structure.*` | generic rows | no | partial |
 | Config and flake path | settings dialog | `config.get`, `config.set`, `config.remember` | sidebar Settings button and panel | yes | implemented |
 
