@@ -24,7 +24,7 @@ pub fn child_template(
             let types = spec.bind_field_types.clone().unwrap_or_default();
             let mut parts = Vec::new();
             if let Some(key_field) = key_field {
-                parts.push(format!("{key_field} = {}", crate::render::quote(key.trim())));
+                parts.push(format!("{key_field} = {};", crate::render::quote(key.trim())));
             }
             for (index, field) in fields.iter().enumerate() {
                 if Some(field.as_str()) == key_field {
@@ -81,9 +81,15 @@ pub fn child_template(
                 format!("{{ id = {}; }}", crate::render::quote(key.trim()))
             }
         }
+        WidgetKind::GridConfiguration => {
+            if spec.grid_enabled {
+                "{ enabled = true; }".to_string()
+            } else {
+                "{ }".to_string()
+            }
+        }
         WidgetKind::Submodule
         | WidgetKind::HorizontalSubmodule
-        | WidgetKind::GridConfiguration
         | WidgetKind::Bar
         | WidgetKind::Dock => "{ }".to_string(),
         other => {
@@ -161,6 +167,39 @@ mod tests {
         assert!(child_template(WidgetKind::Keybinds, "", None, None, &OptionSpec::default())
             .unwrap()
             .contains("modifier = [ ]"));
+    }
+
+    #[test]
+    fn follows_configurable_bind_and_container_schemas() {
+        let spec = nix_settings_gui::dsl::OptionSpec {
+            bind_fields: Some(vec![
+                "name".to_string(),
+                "keys".to_string(),
+                "action".to_string(),
+            ]),
+            bind_field_types: Some(vec![
+                "str".to_string(),
+                "list".to_string(),
+                "str".to_string(),
+            ]),
+            bind_key_field: Some("name".to_string()),
+            container_image: Some("imageRef".to_string()),
+            container_ports: Some("expose".to_string()),
+            container_volumes: Some("mounts".to_string()),
+            container_environment: Some("env".to_string()),
+            container_auto_start: Some("startOnBoot".to_string()),
+            container_auto_start_default: Some(false),
+            ..nix_settings_gui::dsl::OptionSpec::default()
+        };
+        let bind = child_template(WidgetKind::Keybinds, "terminal", None, None, &spec).unwrap();
+        assert!(bind.contains("name = \"terminal\";"), "{bind}");
+        assert!(bind.contains("keys = [ ];"), "{bind}");
+        assert!(bind.contains("action = \"\";"), "{bind}");
+
+        let container = child_template(WidgetKind::Docker, "web", None, None, &spec).unwrap();
+        assert!(container.contains("imageRef = \"\";"), "{container}");
+        assert!(container.contains("expose = [ ];"), "{container}");
+        assert!(container.contains("startOnBoot = false;"), "{container}");
     }
 
     #[test]

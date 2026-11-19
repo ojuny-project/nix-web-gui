@@ -75,6 +75,24 @@ impl SettingsSession {
     /// Wallpaper presets generated from the widget's `presetSource` flake
     /// input. The eval can realize store paths, so this is only called when a
     /// wallpaper record declares a preset source.
+    fn facter_catalog(
+        &self,
+        spec: &nix_settings_gui::dsl::OptionSpec,
+    ) -> nix_settings_gui::widgets::facter_detect::ProfileCatalog {
+        spec.profile_catalog
+            .as_deref()
+            .and_then(|path| {
+                let path = crate::paths::confine(
+                    std::path::Path::new(&self.root),
+                    std::path::Path::new(path),
+                )
+                .ok()?;
+                let text = std::fs::read_to_string(path).ok()?;
+                serde_json::from_str(&text).ok()
+            })
+            .unwrap_or_else(nix_settings_gui::widgets::facter_detect::ProfileCatalog::builtin)
+    }
+
     pub fn wallpaper_presets(
         &mut self,
         option_path: &str,
@@ -88,13 +106,14 @@ impl SettingsSession {
             .preset_source
             .clone()
             .ok_or_else(|| "this wallpaper option has no preset source".to_string())?;
+        let preset_option = record.spec.preset_option.clone().unwrap_or_default();
         let target = self
             .target()
             .ok_or_else(|| "no NixOS or Home Manager target found".to_string())?;
         let set = metadata::wallpaper_set(
             &self.root,
             &target.as_arg(),
-            option_path,
+            &preset_option,
             &source,
         )?;
         let mut presets = set.presets;
@@ -249,8 +268,9 @@ impl SettingsSession {
         let mut choices = crate::render::resolve_choices(&record.spec, type_str.as_deref());
         if widget == WidgetKind::Facter && choices.is_empty() {
             choices.push("auto".to_string());
+            let catalog = self.facter_catalog(&record.spec);
             choices.extend(nix_settings_gui::widgets::facter_detect::profile_choices(
-                &nix_settings_gui::widgets::facter_detect::ProfileCatalog::builtin(),
+                &catalog,
             ));
         }
         let mut out = crate::api::record_json(record);

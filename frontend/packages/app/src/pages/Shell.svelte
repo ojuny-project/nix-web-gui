@@ -2297,6 +2297,20 @@
               </span>
               <input bind:value={structureKey} />
             </label>
+            {#if structureTarget.widget === "grid-configuration" && structureTarget.gridRegistry?.length}
+              <div class="toolbar">
+                {#each structureTarget.gridRegistry as card (card)}
+                  <button
+                    type="button"
+                    class="ghost"
+                    class:active={structureKey === card}
+                    onclick={() => (structureKey = card)}
+                  >
+                    {card}
+                  </button>
+                {/each}
+              </div>
+            {/if}
             {#if structureTarget.widget === "monitors"}
               {#if detectedOutputs.length > 0}
                 <div class="toolbar">

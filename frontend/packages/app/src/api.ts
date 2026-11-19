@@ -107,6 +107,11 @@ export type ScanRecord = {
   bindPreview?: string[] | null;
   bindSort?: string[] | null;
   bindKeyField?: string | null;
+  presetOption?: string | null;
+  reportPath?: string | null;
+  profileCatalog?: string | null;
+  gridRegistry?: string[] | null;
+  gridEnabled?: boolean;
   containerImage?: string | null;
   containerPorts?: string | null;
   containerVolumes?: string | null;
