@@ -108,6 +108,25 @@ pkgs.testers.nixosTest {
 
     machine.succeed("grep -q vm2 /home/alice/nwg-flake/modules/system.nix")
 
+    machine.succeed(
+        f"curl -fsS -b /tmp/alice.cookies "
+        "-X POST http://127.0.0.1:8787/api/rpc "
+        "-H 'content-type: application/json' "
+        f"-H 'x-csrf-token: {csrf}' "
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"control.set\",\"params\":{\"path\":\"networking.hostName\",\"value\":\"\\\"unterminated\"}}' "
+        "| jq -e '.result.staged'"
+    )
+    broken = machine.succeed(
+        f"curl -fsS -b /tmp/alice.cookies "
+        "-X POST http://127.0.0.1:8787/api/rpc "
+        "-H 'content-type: application/json' "
+        f"-H 'x-csrf-token: {csrf}' "
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"edits.apply\",\"params\":{}}'"
+    )
+    machine.log(broken)
+    assert "error" in json.loads(broken)
+    machine.succeed("grep -q vm2 /home/alice/nwg-flake/modules/system.nix")
+
     machine.fail(
         "curl -fsS -X POST http://127.0.0.1:8787/api/login "
         "-H 'content-type: application/json' "
