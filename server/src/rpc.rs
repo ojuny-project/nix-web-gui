@@ -60,14 +60,20 @@ pub fn handle_with_progress(
                 "staged": settings.staged().len(),
             }))
         }),
-        "scan" => with_settings(session, |settings| {
+        "scan" => {
+            progress(json!({
+                "method": "progress",
+                "params": { "job": "scan", "line": "Scanning the configuration" },
+            }));
+            with_settings(session, |settings| {
             let menus = settings
                 .menus_filtered(params.get("host").and_then(Value::as_str));
             Ok(json!({
                 "menus": menus.iter().map(|menu| menu_json(*menu)).collect::<Vec<_>>(),
                 "hosts": settings.hosts(),
             }))
-        }),
+            })
+        },
         "page.list" => with_settings(session, |settings| {
             let menus = settings
                 .menus_filtered(params.get("host").and_then(Value::as_str));
@@ -161,12 +167,18 @@ pub fn handle_with_progress(
                 })).collect::<Vec<_>>()
             }))
         }),
-        "edits.apply" => with_settings(session, |settings| {
+        "edits.apply" => {
+            progress(json!({
+                "method": "progress",
+                "params": { "job": "save", "line": "Writing staged changes" },
+            }));
+            with_settings(session, |settings| {
             settings
                 .apply()
                 .map(|files| json!({ "files": files }))
                 .map_err(|error| (-32012, error))
-        }),
+            })
+        },
         "option.add" => with_settings(session, |settings| {
             let file = string_param(&params, "file");
             let origin = string_param(&params, "origin");
@@ -254,7 +266,12 @@ pub fn handle_with_progress(
                 .map(|_| json!({ "remembered": true }))
                 .map_err(|error| (-32012, error))
         })(),
-        "apply.run" => with_settings(session, |settings| {
+        "apply.run" => {
+            progress(json!({
+                "method": "progress",
+                "params": { "job": "apply", "line": "Applying the change" },
+            }));
+            with_settings(session, |settings| {
             let path = string_param(&params, "path");
             let value = string_param(&params, "value");
             let record = settings
@@ -264,7 +281,8 @@ pub fn handle_with_progress(
             apply::run_apply(&settings.root, &record, &value)
                 .map(|_| json!({ "applied": true }))
                 .map_err(|error| (-32012, error))
-        }),
+            })
+        },
         "rebuild.run" => with_settings(session, |settings| {
             apply::rebuild_streaming(&settings.root, |line| {
                 progress(json!({

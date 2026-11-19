@@ -373,6 +373,14 @@
       status = `Checked ${detail.params.line ?? ""}`;
       return;
     }
+    if (
+      detail?.params?.job === "scan" ||
+      detail?.params?.job === "save" ||
+      detail?.params?.job === "apply"
+    ) {
+      status = detail.params.line ?? detail.params.job;
+      return;
+    }
     if (detail?.params?.job !== "rebuild") return;
     const next = [...rebuildOutput.split("\n"), detail.params.line ?? ""]
       .filter((line, index, lines) => line !== "" || index === lines.length - 1)
