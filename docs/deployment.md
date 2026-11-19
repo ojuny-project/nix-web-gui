@@ -228,7 +228,7 @@ on the network. Before doing it:
 - Apply and rebuild for ordinary settings run as the signed-in account and
   depend on that account's sudo configuration.
 - There is no cross-user file-isolation VM test for bob against alice's flake.
-- There is no Playwright coverage or full `nix flake check` run.
+- There is no Playwright coverage. `nix flake check` passes.
 
 Implemented protections include login throttling, the session cap and cleanup,
 the conditional `Secure` cookie, the `Origin` check, the CSP and security
