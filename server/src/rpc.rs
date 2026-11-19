@@ -309,7 +309,8 @@ pub fn handle_with_progress(
             })
         },
         "rebuild.run" => with_settings(session, |settings| {
-            apply::rebuild_streaming(&settings.root, |line| {
+            let password = params.get("password").and_then(Value::as_str);
+            apply::rebuild_streaming(&settings.root, password, |line| {
                 progress(json!({
                     "method": "progress",
                     "params": { "job": "rebuild", "line": line },

@@ -1162,7 +1162,8 @@ Response:
 
 The call returns when the command exits. While it runs, `/api/events` sends one
 `progress` event per output line with `params.job = "rebuild"`. The response
-contains the full combined output. On failure the error message is the last
+contains the full combined output. An optional `password` is sent to `sudo -S`
+when the configured command uses sudo. On failure the error message is the last
 non-empty output line.
 
 ### `job.cancel`

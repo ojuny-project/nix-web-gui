@@ -58,6 +58,7 @@ pub fn with_reloads(command: String, reload_mango: bool, reload_dms: bool) -> St
 /// terminal_command is ignored.
 pub fn rebuild_streaming(
     root: &str,
+    password: Option<&str>,
     mut on_line: impl FnMut(&str),
 ) -> Result<String, String> {
     let config = WebConfig::load();
@@ -70,13 +71,32 @@ pub fn rebuild_streaming(
         config.reload_mango_on_rebuild,
         config.reload_dms_on_rebuild,
     );
+    let (command, password) = match password.filter(|password| !password.is_empty()) {
+        Some(password) if command.contains("sudo ") => (
+            command.replacen("sudo ", "sudo -S -p '' ", 1),
+            Some(password),
+        ),
+        _ => (command, None),
+    };
     let mut child = Command::new("sh")
         .arg("-lc")
         .arg(format!("{command} 2>&1"))
         .current_dir(root)
+        .stdin(if password.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .spawn()
         .map_err(|error| format!("cannot run rebuild command: {error}"))?;
+    if let (Some(password), Some(mut stdin)) = (password, child.stdin.take()) {
+        use std::io::Write;
+        stdin
+            .write_all(password.as_bytes())
+            .and_then(|_| stdin.write_all(b"\n"))
+            .map_err(|error| format!("cannot send the sudo password: {error}"))?;
+    }
     let stdout = child
         .stdout
         .take()
@@ -102,7 +122,7 @@ pub fn rebuild_streaming(
 }
 
 pub fn rebuild(root: &str) -> Result<String, String> {
-    rebuild_streaming(root, |_| {})
+    rebuild_streaming(root, None, |_| {})
 }
 
 #[cfg(test)]

@@ -189,8 +189,9 @@ feature and hardening gaps.
       value is preserved for the desktop app.
 - [x] Rebuild output is streamed line by line and can be cancelled. The session
       reopens after a cancel.
-- [ ] Apply and rebuild privilege escalation relies on the account's sudo
-      configuration. There is no password re-auth or `sudo -S` implementation.
+- [x] Rebuild passes an optional device password to `sudo -S` when the
+      configured command uses sudo.
+- [ ] Apply commands that need root still rely on the account's sudo policy.
 
 ## Auth and security
 

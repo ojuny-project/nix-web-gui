@@ -1740,8 +1740,14 @@
     cancelRequested = false;
     error = "";
     status = "Rebuilding...";
+    const password =
+      prompt("Sudo password for the rebuild (leave empty if not needed)") ?? "";
     try {
-      const result = await rpc<{ output: string }>("rebuild.run", {}, user.csrf);
+      const result = await rpc<{ output: string }>(
+        "rebuild.run",
+        { password },
+        user.csrf,
+      );
       rebuildOutput = result.output.trim();
       status = "Rebuild finished";
     } catch (cause) {
