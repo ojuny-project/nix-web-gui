@@ -58,8 +58,8 @@ Implemented end to end:
   render on the placement canvas with `col`, `row`, `w`, and `h`, accept
   `gridRegistry` ids, and support drag and resize. Monitors render output cards
   on a draggable `xPos`/`yPos` canvas.
-- Plugin rows list the DMS registry and offer uninstalled entries.
-  `plugins.settings` returns QML but no QML controls are rendered.
+- Plugin rows list the DMS registry, offer uninstalled entries, and render
+  `plugins.settings` QML as schema-driven controls with missing-field creation.
 - `disabledFeatures` hides fields and the engine skips them on save. Facter reads
   `profileCatalog`. Table `@table-item` directives are preserved, and icon and
   image columns show thumbnails.
@@ -95,6 +95,28 @@ successful save, and a failed save that leaves the file unchanged.
 
 See [TODO.md](TODO.md) for the remaining widget, flow, security, packaging, and
 documentation work.
+
+## Run
+
+Demo mode runs the in-process engine, so no PAM and no root are needed:
+
+```sh
+nix run .#demo -- --flake /path/to/flake
+```
+
+Open `http://127.0.0.1:8787` and use any username with the password `demo`.
+`--flake` is optional; without it the shell asks for a flake path. Extra flags
+after `--` are passed to `serve`, for example `--listen` or `--page`.
+
+Production mode uses PAM and per-user workers, so it needs root:
+
+```sh
+sudo nix run . -- --flake /path/to/flake
+```
+
+The production launcher adds `--static-dir` and uses `nix-web-gui` when the
+NixOS module installed that PAM service, otherwise `login`. Pass
+`-- --pam-service <name>` to choose another stack.
 
 ## Development
 

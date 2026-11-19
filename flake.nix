@@ -23,6 +23,11 @@
 
         frontend = pkgs.callPackage ./nix/frontend.nix { };
 
+        launchers = import ./nix/apps.nix {
+          inherit pkgs;
+          package = self.packages.${system}.default;
+        };
+
         mkPackage =
           {
             withOjunyWidgets ? true,
@@ -50,7 +55,12 @@
 
         apps.default = {
           type = "app";
-          program = "${self.packages.${system}.default}/bin/nix-web-gui";
+          program = "${launchers.production}/bin/nix-web-gui";
+        };
+
+        apps.demo = {
+          type = "app";
+          program = "${launchers.demo}/bin/nix-web-gui-demo";
         };
 
         checks = {

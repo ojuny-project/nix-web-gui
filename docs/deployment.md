@@ -301,6 +301,27 @@ nix-web-gui serve \
   --theme-file /tmp/nix-web-gui-theme
 ```
 
+The packaged launcher wraps those flags:
+
+```sh
+nix run .#demo -- --flake /path/to/flake
+```
+
+It adds `--static-dir`, `--dev-auth`, and `--dev-password demo`. Open
+`http://127.0.0.1:8787` and sign in with any username and the password `demo`.
+`nix run .#demo -- --help` lists the remaining `serve` flags.
+
+For the production path, the default app starts PAM mode and refuses to run
+without root:
+
+```sh
+sudo nix run . -- --flake /path/to/flake
+```
+
+It uses `/etc/pam.d/nix-web-gui` when the NixOS module is installed and falls
+back to `/etc/pam.d/login` otherwise. Add `-- --pam-service <name>` to choose a
+different stack.
+
 `--dev-auth` has two effects:
 
 - `POST /api/login` compares the supplied password with `--dev-password` and
