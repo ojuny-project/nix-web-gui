@@ -65,7 +65,7 @@ pub fn list(session: &mut SettingsSession, option_path: &str) -> Result<Value, S
     });
 
     let (presets, preset_error) = if record.spec.preset_source.is_some() {
-        match session.wallpaper_presets() {
+        match session.wallpaper_presets(option_path) {
             Ok(presets) => (
                 presets
                     .iter()

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 //! Reusable settings engine for comment-driven Nix configuration frontends.
 //!
 //! This crate is the boundary shared with `nix-fleet-manager`. It owns the

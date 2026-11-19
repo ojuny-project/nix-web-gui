@@ -77,11 +77,26 @@ impl SettingsSession {
     /// wallpaper record declares a preset source.
     pub fn wallpaper_presets(
         &mut self,
+        option_path: &str,
     ) -> Result<Vec<nix_settings_gui::metadata::WallpaperPreset>, String> {
+        let record = self
+            .record(option_path)
+            .cloned()
+            .ok_or_else(|| format!("unknown option path: {option_path}"))?;
+        let source = record
+            .spec
+            .preset_source
+            .clone()
+            .ok_or_else(|| "this wallpaper option has no preset source".to_string())?;
         let target = self
             .target()
             .ok_or_else(|| "no NixOS or Home Manager target found".to_string())?;
-        let set = metadata::wallpaper_set(&self.root, &target.as_arg())?;
+        let set = metadata::wallpaper_set(
+            &self.root,
+            &target.as_arg(),
+            option_path,
+            &source,
+        )?;
         let mut presets = set.presets;
         presets.extend(set.user);
         Ok(presets)
