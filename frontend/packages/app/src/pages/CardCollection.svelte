@@ -7,6 +7,7 @@
   import MediaPicker from "./MediaPicker.svelte";
   import MonitorCanvas from "./MonitorCanvas.svelte";
   import PluginSettings from "./PluginSettings.svelte";
+  import EnvEditor from "./EnvEditor.svelte";
   import type { ScanRecord } from "../api";
 
   export let parent: ScanRecord;
@@ -258,6 +259,10 @@
       if (parent.widget === "plugins" && record.path.startsWith(`${child.path}.settings`)) {
         return false;
       }
+      const environment = `${child.path}.${child.containerEnvironment ?? "environment"}`;
+      if (parent.widget === "docker" && record.path.startsWith(`${environment}.`)) {
+        return false;
+      }
       return !(record.hidden && record.children?.length);
     });
     if (child.children?.length) {
@@ -378,6 +383,16 @@
             {/if}
           {/if}
         {/each}
+        {#if parent.widget === "docker"}
+          <EnvEditor
+            container={row.child}
+            {allRecords}
+            {values}
+            {csrf}
+            {onchange}
+            {onstructurechange}
+          />
+        {/if}
         {#if parent.widget === "plugins"}
           <PluginSettings
             plugin={row.child}

@@ -515,6 +515,16 @@ impl SettingsSession {
     }
 
     pub fn apply(&mut self) -> Result<usize, String> {
+        self.apply_with_progress(|_| {})
+    }
+
+    /// Validate every staged edit, then write the batch atomically. Progress
+    /// lines are emitted only after validation passes and before the write, so
+    /// a failed save never reports a write that did not happen.
+    pub fn apply_with_progress(
+        &mut self,
+        mut on_line: impl FnMut(&str),
+    ) -> Result<usize, String> {
         let edits = self.pending_edits()?;
         if edits.is_empty() {
             return Ok(0);
@@ -534,10 +544,14 @@ impl SettingsSession {
             ));
         }
         self.verify_unchanged(&edits)?;
-        let files = edit::apply(&edits, &self.root)?;
+        for file in distinct_files(edits.iter().map(|edit| edit.file.clone())) {
+            on_line(&format!("Writing {file}"));
+        }
+        let written = edit::apply(&edits, &self.root)?;
+        on_line(&format!("Wrote {written} file(s)"));
         self.staged.clear();
         self.reload()?;
-        Ok(files)
+        Ok(written)
     }
 
     /// Ask nixd whether each staged package expression resolves. Missing nixd
@@ -1104,6 +1118,13 @@ fn file_fingerprint(path: &str) -> String {
         }
         Err(_) => String::new(),
     }
+}
+
+fn distinct_files(files: impl IntoIterator<Item = String>) -> Vec<String> {
+    let mut files: Vec<String> = files.into_iter().collect();
+    files.sort();
+    files.dedup();
+    files
 }
 
 /// Look up a `visibleWhen` governing value, tolerating the `config.` wrapper

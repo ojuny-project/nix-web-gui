@@ -147,7 +147,8 @@ feature and hardening gaps.
 - [ ] Grid catalog sizes and profiles.
 - [x] Docker rows can be added, removed, renamed, and edited with the
       configurable container field names.
-- [ ] Docker environment key/value row editor.
+- [x] Docker environment variables edit as key/value rows with add, rename, and
+      remove.
 - [x] Generic grid registry ids are offered when adding a card.
 - [x] `@widget-preset` tiles are offered when adding bar and dock entries and
       their defaults are written.

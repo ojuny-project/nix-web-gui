@@ -1,5 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
+use std::sync::mpsc;
 
 use nix_settings_gui::apply::{plain_value, substitute};
 use nix_settings_gui::model::Record;
@@ -30,15 +31,83 @@ pub fn run_shell(root: &str, command: &str) -> Result<String, String> {
     }
 }
 
-/// Apply one option's `applyCommand` with the new Nix literal.
-pub fn run_apply(root: &str, record: &Record, literal: &str) -> Result<(), String> {
+/// Run a shell command in the flake root, forwarding every stdout and stderr
+/// line to the callback. The returned string is the complete combined output.
+/// On failure the first non-empty stderr line is returned.
+pub fn run_shell_streaming(
+    root: &str,
+    command: &str,
+    mut on_line: impl FnMut(&str),
+) -> Result<String, String> {
+    let mut child = Command::new("sh")
+        .arg("-lc")
+        .arg(command)
+        .current_dir(root)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("cannot run command: {error}"))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "cannot capture command output".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "cannot capture command output".to_string())?;
+    let (sender, receiver) = mpsc::channel::<(bool, String)>();
+    let stdout_reader = {
+        let sender = sender.clone();
+        std::thread::spawn(move || {
+            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                let _ = sender.send((false, line));
+            }
+        })
+    };
+    let stderr_reader = std::thread::spawn(move || {
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            let _ = sender.send((true, line));
+        }
+    });
+    let mut output = String::new();
+    let mut first_error: Option<String> = None;
+    for (is_stderr, line) in receiver {
+        if is_stderr && first_error.is_none() && !line.trim().is_empty() {
+            first_error = Some(line.clone());
+        }
+        on_line(&line);
+        output.push_str(&line);
+        output.push('\n');
+    }
+    let _ = stdout_reader.join();
+    let _ = stderr_reader.join();
+    let status = child
+        .wait()
+        .map_err(|error| format!("cannot wait for command: {error}"))?;
+    if status.success() {
+        Ok(output)
+    } else if let Some(first) = first_error {
+        Err(first.trim().to_string())
+    } else {
+        Err(format!("command failed: {command}"))
+    }
+}
+
+/// Apply one option's `applyCommand` with the new Nix literal, forwarding each
+/// output line to the callback.
+pub fn run_apply(
+    root: &str,
+    record: &Record,
+    literal: &str,
+    on_line: impl FnMut(&str),
+) -> Result<(), String> {
     let command = record
         .spec
         .apply_command
         .as_deref()
         .ok_or_else(|| "this option has no apply command".to_string())?;
     let value = plain_value(literal);
-    run_shell(root, &substitute(command, &value)).map(|_| ())
+    run_shell_streaming(root, &substitute(command, &value), on_line).map(|_| ())
 }
 
 /// Append the optional compositor reloads to the configured rebuild command.
@@ -149,5 +218,35 @@ mod tests {
         let command = with_reloads("true".to_string(), true, true);
         assert!(command.contains("mmsg dispatch reload_config"));
         assert!(command.contains("dms kill"));
+    }
+
+    #[test]
+    fn streams_stdout_and_stderr_lines() {
+        let root = std::env::temp_dir();
+        let mut lines = Vec::new();
+        let output = run_shell_streaming(
+            root.to_str().unwrap(),
+            "printf 'one\\ntwo\\n'; printf 'err\\n' >&2",
+            |line| lines.push(line.to_string()),
+        )
+        .unwrap();
+        assert!(lines.contains(&"one".to_string()));
+        assert!(lines.contains(&"two".to_string()));
+        assert!(lines.contains(&"err".to_string()));
+        assert!(output.contains("one"));
+        assert!(output.contains("two"));
+        assert!(output.contains("err"));
+    }
+
+    #[test]
+    fn streaming_reports_the_first_error_line() {
+        let root = std::env::temp_dir();
+        let error = run_shell_streaming(
+            root.to_str().unwrap(),
+            "echo first >&2; echo second >&2; exit 1",
+            |_| {},
+        )
+        .unwrap_err();
+        assert_eq!(error, "first");
     }
 }

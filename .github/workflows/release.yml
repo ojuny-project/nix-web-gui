@@ -28,12 +28,25 @@ jobs:
           cp -rL result/share/nix-web-gui dist/minimal/
           tar -C dist -czf "nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" default minimal
           sha256sum "nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" > SHA256SUMS
+      - name: Build container image
+        run: |
+          if nix eval --raw .#packages.x86_64-linux.container.name >/dev/null 2>&1; then
+            nix build .#packages.x86_64-linux.container
+            cp -L result "nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux-container.tar.gz"
+            sha256sum "nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux-container.tar.gz" >> SHA256SUMS
+          else
+            echo "packages.x86_64-linux.container is not defined; skipping the container image"
+          fi
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          assets=("nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux.tar.gz")
+          if [ -f "nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux-container.tar.gz" ]; then
+            assets+=("nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux-container.tar.gz")
+          fi
           gh release create "${GITHUB_REF_NAME}" \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
-            "nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" \
+            "${assets[@]}" \
             SHA256SUMS

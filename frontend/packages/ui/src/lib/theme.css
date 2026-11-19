@@ -939,6 +939,19 @@ button.tiny {
   text-transform: uppercase;
 }
 
+.env-editor {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.35rem 0 0.65rem;
+}
+
+.env-row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) minmax(8rem, 2fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
 .plugin-settings {
   display: grid;
   gap: 0.55rem;
