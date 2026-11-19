@@ -196,6 +196,17 @@ export type PluginRegistry = {
   error?: string | null;
 };
 
+export type GridSize = { w: number; h: number; label: string };
+
+export type GridProfile = {
+  surface: string;
+  label: string;
+  columns: number;
+  maxRows: number;
+  hasEnabled: boolean;
+  registry: Array<{ id: string; label: string }>;
+};
+
 export type WidgetPreset = {
   id: string;
   label: string;

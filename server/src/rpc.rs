@@ -211,6 +211,10 @@ pub fn handle_with_progress(
                 .unwrap_or(true);
             Ok(catalog::menu_providers(top_level))
         }
+        "grid.metadata" => Ok(json!({
+            "sizes": catalog::grid_sizes(),
+            "profiles": catalog::grid_profiles(),
+        })),
         "menu.fieldHelp" => {
             let name = string_param(&params, "name");
             Ok(catalog::menu_field_help(&name)

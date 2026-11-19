@@ -633,23 +633,18 @@ impl SettingsSession {
                 ));
             }
             format!("{{ {} }}", parts.join(" "))
-        } else if widget == WidgetKind::Menu {
-            let mut parts = if defaults.is_empty() {
-                vec![format!(
-                    "label = {};",
-                    crate::render::quote("New entry")
-                )]
-            } else {
-                defaults
-                    .iter()
-                    .map(|(field, literal)| {
-                        Ok(format!(
-                            "{} = {literal};",
-                            crate::structure::attr_path(field)?
-                        ))
-                    })
-                    .collect::<Result<Vec<_>, String>>()?
-            };
+        } else if (widget == WidgetKind::Menu || widget == WidgetKind::GridConfiguration)
+            && !defaults.is_empty()
+        {
+            let mut parts = defaults
+                .iter()
+                .map(|(field, literal)| {
+                    Ok(format!(
+                        "{} = {literal};",
+                        crate::structure::attr_path(field)?
+                    ))
+                })
+                .collect::<Result<Vec<_>, String>>()?;
             parts.sort();
             format!("{{ {} }}", parts.join(" "))
         } else {

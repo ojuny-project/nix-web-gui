@@ -144,7 +144,7 @@ feature and hardening gaps.
 - [x] Grid editor renders cards on the placement canvas from `col`, `row`,
       `w`, and `h`, and offers `gridRegistry` cards.
 - [x] Grid drag and resize on the placement canvas.
-- [ ] Grid catalog sizes and profiles.
+- [x] Grid card size choices come from the catalog and profile column counts are shown.
 - [x] Docker rows can be added, removed, renamed, and edited with the
       configurable container field names.
 - [x] Docker environment variables edit as key/value rows with add, rename, and

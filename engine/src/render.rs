@@ -230,17 +230,24 @@ pub fn serialize_table(record: &Record, list: bool, value: &Value) -> Result<Str
             .get("fields")
             .and_then(Value::as_object)
             .ok_or_else(|| "table row must contain fields".to_string())?;
+        let raw_expressions = object.get("rawExpressions").and_then(Value::as_object);
         let mut body = Vec::new();
         for (index, column) in columns.iter().enumerate() {
             let cell = fields.get(column).cloned().unwrap_or(Value::Null);
             let kind = types.get(index).map(String::as_str).unwrap_or_default();
-            body.push(format!("{} = {};", quote(column), table_cell(kind, &cell)?));
+            let raw = is_raw_expression(raw_expressions, column);
+            body.push(format!(
+                "{} = {};",
+                quote(column),
+                table_cell(kind, &cell, raw)?
+            ));
         }
         for (column, cell) in fields {
             if columns.iter().any(|declared| declared == column) {
                 continue;
             }
-            body.push(format!("{} = {};", quote(column), table_cell("", cell)?));
+            let raw = is_raw_expression(raw_expressions, column);
+            body.push(format!("{} = {};", quote(column), table_cell("", cell, raw)?));
         }
         let body = body.join(" ");
         let comment = row_comment(object);
@@ -299,7 +306,22 @@ fn row_comment(row: &serde_json::Map<String, Value>) -> String {
     }
 }
 
-fn table_cell(kind: &str, value: &Value) -> Result<String, String> {
+fn is_raw_expression(raw: Option<&serde_json::Map<String, Value>>, column: &str) -> bool {
+    raw.and_then(|fields| fields.get(column))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn table_cell(kind: &str, value: &Value, raw: bool) -> Result<String, String> {
+    if raw {
+        return match value {
+            Value::String(text) => Ok(expr_literal(text)),
+            Value::Bool(enabled) => Ok(enabled.to_string()),
+            Value::Number(number) => Ok(number.to_string()),
+            Value::Null => Ok("null".to_string()),
+            _ => Err("unsupported table cell value".to_string()),
+        };
+    }
     match kind {
         "bool" => Ok(switch_literal(value)?.to_string()),
         "int" | "float" => Ok(number_literal(number_value(value)?, 0)),

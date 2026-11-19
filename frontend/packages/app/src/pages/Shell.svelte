@@ -114,6 +114,8 @@
   let structureDefaults: Record<string, string> = {};
   let pluginRegistry: PluginRegistryEntry[] = [];
   let pluginRegistryError = "";
+  let gridSizes: import("../api").GridSize[] = [];
+  let gridProfiles: import("../api").GridProfile[] = [];
   let structureBusy = false;
   let detectedOutputs: Array<{
     name: string;
@@ -1157,6 +1159,8 @@
     structureDefaults = {};
     pluginRegistry = [];
     pluginRegistryError = "";
+    gridSizes = [];
+    gridProfiles = [];
     detectedOutputs = [];
     error = "";
     if (record.widget === "menu") {
@@ -1190,6 +1194,19 @@
         );
       } catch {
         menuProviders = [];
+      }
+    }
+    if (record.widget === "grid-configuration") {
+      try {
+        const metadata = await rpc<{
+          sizes: typeof gridSizes;
+          profiles: typeof gridProfiles;
+        }>("grid.metadata", {}, user.csrf);
+        gridSizes = metadata.sizes;
+        gridProfiles = metadata.profiles;
+      } catch {
+        gridSizes = [];
+        gridProfiles = [];
       }
     }
     if (record.widget === "plugins") {
@@ -2509,6 +2526,34 @@
                   </div>
                 {/if}
               {/if}
+            {/if}
+            {#if structureTarget.widget === "grid-configuration" && gridSizes.length}
+              <div class="toolbar">
+                {#each gridSizes as size (size.label)}
+                  <button
+                    type="button"
+                    class="ghost"
+                    class:active={structureDefaults.w === String(size.w) && structureDefaults.h === String(size.h)}
+                    onclick={() => {
+                      structureDefaults = {
+                        ...structureDefaults,
+                        w: String(size.w),
+                        h: String(size.h),
+                        ...(structureTarget?.gridEnabled ? { enabled: "true" } : {}),
+                      };
+                    }}
+                  >
+                    {size.label}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            {#if structureTarget.widget === "grid-configuration" && gridProfiles.length}
+              <p class="muted small">
+                Profiles: {gridProfiles
+                  .map((profile) => `${profile.label} (${profile.columns} columns)`)
+                  .join(", ")}
+              </p>
             {/if}
             {#if structureTarget.widget === "grid-configuration" && structureTarget.gridRegistry?.length}
               <div class="toolbar">

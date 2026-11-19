@@ -63,3 +63,11 @@ pub fn menu_providers(top_level: bool) -> Value {
 pub fn menu_field_help(name: &str) -> Option<&'static str> {
     nix_settings_gui::headless::menu_field_help(name)
 }
+
+pub fn grid_sizes() -> Value {
+    nix_settings_gui::headless::grid_card_sizes()
+}
+
+pub fn grid_profiles() -> Value {
+    nix_settings_gui::headless::grid_profiles()
+}
