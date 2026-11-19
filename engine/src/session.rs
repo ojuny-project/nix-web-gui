@@ -249,7 +249,9 @@ impl SettingsSession {
         let mut choices = crate::render::resolve_choices(&record.spec, type_str.as_deref());
         if widget == WidgetKind::Facter && choices.is_empty() {
             choices.push("auto".to_string());
-            choices.extend(nix_settings_gui::widgets::facter_detect::profile_choices());
+            choices.extend(nix_settings_gui::widgets::facter_detect::profile_choices(
+                &nix_settings_gui::widgets::facter_detect::ProfileCatalog::builtin(),
+            ));
         }
         let mut out = crate::api::record_json(record);
         if let Some(type_str) = &type_str {
