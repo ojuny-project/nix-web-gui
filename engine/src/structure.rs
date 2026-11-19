@@ -1,4 +1,4 @@
-use nix_settings_gui::dsl::WidgetKind;
+use nix_settings_gui::dsl::{OptionSpec, WidgetKind};
 
 /// One child entry template for a composite widget. The returned text is the
 /// attribute value, without the `key =` prefix for attribute sets.
@@ -7,6 +7,7 @@ pub fn child_template(
     key: &str,
     mode: Option<(u32, u32, f64)>,
     label: Option<&str>,
+    spec: &OptionSpec,
 ) -> Result<String, String> {
     let (width, height, refresh) = mode.unwrap_or((1920, 1080, 60.0));
     let template = match widget {
@@ -14,13 +15,59 @@ pub fn child_template(
             "{ description = \"\"; isNormalUser = true; extraGroups = [ \"networkmanager\" ]; hashedPassword = null; }"
                 .to_string()
         }
-        WidgetKind::Keybinds => "{ modifier = [ ]; keys = [ ]; }".to_string(),
+        WidgetKind::Keybinds => {
+            let key_field = spec.bind_key_field.as_deref();
+            let fields = spec
+                .bind_fields
+                .clone()
+                .unwrap_or_else(|| vec!["modifier".to_string(), "keys".to_string()]);
+            let types = spec.bind_field_types.clone().unwrap_or_default();
+            let mut parts = Vec::new();
+            if let Some(key_field) = key_field {
+                parts.push(format!("{key_field} = {}", crate::render::quote(key.trim())));
+            }
+            for (index, field) in fields.iter().enumerate() {
+                if Some(field.as_str()) == key_field {
+                    continue;
+                }
+                let kind = types
+                    .get(index)
+                    .map(|kind| kind.as_str())
+                    .unwrap_or(if field == "modifier" || field == "keys" {
+                        "list"
+                    } else {
+                        "str"
+                    });
+                let literal = match kind.to_ascii_lowercase().as_str() {
+                    "bool" | "boolean" => "false",
+                    "int" | "integer" => "0",
+                    "float" | "number" => "0.0",
+                    "list" | "string-list" | "strings" => "[ ]",
+                    _ => "\"\"",
+                };
+                parts.push(format!("{field} = {literal};"));
+            }
+            format!("{{ {} }}", parts.join(" "))
+        }
         WidgetKind::Monitors => format!(
             "{{ width = {width}; height = {height}; refresh = {refresh}; xPos = 0; yPos = 0; scale = 1.0; }}"
         ),
         WidgetKind::Docker => {
-            "{ image = \"\"; ports = [ ]; volumes = [ ]; environment = { }; autoStart = true; }"
-                .to_string()
+            let image = spec.container_image.as_deref().unwrap_or("image");
+            let ports = spec.container_ports.as_deref().unwrap_or("ports");
+            let volumes = spec.container_volumes.as_deref().unwrap_or("volumes");
+            let environment = spec
+                .container_environment
+                .as_deref()
+                .unwrap_or("environment");
+            let auto_start = spec
+                .container_auto_start
+                .as_deref()
+                .unwrap_or("autoStart");
+            let default = spec.container_auto_start_default.unwrap_or(true);
+            format!(
+                "{{ {image} = \"\"; {ports} = [ ]; {volumes} = [ ]; {environment} = {{ }}; {auto_start} = {default}; }}"
+            )
         }
         WidgetKind::Menu => format!(
             "{{ label = {}; provider = \"apps\"; }}",
@@ -108,10 +155,10 @@ mod tests {
 
     #[test]
     fn builds_users_and_keybind_templates() {
-        assert!(child_template(WidgetKind::Users, "", None, None)
+        assert!(child_template(WidgetKind::Users, "", None, None, &OptionSpec::default())
             .unwrap()
             .contains("isNormalUser = true"));
-        assert!(child_template(WidgetKind::Keybinds, "", None, None)
+        assert!(child_template(WidgetKind::Keybinds, "", None, None, &OptionSpec::default())
             .unwrap()
             .contains("modifier = [ ]"));
     }

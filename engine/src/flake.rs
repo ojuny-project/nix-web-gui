@@ -154,17 +154,35 @@ pub fn suggest(request: Suggest<'_>) -> Result<Vec<String>, String> {
 }
 
 pub fn check_updates(root: &str, names: &[String]) -> Result<Value, String> {
+    check_updates_with(root, names, |_, _, _| {})
+}
+
+pub fn check_updates_with<F>(
+    root: &str,
+    names: &[String],
+    mut progress: F,
+) -> Result<Value, String>
+where
+    F: FnMut(&str, Option<&InputStatus>, Option<&str>),
+{
     let path = Path::new(root).join("flake.nix");
     let document = flake_inputs::load(&path.display().to_string())?;
     let mut out = Vec::new();
     for name in names {
         let Some(input) = document.input(name) else {
+            progress(name, None, Some("input is not declared"));
             out.push(json!({ "name": name, "error": "input is not declared" }));
             continue;
         };
         match flake_update::check(root, input) {
-            Ok(status) => out.push(status_json(name, &status)),
-            Err(error) => out.push(json!({ "name": name, "error": error })),
+            Ok(status) => {
+                progress(name, Some(&status), None);
+                out.push(status_json(name, &status));
+            }
+            Err(error) => {
+                progress(name, None, Some(&error));
+                out.push(json!({ "name": name, "error": error }));
+            }
         }
     }
     Ok(Value::Array(out))

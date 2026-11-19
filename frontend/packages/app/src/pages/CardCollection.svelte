@@ -34,18 +34,21 @@
     value: string,
   ) => Promise<string | null> = async () => null;
   export let isCsv: (record: ScanRecord) => boolean = () => false;
+  export let rowTitle: (record: ScanRecord) => string = (record) =>
+    record.label ?? record.path.split(".").at(-1) ?? record.path;
+  export let sortRows: ((left: ScanRecord, right: ScanRecord) => number) | undefined =
+    undefined;
 
-  $: rows = (parent.children ?? []).map((child) => ({
+  $: children = [...(parent.children ?? [])].sort((left, right) =>
+    sortRows ? sortRows(left, right) : 0,
+  );
+  $: rows = children.map((child) => ({
     child,
     records: allRecords.filter(
       (record) =>
         record.path === child.path || record.path.startsWith(`${child.path}.`),
     ),
   }));
-
-  function rowTitle(record: ScanRecord): string {
-    return record.label ?? record.path.split(".").at(-1) ?? record.path;
-  }
 
   function bodyRecords(child: ScanRecord, records: ScanRecord[]): ScanRecord[] {
     const rows = records.filter(

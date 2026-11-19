@@ -405,7 +405,18 @@ pub fn handle_with_progress(
                         .collect()
                 })
                 .unwrap_or_default();
-            flake::check_updates(&settings.root, &names).map_err(|error| (-32012, error))
+            flake::check_updates_with(&settings.root, &names, |name, status, error| {
+                let detail = match (status, error) {
+                    (_, Some(error)) => error.to_string(),
+                    (Some(status), _) => format!("{:?}", status.state).to_lowercase(),
+                    _ => "checked".to_string(),
+                };
+                progress(json!({
+                    "method": "progress",
+                    "params": { "job": "update", "line": format!("{name}: {detail}") },
+                }));
+            })
+            .map_err(|error| (-32012, error))
         }),
         "flake.update" => with_settings(session, |settings| {
             let names: Vec<String> = params

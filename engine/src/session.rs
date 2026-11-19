@@ -538,7 +538,7 @@ impl SettingsSession {
             .cloned()
             .ok_or_else(|| format!("unknown option path: {parent_path}"))?;
         let widget = crate::render::choose_widget(&record, None);
-        let template = crate::structure::child_template(widget, key, mode, None)?;
+        let template = crate::structure::child_template(widget, key, mode, None, &record.spec)?;
         let kind = nix_settings_gui::value::classify(&record.value);
         let offset = closing_offset(&record.value, kind)?;
         let insertion = match kind {

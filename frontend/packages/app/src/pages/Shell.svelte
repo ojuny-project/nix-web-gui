@@ -355,6 +355,10 @@
     const detail = (event as CustomEvent).detail as {
       params?: { job?: string; line?: string };
     };
+    if (detail?.params?.job === "update") {
+      status = `Checked ${detail.params.line ?? ""}`;
+      return;
+    }
     if (detail?.params?.job !== "rebuild") return;
     const next = [...rebuildOutput.split("\n"), detail.params.line ?? ""]
       .filter((line, index, lines) => line !== "" || index === lines.length - 1)
@@ -446,8 +450,23 @@
     }
   }
 
+  async function reopenAfterCancel(message: string) {
+    if (!root) return;
+    dirty = new Set();
+    try {
+      await rpc("session.open", { root }, user.csrf);
+      const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
+      menus = scanned.menus;
+      loadPage();
+      status = message;
+    } catch {
+      status = `${message}; reopen the flake to continue`;
+    }
+  }
+
   async function checkInputUpdates(names: string[]) {
     flakeCheckBusy = true;
+    cancelRequested = false;
     error = "";
     try {
       const result = await rpc<InputCheck[]>(
@@ -461,8 +480,12 @@
       };
       status = "Checked input revisions";
     } catch (cause) {
-      error =
-        cause instanceof Error ? cause.message : "Cannot check input revisions";
+      if (cancelRequested) {
+        await reopenAfterCancel("Update check cancelled");
+      } else {
+        error =
+          cause instanceof Error ? cause.message : "Cannot check input revisions";
+      }
     } finally {
       flakeCheckBusy = false;
     }
@@ -999,13 +1022,64 @@
     return entry.preview ?? entry.previews?.[0] ?? null;
   }
 
+  function keybindAncestor(record: ScanRecord): ScanRecord | null {
+    return (
+      records.find(
+        (candidate) =>
+          candidate.widget === "keybinds" &&
+          (record.path === candidate.path ||
+            record.path.startsWith(`${candidate.path}.`)),
+      ) ?? null
+    );
+  }
+
   function isKeybindCsv(record: ScanRecord): boolean {
-    if (!record.path.endsWith(".modifier") && !record.path.endsWith(".keys")) {
-      return false;
+    const keybinds = keybindAncestor(record);
+    if (!keybinds) return false;
+    const field = record.path.split(".").at(-1) ?? "";
+    const fields = keybinds.bindFields ?? ["modifier", "keys"];
+    const index = fields.indexOf(field);
+    const type =
+      keybinds.bindFieldTypes?.[index] ??
+      (field === "modifier" || field === "keys" ? "list" : "str");
+    return type.toLowerCase() === "list";
+  }
+
+  function bindPreviewValue(record: ScanRecord, field: string): string {
+    const child = (record.children ?? []).find(
+      (candidate) => candidate.path.split(".").at(-1) === field,
+    );
+    if (!child) return "";
+    const value = values[child.path];
+    if (Array.isArray(value)) return value.join("+");
+    if (typeof value === "boolean") return value ? "on" : "off";
+    return String(value ?? "");
+  }
+
+  function cardRowTitle(record: ScanRecord): string {
+    const fallback = record.label ?? record.path.split(".").at(-1) ?? record.path;
+    const keybinds = keybindAncestor(record);
+    const preview = keybinds?.bindPreview ?? [];
+    if (preview.length) {
+      const text = preview
+        .map((field) => bindPreviewValue(record, field))
+        .filter(Boolean)
+        .join(" ");
+      if (text) return `${fallback}: ${text}`;
     }
-    const row = parentOf(record);
-    const widget = row ? parentOf(row) : null;
-    return widget?.widget === "keybinds";
+    return fallback;
+  }
+
+  function cardRowSort(left: ScanRecord, right: ScanRecord): number {
+    const keybinds = keybindAncestor(left) ?? keybindAncestor(right);
+    const fields = keybinds?.bindSort ?? [];
+    for (const field of fields) {
+      const order = bindPreviewValue(left, field).localeCompare(
+        bindPreviewValue(right, field),
+      );
+      if (order !== 0) return order;
+    }
+    return 0;
   }
 
   function canAddRow(record: ScanRecord): boolean {
@@ -1563,17 +1637,8 @@
     } catch (cause) {
       if (!cancelRequested) {
         error = cause instanceof Error ? cause.message : "Rebuild failed";
-      } else if (root) {
-        dirty = new Set();
-        try {
-          await rpc("session.open", { root }, user.csrf);
-          const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
-          menus = scanned.menus;
-          loadPage();
-          status = "Rebuild cancelled; the session was reopened";
-        } catch {
-          status = "Rebuild cancelled; reopen the flake to continue";
-        }
+      } else {
+        await reopenAfterCancel("Rebuild cancelled; the session was reopened");
       }
     } finally {
       busy = false;
@@ -1740,6 +1805,12 @@
         </form>
       </Panel>
     {:else if view === "flake"}
+      <div class="toolbar">
+        <span class="spacer"></span>
+        {#if flakeCheckBusy}
+          <button class="ghost" onclick={cancelJob}>Cancel check</button>
+        {/if}
+      </div>
       <Panel title="nixpkgs" description="The pinned revision comes from flake.lock.">
         {#if flakeData?.nixpkgs}
           <div class="input-row">
@@ -1994,6 +2065,8 @@
                   onIconPick={pickIcon}
                   onIconPreview={previewIcon}
                   isCsv={isKeybindCsv}
+                  rowTitle={cardRowTitle}
+                  sortRows={cardRowSort}
                 />
               {:else if record.widget === "secureboot"}
                 <Control

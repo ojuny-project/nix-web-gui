@@ -102,6 +102,17 @@ export type ScanRecord = {
   children?: ScanRecord[] | null;
   depth?: number | null;
   maxColumns?: number | null;
+  bindFields?: string[] | null;
+  bindFieldTypes?: string[] | null;
+  bindPreview?: string[] | null;
+  bindSort?: string[] | null;
+  bindKeyField?: string | null;
+  containerImage?: string | null;
+  containerPorts?: string | null;
+  containerVolumes?: string | null;
+  containerEnvironment?: string | null;
+  containerAutoStart?: string | null;
+  containerAutoStartDefault?: boolean | null;
   monospace?: boolean;
   variant?: string | null;
   table?: TableJson | null;
