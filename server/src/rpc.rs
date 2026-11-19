@@ -14,10 +14,6 @@ use nix_web_gui_engine::session::SettingsSession;
 use nix_web_gui_engine::users;
 use serde_json::{json, Value};
 
-pub fn handle(session: &mut Option<SettingsSession>, request: &Value) -> Value {
-    handle_with_progress(session, request, &mut |_| {})
-}
-
 /// Dispatch one request and forward progress notifications to the caller.
 pub fn handle_with_progress(
     session: &mut Option<SettingsSession>,

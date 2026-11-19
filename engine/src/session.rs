@@ -785,7 +785,6 @@ impl SettingsSession {
         let end_absolute = parent.byte_start + child.byte_end;
 
         let parent_widget = crate::render::choose_widget(&parent, None);
-        let parent_widget = crate::render::choose_widget(&parent, None);
         let text = std::fs::read_to_string(&parent.file)
             .map_err(|error| format!("cannot read {}: {error}", parent.file))?;
         let (mut start, mut end) = match nix_settings_gui::value::classify(&parent.value) {
