@@ -54,8 +54,7 @@ There is a conflict between the lock and the prose in
 `/home/den/repos/ojuny-future-repos/nix-web-gui/README.md`,
 `/home/den/repos/ojuny-future-repos/nix-web-gui/docs/deployment.md`, and
 `/home/den/repos/ojuny-future-repos/nix-web-gui/docs/parity.md`, which name NSG
-commit `4b93ee5`. `flake.lock` locks `95779de`. The lock is what a build uses;
-the `4b93ee5` references are stale. Check the locked rev before cutting a tag
+The lock and prose now name `95779de`. Check the locked rev before cutting a tag
 instead of trusting the prose.
 
 ## Tagged artifacts
