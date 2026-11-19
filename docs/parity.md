@@ -115,8 +115,8 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 - Icon-theme and cursor-theme preview sheets are pending.
 - Secure Boot has no per-action privileged re-authentication. Actions run in the
   root parent and fail clearly outside it.
-- Rebuild output streams and can be cancelled by terminating the session
-  worker. Scan, save, apply, and update checks remain blocking.
+- Rebuild output and update checks stream and can be cancelled by terminating
+  the session worker. Scan, save, and apply remain blocking.
 - Full PAM `system-auth`, account expiry, and multi-factor modules are pending.
 - Built-in TLS is pending.
 - Playwright and frontend unit tests are pending. `nix flake check` passes and

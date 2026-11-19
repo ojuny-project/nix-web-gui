@@ -158,8 +158,10 @@ feature and hardening gaps.
       latest value per path wins.
 - [x] Streamed rebuild progress over SSE, with a Cancel action that terminates
       the session worker and reopens the session.
-- [ ] Streamed scan, update-check, apply, and save progress.
-- [ ] Cancellation for update checks, scans, and saves.
+- [x] Streamed update-check progress with a Cancel action that terminates the
+      worker and reopens the session.
+- [ ] Streamed scan, apply, and save progress.
+- [ ] Cancellation for scans and saves.
 - [x] `flake.input.addAll` and the missing-input banner.
 - [x] Flake input check and update buttons in the UI. Progress is still a
       single blocking response.

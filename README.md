@@ -61,7 +61,7 @@ Not yet implemented:
 - Dedicated keybind, monitor, and user cards. Their rows support add, remove,
   rename, and field editing through the generic renderer.
 - Icon and cursor theme preview sheets and custom wallpaper paths.
-- Streamed and cancellable scan, save, apply, and update-check output.
+- Streamed and cancellable scan, save, and apply output.
 - Playwright and frontend unit tests, a portable release flake input,
   `binary-url.json`, and prebuilt binary update checks.
 
