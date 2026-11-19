@@ -143,7 +143,8 @@ feature and hardening gaps.
       structured list view.
 - [x] Grid editor renders cards on the placement canvas from `col`, `row`,
       `w`, and `h`, and offers `gridRegistry` cards.
-- [ ] Grid drag, resize, catalog sizes, and profiles.
+- [x] Grid drag and resize on the placement canvas.
+- [ ] Grid catalog sizes and profiles.
 - [x] Docker rows can be added, removed, renamed, and edited with the
       configurable container field names.
 - [ ] Docker environment key/value row editor.
