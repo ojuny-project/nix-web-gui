@@ -758,6 +758,31 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn forwarded_https_sets_the_secure_cookie() {
+        let response = router(test_state())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/login")
+                    .header("content-type", "application/json")
+                    .header("x-forwarded-proto", "https")
+                    .header("host", "127.0.0.1:8787")
+                    .body(Body::from(r#"{"username":"den","password":"secret"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let cookie = response
+            .headers()
+            .get("set-cookie")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(cookie.contains("Secure"), "{cookie}");
+    }
+
+    #[tokio::test]
     async fn cross_origin_login_is_rejected() {
         let response = router(test_state())
             .oneshot(

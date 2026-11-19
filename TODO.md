@@ -21,7 +21,8 @@ feature and hardening gaps.
       leaving every file byte-identical.
 - [ ] Add a theme SSE test that replaces the theme file and asserts one live
       update without reload.
-- [ ] Add an origin, security-header, and cookie-flag test for the HTTP layer.
+- [x] Add origin, security-header, and forwarded-HTTPS cookie tests for the
+      HTTP layer.
 
 ## Widget parity
 
@@ -127,10 +128,10 @@ feature and hardening gaps.
       through the generic structure editor.
 - [ ] Plugins editor with the DMS registry and declarative settings QML controls.
       Plugin rows can be added and removed; their settings edit generically.
-- [ ] Bar editor with tile add, remove, and move actions. Left, center, and right
-      list fields and tile settings now edit through the structured list view.
-- [ ] Dock editor with tile add and extras. Existing tiles edit as structured
-      list elements.
+- [ ] Bar editor with move actions. Tile add, remove, rename, and field editing
+      work through the structured list view.
+- [ ] Dock editor with extras. Tile add, remove, rename, and field editing work
+      through the structured list view.
 - [ ] Grid editor with card canvas, drag, resize, catalog sizes, and profiles.
 - [ ] Docker row editor. Rows can be added and removed and fields edit
       generically.
@@ -227,14 +228,14 @@ feature and hardening gaps.
 - [x] Menu icons and category collapse.
 - [ ] Responsive and accessibility audit.
 - [ ] Loading and error states for every long-running action.
-- [ ] Empty states for menus with no controls and missing media directories.
+- [x] Empty state for a menu with no controls and for an empty media directory.
 
 ## Documentation
 
-- [ ] `docs/usage.md` for the web flow.
-- [ ] `docs/deployment.md` for service, reverse proxy, TLS, and remote access.
-- [ ] `docs/widgets.md` mapping every desktop widget to its web renderer.
-- [ ] `docs/limitations.md` for the web substitutes and unrendered widgets.
-- [ ] Expand `docs/api.md` with request and response examples for every method.
-- [ ] Add the worker protocol and lifecycle to `docs/architecture.md`.
-- [ ] Link `TODO.md` from the README.
+- [x] `docs/usage.md` for the web flow.
+- [x] `docs/deployment.md` for service, reverse proxy, TLS, and remote access.
+- [x] `docs/widgets.md` mapping every desktop widget to its web renderer.
+- [x] `docs/limitations.md` for the web substitutes and unrendered widgets.
+- [x] Expand `docs/api.md` with request and response examples for every method.
+- [x] Add the worker protocol and lifecycle to `docs/architecture.md`.
+- [x] Link `TODO.md` from the README.
