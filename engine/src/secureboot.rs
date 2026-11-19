@@ -102,12 +102,17 @@ pub fn setup(
     }))
 }
 
-/// Run the configured rebuild command as the root service account.
-pub fn rebuild(root: &str) -> Result<String, String> {
+/// Run the configured rebuild command as the root service account, forwarding
+/// every output line so the panel can show progress while the command runs.
+pub fn rebuild_streaming(root: &str, on_line: impl FnMut(&str)) -> Result<String, String> {
     if effective_uid() != 0 {
         return Err("rebuilding from the Secure Boot flow requires the root service account".to_string());
     }
-    crate::apply::rebuild(root)
+    crate::apply::rebuild_streaming(root, None, on_line)
+}
+
+pub fn rebuild(root: &str) -> Result<String, String> {
+    rebuild_streaming(root, |_| {})
 }
 
 /// Reboot the machine after an explicit confirmation from the browser.

@@ -1418,24 +1418,24 @@ Methods that do not need an open session are `echo`, `system.ping`,
 `config.remember`, `monitor.detect`, `flake.channels`, and `flake.suggest`.
 Every other method returns `-32000` before `session.open`.
 
-## Pending work
+## Implemented surface
 
-The contract is filled in as the engine slices land.
-
-| Group | Pending |
+| Group | Status |
 |---|---|
-| Pages | metadata batching beyond `page.describe`; scan sends one stage line, not line-level progress |
-| Edits | a dedicated conflict prompt, plus cancellable and line-level save progress |
-| Authoring | every panel is reachable from the sidebar or the settings toolbar |
-| Flake | channel scan and reference suggestion UI |
-| Git | nothing on the RPC side; the page covers status, pull, push, commit, sync, and diff |
-| Apply | cancellation and line-level progress for scan and apply |
-| Secure Boot | per-action privileged re-authentication and streamed setup output |
-| Previews | wallpaper cycle settings |
-| Catalogs | `catalog.themes`, `catalog.fonts`, `catalog.icons`, `catalog.cursors`, and `facter.detect` |
-| Tables | rendering undeclared columns |
-| Plugins | QML controls for `plugins.settings` |
-| Config | nothing; the sidebar Settings button opens the panel |
+| Pages | `page.describe`; scan sends a start line, the menu count, and one line per menu file |
+| Edits | stale-file errors name the changed files; save sends one line per written file |
+| Authoring | add file, add option, snippets, and structure edits |
+| Flake | channels, reference suggestions, add-all, check, and update |
+| Git | status, diff, pull, push, commit, sync |
+| Apply | streamed and cancellable in worker mode |
+| Secure Boot | per-action PAM re-authentication; rebuild output streams |
+| Previews | wallpaper presets, media upload, delete, and selection |
+| Catalogs | `catalog.styles`, `grid.metadata`, `menu.providers`, `plugins.registry`, and `plugins.settings` |
+| Tables | typed cells, raw expressions, icons, and locked keys |
+| Plugins | schema-driven controls with missing-field creation |
+| Config | the Settings panel and `config.set`/`config.remember` |
+
+Only the `binary-url.json` release manifest is undecided.
 
 ## Engine boundary
 

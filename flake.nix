@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    # Replace with github:ojuny-project/nix-settings-gui for a release build.
+    # Release builds use the tagged revision of the upstream engine.
     nix-settings-gui.url = "github:ojuny-project/nix-settings-gui/3f3a980d5186321ef4c01c8e064a17a0b5b10b5d";
   };
 
@@ -66,6 +66,18 @@
               ${self.packages.${system}.nix-web-gui-minimal}/share/nix-web-gui/dist
             touch $out
           '';
+          minimal-renderer = pkgs.runCommand "check-minimal-renderer" { } ''
+            dist=${self.packages.${system}.nix-web-gui-minimal}/share/nix-web-gui/dist
+            if grep -Rq "Variable name is required" "$dist"; then
+              echo "the Docker environment editor shipped in the minimal build" >&2
+              exit 1
+            fi
+            if grep -Rq "Cannot read plugin schema" "$dist"; then
+              echo "the plugin settings editor shipped in the minimal build" >&2
+              exit 1
+            fi
+            touch $out
+          '';
           parity = pkgs.runCommand "check-parity" { } ''
             cd ${self}
             ${pkgs.bash}/bin/bash tests/check-parity.sh .
@@ -75,6 +87,17 @@
           nixos-test-auth = import ./tests/nixos-test-auth.nix {
             inherit self pkgs system;
           };
+          ui-smoke = pkgs.runCommand "check-ui-smoke" {
+            nativeBuildInputs = [ pkgs.curl ];
+          } ''
+            ${pkgs.bash}/bin/bash ${self}/tests/ui-check.sh \
+              ${self.packages.${system}.default} \
+              ${pkgs.chromium} \
+              ${pkgs.nodejs} \
+              ${self}/tests/fixtures/ui-flake \
+              ${self}/tests/ui-smoke.mjs
+            touch $out
+          '';
         };
 
         devShells.default = pkgs.mkShell {

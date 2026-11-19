@@ -8,8 +8,11 @@
 //   node tests/ui-smoke.mjs
 //
 // The fixture must declare users, keybinds, bar, and a text option.
+import { existsSync, readFileSync } from 'node:fs';
+
 const base = process.env.NWG_BASE ?? 'http://127.0.0.1:8899';
 const cdp = process.env.NWG_CDP ?? 'http://127.0.0.1:9223';
+const fixture = process.env.NWG_FIXTURE ?? '';
 const username = process.env.NWG_USER ?? 'den';
 const password = process.env.NWG_PASSWORD ?? 'secret';
 
@@ -61,7 +64,10 @@ function send(method, params = {}) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function evaluate(expression) {
   const result = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-  if (result.result?.exceptionDetails) throw new Error(result.result.exceptionDetails.text);
+  if (result.result?.exceptionDetails) {
+    const detail = result.result.exceptionDetails.exception?.description ?? result.result.exceptionDetails.text;
+    throw new Error(detail);
+  }
   return result.result?.result?.value;
 }
 
@@ -159,6 +165,112 @@ await evaluate(`(() => {
 await sleep(600);
 const gridAfter = await evaluate('Number(document.querySelector(\'input[id$="-col"]\')?.value ?? 0)');
 if (!(gridAfter > gridBefore)) throw new Error(`grid drag did not update col: ${gridBefore} -> ${gridAfter}`);
+
+async function clickText(text) {
+  await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find((item) => item.textContent.trim() === ${JSON.stringify(text)});
+    if (!button) throw new Error('button not found: ' + ${JSON.stringify(text)});
+    button.click();
+  })()`);
+}
+
+async function setInput(id, value) {
+  await evaluate(`(() => {
+    const input = document.getElementById(${JSON.stringify(id)});
+    if (!input) throw new Error('input not found: ' + ${JSON.stringify(id)});
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
+}
+
+await setInput('control-networking-hostName', 'nixos-check');
+await setInput('control-services-applyTarget', 'after');
+await sleep(600);
+
+await clickText('Diff');
+await sleep(600);
+const diffText = await evaluate('document.querySelector("pre.diff")?.textContent ?? ""');
+if (!diffText.includes('nixos-check')) throw new Error('diff did not show the staged hostname');
+
+const mediaItem = await evaluate(`(() => {
+  const item = [...document.querySelectorAll('.media-item')]
+    .find((candidate) => candidate.querySelector('.media-name')?.textContent.trim() === 'one.png');
+  if (!item) return false;
+  item.click();
+  return true;
+})()`);
+if (!mediaItem) throw new Error('media picker did not list one.png');
+await sleep(400);
+const background = await evaluate('document.getElementById("control-services-background")?.value ?? ""');
+if (!background.includes('one.png')) throw new Error(`media selection did not change the value: ${background}`);
+
+await clickText('Save');
+await sleep(2500);
+const savedStatus = await evaluate('document.querySelector(".bottombar .left")?.textContent ?? ""');
+if (!savedStatus.includes('Saved')) throw new Error(`save did not finish: ${savedStatus}`);
+if (fixture) {
+  const saved = readFileSync(`${fixture}/modules/system.nix`, 'utf8');
+  if (!saved.includes('nixos-check')) throw new Error('save did not write the hostname');
+  if (!existsSync(`${fixture}/applied.txt`)) throw new Error('the apply command did not run');
+}
+
+await clickText('Add option');
+await sleep(800);
+await evaluate(`(() => {
+  const panel = [...document.querySelectorAll('.panel')]
+    .find((item) => item.querySelector('h2')?.textContent.trim() === 'Add option');
+  if (!panel) throw new Error('add option panel missing');
+  const inputs = panel.querySelectorAll('input');
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+  setter.call(inputs[0], 'services.added');
+  inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+  setter.call(inputs[1], 'Added option');
+  inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
+  setter.call(inputs[2], '"added"');
+  inputs[2].dispatchEvent(new Event('input', { bubbles: true }));
+  panel.querySelector('button[type=submit]').click();
+})()`);
+await sleep(1500);
+const addedBody = await evaluate('document.body.innerText');
+if (!addedBody.includes('Added option')) throw new Error('add option did not create a control');
+
+await clickText('Add file');
+await sleep(800);
+if (fixture) {
+  await evaluate(`(() => {
+    const panel = [...document.querySelectorAll('.panel')]
+      .find((item) => item.querySelector('h2')?.textContent.trim() === 'Add file');
+    if (!panel) throw new Error('add file panel missing');
+    const inputs = panel.querySelectorAll('input');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(inputs[0], ${JSON.stringify(`${fixture}/modules/extra.nix`)});
+    inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+    setter.call(inputs[1], 'flake.modules.nixos.extra');
+    inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
+    panel.querySelector('button[type=submit]').click();
+  })()`);
+  await sleep(1500);
+  if (!existsSync(`${fixture}/modules/extra.nix`)) throw new Error('add file did not create the module');
+}
+
+await setInput('control-networking-hostName', 'nixos-rebuilt');
+await sleep(400);
+await clickText('Save & rebuild');
+await sleep(3000);
+const rebuildPanel = await evaluate(`(() => {
+  const panel = [...document.querySelectorAll('.panel')]
+    .find((item) => item.querySelector('h2')?.textContent.trim() === 'Rebuild output');
+  return panel?.querySelector('pre')?.textContent ?? '';
+})()`);
+if (!rebuildPanel.includes('rebuilt')) throw new Error(`rebuild output missing: ${rebuildPanel}`);
+
+await clickText('Flake Inputs');
+await sleep(600);
+const flakeBody = await evaluate('document.body.innerText');
+if (!flakeBody.includes('Add input')) throw new Error('flake inputs view did not open');
+
 if (errors.length) throw new Error(errors.join('\n'));
-console.log(JSON.stringify({ cards, csvFields, monitorTiles, gridHandles, dragged: true, gridDragged: true, add: true, rename: true, remove: true }));
+console.log(JSON.stringify({ cards, csvFields, monitorTiles, gridHandles, dragged: true, gridDragged: true, add: true, rename: true, remove: true, diff: true, save: true, media: true, apply: true, addOption: true, addFile: true, rebuild: true, flakeInputs: true }));
 socket.close();

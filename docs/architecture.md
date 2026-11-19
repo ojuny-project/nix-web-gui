@@ -200,8 +200,10 @@ JSON object with `method: "progress"` and no `id`:
 {"method":"progress","params":{"job":"rebuild","line":"building '/nix/store/...'"}}
 ```
 
-`scan`, `save`, and `apply` send one stage line. `update` sends one line per
-input. `rebuild` sends one line per output line. The parent `Worker::request`
+`scan` sends a start line, the menu count, and one line per menu file. `save`
+sends one line per written file. `apply` and `secureboot-rebuild` send one line
+per command output line. `update` sends one line per input. `rebuild` sends one
+line per output line. The parent `Worker::request`
 loop reads lines until it sees one without the `progress` method, adds the
 session id, and forwards progress to the `/api/events` SSE stream. The browser
 filters on its own session id.
@@ -288,10 +290,12 @@ settings, authoring, flake, git, preview, and structure calls:
   edit composite rows through `engine/src/structure.rs` and `SettingsSession`;
 - `monitor.detect` reads compositor outputs through `wlr-randr`;
 - `plugins.registry` reads the DMS registry and `plugins.settings` returns QML;
-  the browser renders registry rows but no QML controls;
+  the browser renders each schema field as a typed control and can add missing
+  fields;
 - `secureboot.writeConfig` inserts the missing Lanzaboote assignments in the
   worker; `secureboot.setup`, `secureboot.rebuild`, and `secureboot.reboot` are
-  intercepted by `http.rs` and run in the root parent;
+  intercepted by `http.rs` and run in the root parent. The Secure Boot rebuild
+  streams its output through the same progress channel;
 - `git.commit` and `git.push` are separate from `git.sync`;
 - `config.remember` updates the shared config on open, and `flake.input.addAll`
   declares the missing `@inputs` entries.

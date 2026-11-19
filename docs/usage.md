@@ -391,8 +391,9 @@ Actions:
 - `Show config block` calls `secureboot.config`.
 
 Key setup, rebuild, and reboot run in the root parent and fail with a clear
-message outside it. There is no per-action password re-authentication. Firmware
-steps, including resetting to Setup Mode and enabling Secure Boot, stay manual.
+message outside it. Each action requires the device password again and verifies
+it through PAM. Firmware steps, including resetting to Setup Mode and enabling
+Secure Boot, stay manual.
 
 ## Theme and the minimal build
 

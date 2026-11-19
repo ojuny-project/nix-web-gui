@@ -119,29 +119,29 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
   `config.remember`, and the config form exposes the path.
 - Base16 theme follow over SSE, theme search, and swatches.
 
-## Partial and pending
+## Remaining differences
 
-- Menus render as row cards but have no provider assistant.
-- Plugin rows render as cards and can be added from the DMS registry, but the
-  `plugins.settings` QML has no controls in the browser.
-- Bar and dock sections can seed rows from `@widget-preset` tiles and can add,
-  remove, rename, and move rows. The full desktop tile catalog is still pending.
-- Grid cards can be dragged, resized, and added from `gridRegistry` ids. Catalog
-  sizes and profiles are still pending.
-- Wallpaper cycle settings next to the option are pending.
-- Secure Boot has no per-action privileged re-authentication. Actions run in the
-  root parent and fail clearly outside it.
-- Rebuild streams one line per output line and update checks stream one line per
-  input; both can be cancelled by terminating the session worker. Scan, save, and
-  apply send one stage line and have no cancellation or line-level progress.
-- The service includes a `system-auth` PAM stack and inherits its MFA, faillock, LDAP, and Kerberos modules. Explicit tests for those modules are pending; account expiry is covered.
-- Built-in TLS is out of scope for the local-only design; a remote reverse proxy is the operator's responsibility.
-- Playwright and frontend unit tests are pending. A manual headless Chromium
-  smoke test lives at `tests/ui-smoke.mjs`; it is not part of `nix flake check`.
-  `checks.parity` exists.
-- The flake pins `nix-settings-gui` with `git+file:///home/den/repos/nix-settings-gui`
-  at the NSG revision `3f3a980`. A remote flake input and
-  `binary-url.json` are still pending for a release.
+- Menus have the provider assistant and inline field help.
+- Plugin rows render schema-driven QML controls and can add missing fields.
+- Bar and dock sections seed rows from `@widget-preset` tiles and support add,
+  remove, rename, move, and field edits.
+- Grid cards drag, resize, and seed from `gridRegistry` ids; catalog sizes and
+  profile columns come from `grid.metadata`.
+- Wallpaper cycle settings are ordinary controls beside the wallpaper option.
+- Secure Boot setup, rebuild, and reboot each require the device password and
+  verify it through PAM in the root parent. Rebuild output streams line by line.
+- Scan, save, apply, rebuild, Secure Boot rebuild, and update checks stream
+  progress. `job.cancel` terminates the worker for any of them; the in-process
+  dev engine cannot cancel.
+- The service includes a `system-auth` PAM stack and inherits its MFA, faillock,
+  LDAP, and Kerberos modules. Account expiry is covered by the VM test; the
+  other modules depend on operator provisioning.
+- Built-in TLS is out of scope for the local-only design; a remote reverse proxy
+  is the operator's responsibility.
+- `checks.ui-smoke` drives the real UI over CDP, and `checks.parity` guards the
+  widget names.
+- The flake pins `nix-settings-gui` to the GitHub revision `3f3a980`. Only the
+  `binary-url.json` release manifest is undecided.
 
 ## Documented limitation
 

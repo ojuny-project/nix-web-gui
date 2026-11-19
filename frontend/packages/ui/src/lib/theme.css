@@ -137,6 +137,24 @@ textarea:focus {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
 textarea {
   resize: vertical;
   min-height: 5rem;
@@ -526,12 +544,36 @@ label {
     grid-template-columns: 1fr;
     grid-template-areas:
       "top"
+      "side"
       "content"
       "bottom";
   }
 
   .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem;
+    overflow-x: auto;
+  }
+
+  .sidebar nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .sidebar nav button {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .sidebar .nav-label {
     display: none;
+  }
+
+  .topbar,
+  .title {
+    flex-wrap: wrap;
   }
 
   .topbar-actions .chip {

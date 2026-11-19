@@ -79,13 +79,14 @@ Not yet implemented:
 - Dedicated keybind and monitor pop-out editors and the full desktop field
   grouping. Cards cover add, remove, rename, list move, field edits, keybind
   previews and sorting, and monitor dragging.
-- Line-level streaming and cancellation for scan, save, and apply. They send one
-  stage progress line and cannot be cancelled; rebuild and update checks stream
-  and cancel.
-- Playwright and frontend unit tests, a remote flake input for
-  `nix-settings-gui`, `binary-url.json`, and prebuilt binary update checks. The
-  flake currently pins `nix-settings-gui` with `git+file` at NSG commit
-  `95779de`.
+- Line-level streaming for scan, save, apply, rebuild, Secure Boot rebuild, and
+  update checks. Every worker job can be cancelled; the in-process dev engine
+  cannot.
+- A headless-browser check (`checks.ui-smoke`) that drives the real UI through
+  login, open, edit, save, diff, add file, add option, flake inputs, apply,
+  rebuild, media selection, and card dragging.
+- `binary-url.json` remains undecided; `docs/release.md` records why no schema
+  is invented.
 
 The NixOS VM auth test passes. It verifies service startup, alice login,
 wrong-password rejection, bob login through an allowed group but refusal to read
@@ -149,18 +150,23 @@ The check set is:
 - `boundaries`: the engine, server, and UI dependency boundaries.
 - `parity`: every emitted widget name is documented and kebab-cased.
 - `minimal-flag`: the minimal bundle carries the Ojuny notice.
+- `minimal-renderer`: the Docker and plugin editors are absent from the minimal
+  bundle.
+- `ui-smoke`: headless Chromium drives the browser flow against a writable
+  fixture.
 - `nixos-test-auth`: the VM test for PAM login, worker RPC, save, failed save,
-  cross-user denial, and allowlist rejection.
+  cross-user denial, account expiry, and allowlist rejection.
 
 Tagged releases run the workflow in `.github/workflows/release.yml`, which builds
 both packages and publishes a tarball with `SHA256SUMS`.
 
-A manual browser smoke test lives in `tests/ui-smoke.mjs`. Start a dev server with
-`NIX_WEB_GUI_SKIP_METADATA=1`, launch headless Chromium with
-`--remote-debugging-port=9223`, and run `node tests/ui-smoke.mjs`. It checks the
-card layout, keybind CSV fields, monitor and grid tiles, add, rename, remove, and
-monitor and grid dragging. It is a manual script and is not part of
-`nix flake check`.
+The browser smoke test lives in `tests/ui-smoke.mjs` and runs as
+`checks.ui-smoke`. `tests/ui-check.sh` copies `tests/fixtures/ui-flake` to a
+writable directory, starts the packaged server with `--dev-auth`, launches
+headless Chromium, and drives the UI over CDP. It covers login, open, edit, save,
+diff, add file, add option, flake inputs, apply, rebuild, media selection,
+composite add/rename/remove, keybind CSV fields, monitor dragging, and grid
+dragging.
 
 ## Theme
 

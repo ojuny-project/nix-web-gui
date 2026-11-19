@@ -6,8 +6,8 @@
   } from "@nix-web-gui/ui";
   import MediaPicker from "./MediaPicker.svelte";
   import MonitorCanvas from "./MonitorCanvas.svelte";
-  import PluginSettings from "./PluginSettings.svelte";
-  import EnvEditor from "./EnvEditor.svelte";
+  import PluginSettings from "@ojuny/plugin-settings";
+  import EnvEditor from "@ojuny/env-editor";
   import type { ScanRecord } from "../api";
 
   export let parent: ScanRecord;

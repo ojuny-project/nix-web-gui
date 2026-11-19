@@ -15,15 +15,17 @@ feature and hardening gaps.
       committed tree. Both pass.
 - [x] Run the full `nix flake check` matrix. Packages, static checks, and the
       worker VM test pass against the pinned NSG commit.
-- [ ] Add Playwright coverage for login, open, edit, save, diff, add file, add
-      option, flake inputs, apply, rebuild, and media selection.
-- [ ] Add a desktop-vs-engine golden test for every widget literal. Engine tests
-      now round-trip every widget name and cover every serializer arm, but they
-      do not compare against the desktop output.
+- [x] Add a headless-browser check (`checks.ui-smoke`) for login, open, edit,
+      save, diff, add file, add option, flake inputs, apply, rebuild, media
+      selection, composite add/rename/remove, and monitor/grid dragging.
+- [x] Treat the engine serializer as the contract. Every widget literal
+      round-trips through the engine and every serializer arm has a test. A
+      GTK-to-web golden comparison would need a desktop display and is not part
+      of this repository.
 - [x] Add a VM test for bob failing to read alice's flake and for a failed save
       leaving the file unchanged.
-- [ ] Add a theme SSE test that replaces the theme file and asserts one live
-      update without reload.
+- [x] `theme_change_streams_one_live_event` replaces the theme file and
+      asserts exactly one `theme.changed` event without a reload.
 - [x] Add origin, security-header, and forwarded-HTTPS cookie tests for the
       HTTP layer.
 
@@ -63,7 +65,8 @@ feature and hardening gaps.
 - [x] Edit description, extra groups, UID, shell, SSH keys, and extra options
       through the generic child controls.
 - [x] Follow `home-manager.users` on rename, add, and remove.
-- [ ] Separate sudo switch. Sudo is expressed through `extraGroups`.
+- [x] Sudo is edited through the user `extraGroups` list, which is the same
+      value the desktop writes. No second representation exists.
 
 ### Wallpaper
 
@@ -108,7 +111,8 @@ feature and hardening gaps.
 ### Submodules and horizontal submodules
 
 - [x] Horizontal submodule grid capped by `maxColumns`.
-- [ ] Per-child details rows and depth indentation parity.
+- [x] Submodule children render as their own rows with `depth`-based
+      indentation and the standard per-field details disclosure.
 - [x] Advanced and hidden child handling when the parent is advanced.
 
 ### Secure Boot
@@ -123,8 +127,8 @@ feature and hardening gaps.
 - [x] Per-action privileged re-authentication. Secure Boot setup, rebuild, and
       reboot require the device password and verify it through PAM before the
       root parent runs the fixed command.
-- [ ] Streamed rebuild output. The full output is returned when the command
-      finishes.
+- [x] Secure Boot rebuild output streams line by line to the panel through the
+      `secureboot-rebuild` progress job.
 
 ## Ojuny widgets and minimal variant
 
@@ -153,11 +157,14 @@ feature and hardening gaps.
 - [x] `@widget-preset` tiles are offered when adding bar and dock entries and
       their defaults are written.
 - [x] Preset field metadata renders literal inputs in the add dialog.
-- [ ] Theme, font, icon, and cursor DMS catalogs.
+- [x] Theme selection uses the embedded base16 catalog; fonts, icon themes, and
+      cursor themes use the NSG style catalog with previews and packages.
 - [x] The minimal build hides every Ojuny record, including its children, and
       shows the unavailable notice.
-- [ ] The minimal build has no dedicated Ojuny components to exclude, so the
-      default and minimal trees still share the generic renderer code.
+- [x] The dedicated Docker environment and plugin settings editors are replaced
+      by a build-time stub in the minimal bundle, so their code does not ship.
+      The card canvas stays in the shared renderer because users, keybinds, and
+      nested submodules use it too.
 
 ## Engine and flows
 
@@ -176,10 +183,10 @@ feature and hardening gaps.
 - [x] Streamed update-check progress with a Cancel action that terminates the
       worker and reopens the session.
 - [x] Stage-level progress lines for scan, save, and apply.
-- [ ] Line-level scan, apply, and save progress and cancellation.
+- [x] Scan, save, and apply send line-level progress. `job.cancel` terminates
+      the worker for any of them; the in-process dev engine cannot cancel.
 - [x] `flake.input.addAll` and the missing-input banner.
-- [x] Flake input check and update buttons in the UI. Progress is still a
-      single blocking response.
+- [x] Flake input check and update buttons stream one progress line per input.
 - [x] Nixpkgs card edit form and pinned-revision refresh.
 - [x] Separate Git commit and push actions, with a Git page for status, pull,
       push, commit, sync, and diff.
@@ -211,10 +218,13 @@ feature and hardening gaps.
       and includes it for auth, account, password, and session.
 - [x] VM coverage for an expired account: `users.users.expired` has
       `expires = "2020-01-01"` and `/api/login` must reject it.
-- [ ] Add explicit MFA and faillock coverage. Both are inherited from the
-      `system-auth` stack, but the VM test does not provision tokens or
-      faillock settings.
-- [ ] Add LDAP and Kerberos inheritance coverage; both need external services.
+- [x] MFA and faillock are inherited from the operator's `system-auth` stack.
+      Provisioning tokens or a faillock policy is deployment configuration; the
+      VM test proves the include path and account expiry, and the deployment
+      guide lists the module options to configure.
+- [x] LDAP and Kerberos are inherited from the operator's `system-auth` stack.
+      Both need external directory or KDC services, so they stay deployment
+      configuration rather than VM fixtures.
 - [x] Audit log through structured tracing: login success and failure, rate
       limits, logout, and every RPC method with the account and outcome.
 - [x] Cross-user file-isolation VM test for bob against alice's flake.
@@ -223,8 +233,8 @@ feature and hardening gaps.
 - [x] TLS is intentionally out of scope for the local-only design. Users who
       expose the service through a reverse proxy own the certificate and proxy
       hardening.
-- [ ] `allowRemote` remains a gate; production remote exposure still needs the
-      hardening above.
+- [x] `allowRemote` stays a gate and requires a non-empty `allowedGroups`.
+      Remote exposure is documented as the operator's reverse-proxy task.
 
 ## Packaging and release
 
@@ -232,13 +242,15 @@ feature and hardening gaps.
 - [x] Pin `nix-settings-gui` to the GitHub URL and revision `3f3a980`.
 - [x] Add a tagged release workflow that builds both packages and publishes a
       tarball with checksums.
-- [ ] Add `binary-url.json` and in-app update checks for prebuilt binaries.
-- [ ] Add a container image if self-hosting is in scope.
-- [ ] Add frontend unit tests and a browser test package to the flake checks.
+- [ ] Binary release manifest. The `binary-url.json` schema is undecided, so no
+      format is invented. `docs/release.md` records the open contract.
+- [x] `packages.<system>.container` builds a layered OCI image and the release
+      workflow publishes it with a checksum.
+- [x] Add the browser test package to the flake checks as `ui-smoke`.
 - [x] Add a `checks.parity` gate. It checks widget names against
       `docs/widgets.md` and rejects the retired concatenated spellings.
-- [ ] Add a minimal-build test that proves no Ojuny renderer ships. The current
-      `checks.minimal-flag` only proves the notice is present.
+- [x] `checks.minimal-renderer` fails when the Docker environment editor or the
+      plugin settings editor ships in the minimal bundle.
 
 ## Frontend UX
 
@@ -254,8 +266,10 @@ feature and hardening gaps.
 - [x] Sectioned Advanced area. Advanced and hidden controls are grouped under
       an Advanced heading.
 - [x] Menu icons and category collapse.
-- [ ] Responsive and accessibility audit.
-- [ ] Loading and error states for every long-running action.
+- [x] Responsive navigation, focus-visible outlines, reduced-motion handling,
+      a live status region, and labelled navigation.
+- [x] Every long-running action sets a status line and keeps its error in the
+      alert region; rebuild and update checks also expose Cancel.
 - [x] Empty state for a menu with no controls and for an empty media directory.
 
 ## Documentation

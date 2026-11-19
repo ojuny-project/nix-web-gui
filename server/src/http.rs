@@ -390,7 +390,9 @@ async fn rpc(
                 "error": { "code": -32000, "message": "no running job to cancel" },
             }),
         }
-    } else if let Some(result) = secureboot_action(&state, &session, &method, &request.params) {
+    } else if let Some(result) =
+        secureboot_action(&state, &id, &session, &method, &request.params)
+    {
         match result {
             Ok(value) => json!({
                 "jsonrpc": "2.0",
@@ -460,6 +462,7 @@ async fn rpc(
 
 fn secureboot_action(
     state: &AppState,
+    session_id: &str,
     session: &Session,
     method: &str,
     params: &Value,
@@ -500,8 +503,17 @@ fn secureboot_action(
             }
             Some((|| {
                 reauthenticate()?;
-                nix_web_gui_engine::secureboot::rebuild(root)
-                    .map(|output| json!({ "output": output }))
+                nix_web_gui_engine::secureboot::rebuild_streaming(root, |line| {
+                    let _ = state.progress.send(json!({
+                        "method": "progress",
+                        "params": {
+                            "job": "secureboot-rebuild",
+                            "line": line,
+                            "session": session_id,
+                        },
+                    }));
+                })
+                .map(|output| json!({ "output": output }))
             })())
         }
         "secureboot.reboot" => Some((|| {
@@ -589,6 +601,7 @@ const PLACEHOLDER: &str = r#"<!doctype html>
 mod tests {
     use super::*;
     use axum::body::Body;
+    use futures::StreamExt;
     use std::time::Duration;
     use tower::ServiceExt;
 
@@ -650,6 +663,67 @@ mod tests {
             .unwrap();
         let value: Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(value["name"], "catppuccin-mocha");
+    }
+
+    #[tokio::test]
+    async fn theme_change_streams_one_live_event() {
+        let state = test_state();
+        let theme_path = state.theme.current().source;
+        let app = router(state.clone());
+
+        let login = app.clone().oneshot(login_request()).await.unwrap();
+        let cookie = login
+            .headers()
+            .get("set-cookie")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .split(';')
+            .next()
+            .unwrap()
+            .to_string();
+        let _ = axum::body::to_bytes(login.into_body(), usize::MAX)
+            .await
+            .unwrap();
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/events")
+                    .header("cookie", cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let mut stream = response.into_body().into_data_stream();
+
+        let initial = stream.next().await.unwrap().unwrap();
+        let initial = String::from_utf8_lossy(&initial);
+        assert!(initial.contains("event: theme"), "{initial}");
+        assert!(initial.contains("catppuccin-mocha"), "{initial}");
+
+        std::fs::write(&theme_path, "everforest-dark-hard\n").unwrap();
+        assert!(state.theme.refresh());
+
+        let changed = tokio::time::timeout(Duration::from_secs(2), stream.next())
+            .await
+            .expect("the live theme event timed out")
+            .unwrap()
+            .unwrap();
+        let changed = String::from_utf8_lossy(&changed);
+        assert!(changed.contains("event: theme.changed"), "{changed}");
+        assert!(changed.contains("everforest-dark-hard"), "{changed}");
+
+        let extra = tokio::time::timeout(Duration::from_millis(200), stream.next()).await;
+        if let Ok(Some(Ok(chunk))) = extra {
+            let text = String::from_utf8_lossy(&chunk);
+            assert!(
+                !text.contains("theme.changed"),
+                "a second theme update was sent without another file change: {text}"
+            );
+        }
     }
 
     #[tokio::test]

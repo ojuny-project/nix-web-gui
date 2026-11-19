@@ -47,17 +47,16 @@ frontend is not built.
 
 ## Engine dependency
 
-`nix-settings-gui` is the engine crate and DSL. The flake pins it through a
-local path input:
+`nix-settings-gui` is the engine crate and DSL. The flake pins it to a GitHub
+revision:
 
 ```nix
-nix-settings-gui.url = "git+file:///home/den/repos/nix-settings-gui";
+nix-settings-gui.url = "github:ojuny-project/nix-settings-gui/3f3a980d5186321ef4c01c8e064a17a0b5b10b5d";
 ```
 
-`flake.lock` locks that input to the NSG generalization commit
-`3f3a980d5186321ef4c01c8e064a17a0b5b10b5d`. The application builds against that
-checkout, so a build outside this machine needs the repository at the same
-path. A release needs a remote flake input, for example
+`flake.lock` locks that input to the NSG revision
+`3f3a980d5186321ef4c01c8e064a17a0b5b10b5d`. A fresh clone builds without a
+local checkout.
 `github:ojuny-project/nix-settings-gui`, before the tarball can build anywhere
 else.
 
@@ -275,14 +274,15 @@ on the network. Before doing it:
 - PAM inherits the generated `system-auth` stack, including account expiry.
   MFA, faillock, LDAP, and Kerberos apply only when the operator configures them
   on `security.pam.services.system-auth`; the VM test does not cover them.
-- Secure Boot setup, rebuild, and reboot have no per-action password
-  re-authentication; they run as the root service account.
+- Secure Boot setup, rebuild, and reboot require the device password again and
+  verify it through PAM before the root service account runs the fixed action.
 - Apply and rebuild for ordinary settings run as the signed-in account and
   depend on that account's sudo configuration.
 - The NixOS VM auth test covers cross-user isolation: bob can log in through the
   allowed group but cannot read alice's `0700` home. Carol is rejected by the
   allowlist, and an account with a past `expires` date is rejected by PAM.
-- There is no Playwright coverage. `nix flake check` passes.
+- `nix flake check` runs the browser smoke test, the VM auth test, and the
+  minimal-renderer check.
 
 Implemented protections include login throttling, the session cap and cleanup,
 the conditional `Secure` cookie, the `Origin` check, the CSP and security

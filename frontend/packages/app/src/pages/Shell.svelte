@@ -1624,10 +1624,10 @@
     status = "Saving...";
     try {
       const result = await rpc<{ files: number }>("edits.apply", {}, user.csrf);
-      status = `Saved ${result.files} file(s)`;
       const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
       menus = scanned.menus;
       loadPage();
+      status = `Saved ${result.files} file(s)`;
       if (autoGitSync) {
         try {
           const current = await rpc<GitStatus>("git.status", {}, user.csrf);
@@ -1857,7 +1857,7 @@
 
   {#if !popoutMode}
     <aside class="sidebar">
-      <nav>
+      <nav aria-label="Settings sections">
         <button class:active={view === "flake"} onclick={openFlakeInputs}>
           Flake Inputs
         </button>
@@ -2746,7 +2746,7 @@
   {#if !popoutMode}
     <footer class="bottombar">
       <div class="left">
-        <span class="muted small">{status}</span>
+        <span class="muted small" role="status" aria-live="polite">{status}</span>
       </div>
       <div class="right">
         <span class="chip muted">{dirty.size} staged</span>

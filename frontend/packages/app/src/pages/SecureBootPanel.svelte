@@ -20,7 +20,19 @@
   let configBlock = "";
   let password = "";
 
-  onMount(load);
+  onMount(() => {
+    void load();
+    window.addEventListener("nix-web-gui:progress", onProgress);
+    return () => window.removeEventListener("nix-web-gui:progress", onProgress);
+  });
+
+  function onProgress(event: Event) {
+    const detail = (event as CustomEvent).detail as {
+      params?: { job?: string; line?: string };
+    };
+    if (detail?.params?.job !== "secureboot-rebuild") return;
+    output = [...output, detail.params.line ?? ""].slice(-500);
+  }
 
   async function load() {
     busy = true;
@@ -87,6 +99,7 @@
     if (!confirm("Run the configured rebuild command now?")) return;
     actionBusy = true;
     error = "";
+    output = [];
     try {
       const result = await rpc<{ output: string }>(
         "secureboot.rebuild",

@@ -186,5 +186,9 @@ Because the engine emits those exact kebab-case names, the notice
 The shell filters every descendant of an Ojuny record and shows the notice in
 place of the parent record.
 
+`vite.config.ts` maps `@ojuny/env-editor` and `@ojuny/plugin-settings` to a stub
+when the flag is `0`, so the Docker environment editor and the plugin settings
+editor are not bundled. `checks.minimal-renderer` enforces that absence.
+
 The backend flag is independent: `system.capabilities` reports `ojunyWidgets`
 from the server feature `ojuny-widgets`.

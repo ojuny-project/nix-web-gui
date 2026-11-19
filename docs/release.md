@@ -12,17 +12,14 @@ with a local path and a `v*` tag builds only what the flake exposes.
 
 ### Remote `nix-settings-gui` input
 
-The flake input is a local path:
+The flake pins the engine to a GitHub revision:
 
 ```nix
-nix-settings-gui.url = "git+file:///home/den/repos/nix-settings-gui";
+nix-settings-gui.url = "github:ojuny-project/nix-settings-gui/3f3a980d5186321ef4c01c8e064a17a0b5b10b5d";
 ```
 
-A release build must replace it with a remote input before the tag is pushed,
-because the GitHub runner has no `/home/den/repos/nix-settings-gui`:
-
-```nix
-nix-settings-gui.url = "github:ojuny-project/nix-settings-gui";
+The GitHub runner resolves that revision directly. Update the revision and
+`flake.lock` together when the engine moves.
 ```
 
 `nix/package.nix` copies `${nixSettingsGui}` into `vendor/nix-settings-gui` and

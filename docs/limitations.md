@@ -175,33 +175,30 @@ Limits:
 - Firmware steps stay manual: reset to Setup Mode before enrolling, then enable
   Secure Boot without resetting the keys.
 - `secureboot.setup`, `secureboot.rebuild`, and `secureboot.reboot` run in the
-  root parent and fail outside it. There is no per-action password
-  re-authentication.
+  root parent and fail outside it. Each one requires the device password again
+  and verifies it through PAM before running.
 - The Lanzaboote flake input is still added from the Flake Inputs page.
-- Setup and Secure Boot rebuild output return at the end of one blocking call
-  and are displayed in the panel. Only the settings `rebuild.run` path streams
-  line by line.
+- Secure Boot setup output returns at the end of one call. The Secure Boot
+  rebuild streams one line per output line into the panel while it runs.
 
 ## Streaming and cancellation
 
 `GET /api/events` sends `theme`, `theme.changed`, `progress`, and `heartbeat`.
 Progress notes carry a `job` and one line of text:
 
-- `scan`, `save`, and `apply` emit one stage line before the blocking call.
+- `scan` emits a start line, the menu count, and one line per menu file.
+- `save` emits one `Writing <file>` line per distinct file, then a final
+  `Wrote <n> file(s)` line.
+- `apply` emits one line per command output line.
+- `secureboot-rebuild` emits one line per rebuild output line.
 - `flake.update.check` emits one line per input and can be cancelled.
 - `rebuild.run` emits one line per output line and can be cancelled.
 
-The shell shows stage and update lines in the status bar and appends rebuild
-lines to the Rebuild output panel. Cancel sends `job.cancel`, which terminates
-the session worker and reopens the session.
-
-Scan, save, and apply have no cancellation and no line-level progress. They
-return when complete:
-
-- `scan` and `page.describe` return when complete; scan sends one stage line.
-- `edits.apply` writes and rescans in one call; it sends one stage line.
-- `apply.run` runs a shell command and returns at the end; it sends one stage
-  line.
+The shell shows stage and update lines in the status bar, appends rebuild lines
+to the Rebuild output panel, and appends Secure Boot rebuild lines to the
+Secure Boot panel. Cancel sends `job.cancel`, which terminates the session
+worker and reopens the session. The same cancel path applies to scan, save, and
+apply while they run in a worker; the in-process dev engine cannot cancel.
 
 In-process development mode has no worker process, so `job.cancel` reports that
 there is no running job.
@@ -263,8 +260,9 @@ The remaining limits are about feedback, not reachability:
   terminates the worker and reopens the session;
 - an update check streams one line per input and has a Cancel check button with
   the same worker-restart behaviour;
-- a scan, save, or apply sends one stage line in the status bar and has no cancel
-  action;
+- a scan sends a start line, the menu count, and one line per menu file; a save
+  sends one line per written file; apply sends one command line per output line;
+  `job.cancel` terminates the worker for any of them;
 - the config panel no longer shows `terminal_command`, because the web frontend
   never opens a terminal. The stored value is preserved for the desktop app.
 
@@ -278,8 +276,12 @@ The visible difference is that the minimal UI filters out the descendants of
 every Ojuny record and shows `This Ojuny widget is not available in the minimal
 build.` in place of the record itself for `menu`, `plugins`, `bar`, `dock`,
 `grid-configuration`, and `docker`. The engine emits those exact kebab-case
-names. There are no dedicated Ojuny components to exclude, so the default and
-minimal trees share every renderer implementation.
+names.
 
-`checks.minimal-flag` only greps for the notice string. It does not prove that no
-Ojuny renderer ships.
+The Docker environment editor and the plugin settings editor are replaced at
+build time by a stub through the Vite `@ojuny/*` aliases, so their code does not
+ship in the minimal bundle. The card canvas stays shared because users,
+keybinds, monitors, and nested submodules use it too.
+
+`checks.minimal-flag` proves the notice is present.
+`checks.minimal-renderer` proves the two dedicated editors are absent.
