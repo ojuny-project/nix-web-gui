@@ -131,7 +131,8 @@ feature and hardening gaps.
 - [x] Menu rows render as cards with add, remove, rename, and field editing.
 - [x] Menu provider buttons seed the provider, label, and target or action
       fields. Apps List is hidden for nested entries.
-- [ ] Inline menu field help.
+- [x] Inline menu field help for provider, target, action, title, icon,
+      iconFont, checked, when, and disabled.
 - [x] Plugins editor lists the DMS registry and offers uninstalled plugins when
       adding a row.
 - [ ] Declarative settings QML controls for registry plugins.

@@ -40,6 +40,9 @@
     record.label ?? record.path.split(".").at(-1) ?? record.path;
   export let sortRows: ((left: ScanRecord, right: ScanRecord) => number) | undefined =
     undefined;
+  export let fieldHelp:
+    | ((parent: ScanRecord, record: ScanRecord) => string | null)
+    | undefined = undefined;
 
   $: children = [...(parent.children ?? [])].sort((left, right) =>
     sortRows ? sortRows(left, right) : 0,
@@ -346,6 +349,9 @@
               onIconPreview={(value) => onIconPreview(record, value)}
               csvList={isCsv(record)}
             />
+            {#if fieldHelp?.(parent, record)}
+              <p class="muted small">{fieldHelp(parent, record)}</p>
+            {/if}
             {#if record.widget === "font"}
               <p
                 class="font-preview"
