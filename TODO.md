@@ -211,9 +211,8 @@ feature and hardening gaps.
 
 ## Packaging and release
 
-- [ ] The `nix-settings-gui` input is a local `git+file` pinned before the
-      generalization pass. Bump the lock after that pass is committed, then
-      replace the input with a pinned GitHub URL for a release.
+- [x] Bump the `nix-settings-gui` lock to the completed generalization commit.
+- [ ] Replace the local `git+file` input with a pinned GitHub URL for a release.
 - [x] Add a tagged release workflow that builds both packages and publishes a
       tarball with checksums.
 - [ ] Add `binary-url.json` and in-app update checks for prebuilt binaries.
