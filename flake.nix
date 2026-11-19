@@ -94,6 +94,7 @@
           };
           ui-smoke = pkgs.runCommand "check-ui-smoke" {
             nativeBuildInputs = [ pkgs.curl ];
+            FONTCONFIG_FILE = "${pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; }}";
           } ''
             ${pkgs.bash}/bin/bash ${self}/tests/ui-check.sh \
               ${self.packages.${system}.default} \
