@@ -126,8 +126,8 @@ feature and hardening gaps.
 
 ## Ojuny widgets and minimal variant
 
-- [ ] Dedicated menu editor with providers and field help. Rows and fields edit
-      through the generic structure editor.
+- [x] Menu rows render as cards with add, remove, rename, and field editing.
+- [ ] Menu provider assistance and field help.
 - [x] Plugins editor lists the DMS registry and offers uninstalled plugins when
       adding a row.
 - [ ] Declarative settings QML controls for registry plugins.
@@ -139,17 +139,18 @@ feature and hardening gaps.
 - [x] Grid editor renders cards on the placement canvas from `col`, `row`,
       `w`, and `h`, and offers `gridRegistry` cards.
 - [ ] Grid drag, resize, catalog sizes, and profiles.
-- [ ] Docker row editor. Rows can be added and removed and fields edit
-      generically.
+- [x] Docker rows can be added, removed, renamed, and edited with the
+      configurable container field names.
+- [ ] Docker environment key/value row editor.
 - [x] Generic grid registry ids are offered when adding a card.
 - [x] `@widget-preset` tiles are offered when adding bar and dock entries and
       their defaults are written.
 - [ ] Preset-specific field editors (`@widget-preset-field`) in the add dialog.
 - [ ] Theme, font, icon, and cursor DMS catalogs.
-- [ ] The minimal build hides every Ojuny record, including its children, and
-      shows the unavailable notice. It has no dedicated Ojuny components to
-      exclude, so the default and minimal trees still share the generic
-      renderer code.
+- [x] The minimal build hides every Ojuny record, including its children, and
+      shows the unavailable notice.
+- [ ] The minimal build has no dedicated Ojuny components to exclude, so the
+      default and minimal trees still share the generic renderer code.
 
 ## Engine and flows
 
