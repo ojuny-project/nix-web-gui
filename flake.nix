@@ -67,7 +67,12 @@
             touch $out
           '';
           minimal-renderer = pkgs.runCommand "check-minimal-renderer" { } ''
+            default_dist=${self.packages.${system}.default}/share/nix-web-gui/dist
             dist=${self.packages.${system}.nix-web-gui-minimal}/share/nix-web-gui/dist
+            grep -Rq "Variable name is required" "$default_dist" \
+              || { echo "the default build no longer contains the Docker editor" >&2; exit 1; }
+            grep -Rq "Cannot read plugin schema" "$default_dist" \
+              || { echo "the default build no longer contains the plugin editor" >&2; exit 1; }
             if grep -Rq "Variable name is required" "$dist"; then
               echo "the Docker environment editor shipped in the minimal build" >&2
               exit 1

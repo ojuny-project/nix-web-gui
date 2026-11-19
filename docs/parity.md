@@ -26,8 +26,8 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Package and packages | package picker | `control.setTyped`, nixd validation | UI text or string list | yes | implemented |
 | Plain string list | list editor | `control.setTyped` | UI list | yes | implemented |
 | Module list | module picker | `control.setTyped` | UI list | yes | implemented |
-| Submodule | nested controls | `control.setTyped` | generic child controls | yes | partial |
-| Table | table editor | `control.setTyped` | hidden rows, labels, locked keys, typed and dropdown cells, move, icon upload and thumbnails | yes | implemented |
+| Submodule | nested controls | `control.setTyped` | generic child controls with depth indentation | yes | implemented |
+| Table | table editor | `control.setTyped` | hidden rows, labels, locked keys, typed, dropdown, and raw cells, move, icon upload, copy, delete, and thumbnails | yes | implemented |
 | Composite rows | nested controls | `structure.add`, `structure.remove`, `structure.rename`, `structure.move` | row cards with add and remove, rename for attribute-set rows, and list move | yes | implemented |
 | Font, icon, cursor | preview chooser | `control.setTyped`, `catalog.styles` | select with filtering, font sample, and icon or cursor previews | yes | implemented |
 | Theme | palette picker | `control.setTyped` | searchable swatch picker | yes | implemented |
@@ -79,12 +79,13 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 - Monitor output cards on a draggable `xPos`/`yPos` canvas, with `monitor.detect`
   prefill and `disabledFeatures` filtering.
 - Grid cards on the placement canvas with `col`, `row`, `w`, and `h`, drag and
-  resize, and `gridRegistry` add choices.
+  resize, `gridRegistry` add choices, catalog size buttons, and profile column
+  counts.
 - Bar and dock section add dialogs with `@widget-preset` tiles that write the
   preset defaults, plus list add, remove, rename, and move.
 - Plugin row cards and an add dialog that lists the DMS registry and offers
-  uninstalled entries. `plugins.settings` returns QML, but no QML controls are
-  rendered.
+  uninstalled entries. `plugins.settings` QML renders as schema-driven typed
+  controls, with an Add action for fields that are not present yet.
 - User account cards with valid account names, unique positive UIDs, `pkgs.*`
   shells, and at least one normal sudo account with a password.
 - Font, icon-theme, and cursor-theme selectors from the shared catalog, with
@@ -100,8 +101,9 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
   into a `hashedPassword` field.
 - A media picker for wallpaper and file widgets with listing, image previews,
   `presetSource`/`presetOption` presets, a Default preset, upload, and delete.
-  Table icon and image columns upload into `iconDir` and show thumbnails.
-  Uploads and deletes are staged with `git add`.
+  Table icon and image columns upload into `iconDir`, show thumbnails, copy, and
+  delete; cells can stay raw expressions. Uploads and deletes are staged with
+  `git add`.
 - A root-parent and per-user worker boundary with runtime PATH tooling.
 - Global search with result navigation and highlight, system-only host
   filtering with current-host preselection, and grouped advanced and hidden
