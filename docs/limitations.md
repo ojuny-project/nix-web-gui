@@ -242,11 +242,13 @@ Implemented in `/home/den/repos/ojuny-future-repos/nix-web-gui/server/src/http.r
 
 Pending from `/home/den/repos/ojuny-future-repos/nix-web-gui/TODO.md`:
 
-- full PAM `system-auth` behaviour, account expiry, and multi-factor modules;
-- built-in TLS.
+- explicit MFA, faillock, LDAP, and Kerberos VM coverage.
 
-PAM still uses explicit `pam_unix.so` auth and account lines in
-`/home/den/repos/ojuny-future-repos/nix-web-gui/modules/nixos.nix`.
+The service includes a repository-declared `system-auth` PAM service, so
+`pam_unix`, account expiry, faillock, MFA, LDAP, and Kerberos modules configured
+there apply to web login. Account expiry has a VM assertion; the other modules
+are inherited but not tested. TLS is intentionally out of scope for the
+local-only design.
 
 ## UI flows with limited rendering
 
