@@ -67,8 +67,9 @@ Not yet implemented:
   workflow, and prebuilt binaries.
 
 The NixOS VM auth test passes. It verifies service startup, alice login,
-wrong-password rejection, bob allowlist rejection, worker RPC, scan, staged
-edit, and save as the authenticated account.
+wrong-password rejection, bob login through an allowed group but refusal to read
+alice's `0700` home, carol allowlist rejection, worker RPC, scan, staged edit,
+successful save, and a failed save that leaves the file unchanged.
 
 See [TODO.md](TODO.md) for the remaining widget, flow, security, packaging, and
 documentation work.

@@ -228,7 +228,6 @@ Implemented in `/home/den/repos/ojuny-future-repos/nix-web-gui/server/src/http.r
 Pending from `/home/den/repos/ojuny-future-repos/nix-web-gui/TODO.md`:
 
 - full PAM `system-auth` behaviour, account expiry, and multi-factor modules;
-- a cross-user file-isolation VM test for bob against alice's flake;
 - built-in TLS.
 
 PAM still uses explicit `pam_unix.so` auth and account lines in

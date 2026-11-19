@@ -7,8 +7,9 @@ feature and hardening gaps.
 ## Verification gaps
 
 - [x] Finish `checks.x86_64-linux.nixos-test-auth` and record the result. It
-      passes: alice login, worker RPC, scan, staged edit, save, wrong-password
-      rejection, and bob allowlist rejection.
+      passes: alice login, worker RPC, scan, staged edit, successful save, a
+      failed save that writes nothing, bob cross-user denial, and carol
+      allowlist rejection.
 - [x] Build the default package through the VM test.
 - [x] Build the minimal package and run `checks.minimal-flag` against the
       committed tree. Both pass.
@@ -18,8 +19,8 @@ feature and hardening gaps.
 - [ ] Add a desktop-vs-engine golden test for every widget literal. Engine tests
       now round-trip every widget name and cover every serializer arm, but they
       do not compare against the desktop output.
-- [ ] Add a VM test for bob failing to read alice's flake and for a failed save
-      leaving every file byte-identical.
+- [x] Add a VM test for bob failing to read alice's flake and for a failed save
+      leaving the file unchanged.
 - [ ] Add a theme SSE test that replaces the theme file and asserts one live
       update without reload.
 - [x] Add origin, security-header, and forwarded-HTTPS cookie tests for the
@@ -193,7 +194,7 @@ feature and hardening gaps.
 - [ ] PAM account expiration and multi-factor modules.
 - [x] Audit log through structured tracing: login success and failure, rate
       limits, logout, and every RPC method with the account and outcome.
-- [ ] Cross-user file-isolation VM test for bob against alice's flake.
+- [x] Cross-user file-isolation VM test for bob against alice's flake.
 - [x] A documented policy for privileged actions: the service parent runs as
       root and only fixed engine commands are executed.
 - [ ] TLS is still terminated by a reverse proxy and is not built in.
