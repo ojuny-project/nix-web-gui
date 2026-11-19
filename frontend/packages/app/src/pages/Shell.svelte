@@ -1098,23 +1098,10 @@
     return fallback;
   }
 
-  const menuFieldHelp: Record<string, string> = {
-    provider:
-      "Contents source: a provider like apps, a command, or an application path.",
-    target: "URL or path opened when the entry is activated.",
-    action: "Shell command run when the entry is activated.",
-    title: "Header text while this submenu is open; defaults to the label.",
-    icon: "Material Symbols name, for example school or wifi.",
-    iconFont: "Font family for the icon glyph when it is not the menu font.",
-    checked: "Command whose exit status decides the toggle state.",
-    when: "Command; the entry is shown only while it succeeds.",
-    disabled: "Command; the row is dimmed and unselectable while it succeeds.",
-  };
-
   function cardFieldHelp(parent: ScanRecord, record: ScanRecord): string | null {
     if (parent.widget !== "menu") return null;
     const field = record.path.split(".").at(-1) ?? "";
-    return menuFieldHelp[field] ?? null;
+    return menuHelp[field] ?? null;
   }
 
   function cardRowSort(left: ScanRecord, right: ScanRecord): number {
@@ -1172,6 +1159,39 @@
     pluginRegistryError = "";
     detectedOutputs = [];
     error = "";
+    if (record.widget === "menu") {
+      try {
+        const providers = await rpc<
+          Array<{ label: string; provider: string; fields: string[] }>
+        >("menu.providers", { topLevel: true }, user.csrf);
+        menuProviders = providers;
+        const names = [
+          "provider",
+          "target",
+          "action",
+          "title",
+          "icon",
+          "iconFont",
+          "checked",
+          "when",
+          "disabled",
+        ];
+        const help = await Promise.all(
+          names.map((name) =>
+            rpc<string | null>("menu.fieldHelp", { name }, user.csrf),
+          ),
+        );
+        menuHelp = Object.fromEntries(
+          names
+            .map((name, index) => [name, help[index]] as const)
+            .filter((entry): entry is readonly [string, string] =>
+              Boolean(entry[1]),
+            ),
+        );
+      } catch {
+        menuProviders = [];
+      }
+    }
     if (record.widget === "plugins") {
       try {
         const registry = await rpc<{
@@ -1199,12 +1219,12 @@
     if (record.widget === "users") structureKey = "newuser";
   }
 
-  const menuProviders = [
-    { label: "Run Command", provider: "", fields: ["action"] },
-    { label: "Open Application", provider: "", fields: ["target"] },
-    { label: "Open Webpage", provider: "", fields: ["target"] },
-    { label: "Apps List", provider: "apps", fields: [] },
-  ];
+  let menuProviders: Array<{
+    label: string;
+    provider: string;
+    fields: string[];
+  }> = [];
+  let menuHelp: Record<string, string> = {};
 
   function chooseMenuProvider(provider: (typeof menuProviders)[number]) {
     const defaults: Record<string, string> = {

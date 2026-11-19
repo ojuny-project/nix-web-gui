@@ -135,8 +135,8 @@ feature and hardening gaps.
       iconFont, checked, when, and disabled.
 - [x] Plugins editor lists the DMS registry and offers uninstalled plugins when
       adding a row.
-- [ ] Declarative settings QML controls for registry plugins.
-      Plugin rows can be added and removed; their settings edit generically.
+- [x] Expose parsed plugin QML schemas through `plugins.schema`.
+- [ ] Render declarative plugin settings controls in the browser.
 - [x] Bar tile add, remove, rename, move, and field editing through the
       structured list view.
 - [x] Dock tile add, remove, rename, move, and field editing through the

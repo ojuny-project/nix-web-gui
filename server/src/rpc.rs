@@ -202,6 +202,23 @@ pub fn handle_with_progress(
             let id = string_param(&params, "id");
             plugins::settings(&settings.root, &id).map_err(|error| (-32012, error))
         }),
+        "plugins.schema" => with_settings(session, |settings| {
+            let id = string_param(&params, "id");
+            plugins::schema(&settings.root, &id).map_err(|error| (-32012, error))
+        }),
+        "menu.providers" => {
+            let top_level = params
+                .get("topLevel")
+                .and_then(Value::as_bool)
+                .unwrap_or(true);
+            Ok(catalog::menu_providers(top_level))
+        }
+        "menu.fieldHelp" => {
+            let name = string_param(&params, "name");
+            Ok(catalog::menu_field_help(&name)
+                .map(|help| json!(help))
+                .unwrap_or(Value::Null))
+        }
         "catalog.styles" => {
             let kind = string_param(&params, "kind");
             catalog::styles(&kind).map_err(|error| (-32012, error))

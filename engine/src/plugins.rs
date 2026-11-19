@@ -25,3 +25,18 @@ pub fn settings(root: &str, plugin_id: &str) -> Result<Value, String> {
     metadata::dms_plugin_settings(root, plugin_id)
         .map(|qml| json!({ "qml": qml }))
 }
+
+/// Parsed settings controls for one registry plugin.
+#[cfg(feature = "ojuny-widgets")]
+pub fn schema(root: &str, plugin_id: &str) -> Result<Value, String> {
+    let qml = metadata::dms_plugin_settings(root, plugin_id)?;
+    Ok(qml
+        .as_deref()
+        .map(nix_settings_gui::headless::plugin_settings_schema)
+        .unwrap_or_else(|| Value::Array(Vec::new())))
+}
+
+#[cfg(not(feature = "ojuny-widgets"))]
+pub fn schema(_root: &str, _plugin_id: &str) -> Result<Value, String> {
+    Err("plugin settings need the Ojuny widgets feature".to_string())
+}

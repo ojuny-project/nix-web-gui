@@ -55,3 +55,11 @@ pub fn styles(kind: &str) -> Result<Value, String> {
             .collect(),
     ))
 }
+
+pub fn menu_providers(top_level: bool) -> Value {
+    nix_settings_gui::headless::menu_providers(top_level)
+}
+
+pub fn menu_field_help(name: &str) -> Option<&'static str> {
+    nix_settings_gui::headless::menu_field_help(name)
+}
