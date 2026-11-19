@@ -489,6 +489,100 @@ mod tests {
     }
 
     #[test]
+    fn serializes_string_and_raw_widgets() {
+        let record = Record::default();
+        for kind in [
+            WidgetKind::Text,
+            WidgetKind::Multiline,
+            WidgetKind::Color,
+            WidgetKind::Theme,
+            WidgetKind::Font,
+            WidgetKind::IconTheme,
+            WidgetKind::CursorTheme,
+        ] {
+            assert_eq!(
+                serialize(&record, kind, &serde_json::json!("value")).unwrap(),
+                "\"value\""
+            );
+        }
+        for kind in [WidgetKind::Path, WidgetKind::Wallpaper, WidgetKind::File] {
+            assert_eq!(
+                serialize(&record, kind, &serde_json::json!("./asset.png")).unwrap(),
+                "./asset.png"
+            );
+        }
+        for kind in [
+            WidgetKind::Submodule,
+            WidgetKind::HorizontalSubmodule,
+            WidgetKind::GridConfiguration,
+            WidgetKind::Keybinds,
+            WidgetKind::Monitors,
+            WidgetKind::Users,
+            WidgetKind::Menu,
+            WidgetKind::Plugins,
+            WidgetKind::Bar,
+            WidgetKind::Dock,
+            WidgetKind::Docker,
+            WidgetKind::Raw,
+        ] {
+            assert_eq!(
+                serialize(&record, kind, &serde_json::json!("{ }")).unwrap(),
+                "{ }"
+            );
+        }
+    }
+
+    #[test]
+    fn widget_names_round_trip_through_the_parser() {
+        let kinds = [
+            WidgetKind::Switch,
+            WidgetKind::Dropdown,
+            WidgetKind::Radio,
+            WidgetKind::Spin,
+            WidgetKind::Slider,
+            WidgetKind::Text,
+            WidgetKind::Multiline,
+            WidgetKind::Path,
+            WidgetKind::Color,
+            WidgetKind::Package,
+            WidgetKind::Packages,
+            WidgetKind::List,
+            WidgetKind::NixosModules,
+            WidgetKind::HmModules,
+            WidgetKind::Theme,
+            WidgetKind::Facter,
+            WidgetKind::Font,
+            WidgetKind::IconTheme,
+            WidgetKind::CursorTheme,
+            WidgetKind::Submodule,
+            WidgetKind::HorizontalSubmodule,
+            WidgetKind::GridConfiguration,
+            WidgetKind::TableAttrset,
+            WidgetKind::TableList,
+            WidgetKind::Keybinds,
+            WidgetKind::Monitors,
+            WidgetKind::Wallpaper,
+            WidgetKind::File,
+            WidgetKind::Users,
+            WidgetKind::SecureBoot,
+            WidgetKind::Menu,
+            WidgetKind::Plugins,
+            WidgetKind::Bar,
+            WidgetKind::Dock,
+            WidgetKind::Docker,
+            WidgetKind::Raw,
+        ];
+        for kind in kinds {
+            let name = widget_name(kind);
+            assert_eq!(
+                parse_widget(&name),
+                Some(kind),
+                "widget name {name} does not parse back"
+            );
+        }
+    }
+
+    #[test]
     fn picks_the_declared_widget_first() {
         let mut record = Record::default();
         record.value = "true".into();

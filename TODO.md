@@ -15,8 +15,9 @@ feature and hardening gaps.
 - [ ] Run the full `nix flake check` matrix.
 - [ ] Add Playwright coverage for login, open, edit, save, diff, add file, add
       option, flake inputs, apply, rebuild, and media selection.
-- [ ] Add a desktop-vs-engine golden test for every widget literal. The current
-      render tests cover a small subset.
+- [ ] Add a desktop-vs-engine golden test for every widget literal. Engine tests
+      now round-trip every widget name and cover every serializer arm, but they
+      do not compare against the desktop output.
 - [ ] Add a VM test for bob failing to read alice's flake and for a failed save
       leaving every file byte-identical.
 - [ ] Add a theme SSE test that replaces the theme file and asserts one live
