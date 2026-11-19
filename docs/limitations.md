@@ -182,9 +182,10 @@ reopens the session.
 
 Everything else is a request and a response:
 
-- `scan` and `page.describe` return when complete.
-- `edits.apply` writes and rescans in one call.
-- `apply.run` runs a shell command and returns at the end.
+- `scan` and `page.describe` return when complete; scan sends one progress line.
+- `edits.apply` writes and rescans in one call; it sends one progress line.
+- `apply.run` runs a shell command and returns at the end; it sends one progress
+  line.
 - `flake.update.check` streams one progress line per input and can be cancelled.
 
 In-process development mode has no worker process, so `job.cancel` reports that

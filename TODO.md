@@ -161,8 +161,8 @@ feature and hardening gaps.
       the session worker and reopens the session.
 - [x] Streamed update-check progress with a Cancel action that terminates the
       worker and reopens the session.
-- [ ] Streamed scan, apply, and save progress.
-- [ ] Cancellation for scans and saves.
+- [x] Stage-level progress lines for scan, save, and apply.
+- [ ] Line-level scan, apply, and save progress and cancellation.
 - [x] `flake.input.addAll` and the missing-input banner.
 - [x] Flake input check and update buttons in the UI. Progress is still a
       single blocking response.
