@@ -114,6 +114,24 @@ selection to the service.
 builds the Rust feature set without them and sets `VITE_OJUNY_WIDGETS=0`, so the
 UI marks Ojuny controls as unavailable instead of rendering a generic fallback.
 
+## Checks
+
+```sh
+nix flake check --offline
+```
+
+The check set is:
+
+- `default`, `minimal`: both package variants.
+- `boundaries`: the engine, server, and UI dependency boundaries.
+- `parity`: every emitted widget name is documented and kebab-cased.
+- `minimal-flag`: the minimal bundle carries the Ojuny notice.
+- `nixos-test-auth`: the VM test for PAM login, worker RPC, save, failed save,
+  cross-user denial, and allowlist rejection.
+
+Tagged releases run the workflow in `.github/workflows/release.yml`, which builds
+both packages and publishes a tarball with `SHA256SUMS`.
+
 ## Theme
 
 The browser follows the device base16 scheme. `modules/ojuny-theme.nix`
