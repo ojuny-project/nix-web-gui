@@ -53,21 +53,31 @@ pub fn child_template(
             "{{ width = {width}; height = {height}; refresh = {refresh}; xPos = 0; yPos = 0; scale = 1.0; }}"
         ),
         WidgetKind::Docker => {
-            let image = spec.container_image.as_deref().unwrap_or("image");
-            let ports = spec.container_ports.as_deref().unwrap_or("ports");
-            let volumes = spec.container_volumes.as_deref().unwrap_or("volumes");
-            let environment = spec
-                .container_environment
-                .as_deref()
-                .unwrap_or("environment");
-            let auto_start = spec
-                .container_auto_start
-                .as_deref()
-                .unwrap_or("autoStart");
+            let field = |value: &Option<String>, default: &str| -> Option<String> {
+                match value.as_deref() {
+                    Some("") => None,
+                    Some(name) => Some(name.to_string()),
+                    None => Some(default.to_string()),
+                }
+            };
             let default = spec.container_auto_start_default.unwrap_or(true);
-            format!(
-                "{{ {image} = \"\"; {ports} = [ ]; {volumes} = [ ]; {environment} = {{ }}; {auto_start} = {default}; }}"
-            )
+            let mut parts = Vec::new();
+            if let Some(name) = field(&spec.container_image, "image") {
+                parts.push(format!("{name} = \"\";"));
+            }
+            if let Some(name) = field(&spec.container_ports, "ports") {
+                parts.push(format!("{name} = [ ];"));
+            }
+            if let Some(name) = field(&spec.container_volumes, "volumes") {
+                parts.push(format!("{name} = [ ];"));
+            }
+            if let Some(name) = field(&spec.container_environment, "environment") {
+                parts.push(format!("{name} = {{ }};"));
+            }
+            if let Some(name) = field(&spec.container_auto_start, "autoStart") {
+                parts.push(format!("{name} = {default};"));
+            }
+            format!("{{ {} }}", parts.join(" "))
         }
         WidgetKind::Menu => format!(
             "{{ label = {}; provider = \"apps\"; }}",
