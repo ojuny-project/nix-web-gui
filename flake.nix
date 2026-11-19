@@ -5,7 +5,7 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     # Replace with github:ojuny-project/nix-settings-gui for a release build.
-    nix-settings-gui.url = "path:/tmp/nsg-work";
+    nix-settings-gui.url = "git+file:///home/den/repos/nix-settings-gui";
   };
 
   outputs =
