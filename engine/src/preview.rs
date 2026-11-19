@@ -290,6 +290,7 @@ fn mime_for(path: &Path) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine as _;
 
     #[test]
     fn rejects_unsafe_file_names() {
@@ -304,5 +305,30 @@ mod tests {
         let extensions = vec!["png".to_string()];
         assert!(ensure_extension("wall.png", &extensions).is_ok());
         assert!(ensure_extension("wall.exe", &extensions).is_err());
+    }
+
+    #[test]
+    fn uploads_into_the_wallpaper_directory() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-upload-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules/wallpapers")).unwrap();
+        let file = root.join("modules/system.nix");
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"wallpaper\"; wallpaperDir = \"./wallpapers\"; */\n  ojuny.wallpaper = null;\n}\n",
+        )
+        .unwrap();
+        let session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        let data = base64::engine::general_purpose::STANDARD.encode(b"png-bytes");
+        let written = upload(&session, "ojuny.wallpaper", "wall.png", &data).unwrap();
+        assert_eq!(written["value"], "wall.png");
+        assert!(root.join("modules/wallpapers/wall.png").is_file());
+
+        assert!(upload(&session, "ojuny.wallpaper", "../escape.png", &data).is_err());
+        assert!(upload(&session, "ojuny.wallpaper", "wall.exe", &data).is_err());
+        let _ = std::fs::remove_dir_all(root);
     }
 }
