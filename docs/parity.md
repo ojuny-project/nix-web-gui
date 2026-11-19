@@ -51,7 +51,7 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Working-tree diff | diff dialog | `git.diff` | Git page diff panel | yes | implemented |
 | Apply command | live apply | `apply.run` | serial client apply queue | yes | implemented |
 | Rebuild | terminal | `rebuild.run`, `job.cancel` | streamed output panel with Cancel | yes | implemented |
-| Menu | row editor | `control.setTyped`, `structure.*` | row cards; no provider assistant | no | partial |
+| Menu | row editor | `control.setTyped`, `structure.*` | row cards with provider assistance; field help pending | no | partial |
 | Plugins | plugin editor | `control.setTyped`, `structure.*`, `plugins.*` | row cards and registry add; QML controls pending | no | partial |
 | Bar | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles and list move | no | partial |
 | Dock | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles and list move | no | partial |

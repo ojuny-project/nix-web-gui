@@ -129,7 +129,9 @@ feature and hardening gaps.
 ## Ojuny widgets and minimal variant
 
 - [x] Menu rows render as cards with add, remove, rename, and field editing.
-- [ ] Menu provider assistance and field help.
+- [x] Menu provider buttons seed the provider, label, and target or action
+      fields. Apps List is hidden for nested entries.
+- [ ] Inline menu field help.
 - [x] Plugins editor lists the DMS registry and offers uninstalled plugins when
       adding a row.
 - [ ] Declarative settings QML controls for registry plugins.

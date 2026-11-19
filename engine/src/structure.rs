@@ -80,7 +80,7 @@ pub fn child_template(
             format!("{{ {} }}", parts.join(" "))
         }
         WidgetKind::Menu => format!(
-            "{{ label = {}; provider = \"apps\"; }}",
+            "{{ label = {}; }}",
             crate::render::quote(label.unwrap_or("New entry"))
         ),
         WidgetKind::Plugins => "{ enable = true; }".to_string(),

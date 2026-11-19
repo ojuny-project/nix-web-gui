@@ -1179,6 +1179,22 @@
     if (record.widget === "users") structureKey = "newuser";
   }
 
+  const menuProviders = [
+    { label: "Run Command", provider: "", fields: ["action"] },
+    { label: "Open Application", provider: "", fields: ["target"] },
+    { label: "Open Webpage", provider: "", fields: ["target"] },
+    { label: "Apps List", provider: "apps", fields: [] },
+  ];
+
+  function chooseMenuProvider(provider: (typeof menuProviders)[number]) {
+    const defaults: Record<string, string> = {
+      label: JSON.stringify(provider.label),
+    };
+    if (provider.provider) defaults.provider = JSON.stringify(provider.provider);
+    for (const field of provider.fields) defaults[field] = '""';
+    structureDefaults = defaults;
+  }
+
   function choosePreset(preset: WidgetPreset) {
     structureKey = preset.id;
     structureDefaults = { ...preset.defaults };
@@ -1200,13 +1216,17 @@
     structureBusy = true;
     error = "";
     try {
+      const defaults = { ...structureDefaults };
+      if (structureKey.includes(".") && defaults.provider === JSON.stringify("apps")) {
+        delete defaults.provider;
+      }
       await rpc(
         "structure.add",
         {
           path: structureTarget.path,
           key: structureKey,
           mode: structureMode,
-          defaults: structureDefaults,
+          defaults,
         },
         user.csrf,
       );
@@ -2348,6 +2368,25 @@
               </span>
               <input bind:value={structureKey} />
             </label>
+            {#if structureTarget.widget === "menu"}
+              {@const topLevel = !structureKey.includes(".")}
+              <div class="toolbar">
+                {#each menuProviders.filter((provider) => topLevel || provider.provider !== "apps") as provider (provider.label)}
+                  <button
+                    type="button"
+                    class="ghost"
+                    class:active={structureDefaults.label === JSON.stringify(provider.label)}
+                    onclick={() => chooseMenuProvider(provider)}
+                  >
+                    {provider.label}
+                  </button>
+                {/each}
+              </div>
+              <p class="muted small">
+                Nested entries cannot use Apps List. A provider seeds the row
+                fields; edit the target or action after adding.
+              </p>
+            {/if}
             {#if structureTarget.widget === "plugins"}
               {#if pluginRegistryError}
                 <p class="muted small">{pluginRegistryError}</p>
