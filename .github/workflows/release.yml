@@ -1,0 +1,39 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - name: Build packages
+        run: |
+          nix build .#default
+          mkdir -p dist/default dist/minimal
+          cp -L result/bin/nix-web-gui dist/default/
+          cp -rL result/share/nix-web-gui dist/default/
+          nix build .#nix-web-gui-minimal
+          cp -L result/bin/nix-web-gui dist/minimal/
+          cp -rL result/share/nix-web-gui dist/minimal/
+          tar -C dist -czf "nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" default minimal
+          sha256sum "nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" > SHA256SUMS
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            "nix-web-gui-${GITHUB_REF_NAME}-x86_64-linux.tar.gz" \
+            SHA256SUMS

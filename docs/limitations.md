@@ -255,12 +255,12 @@ The remaining limits are about feedback, not reachability:
 `--no-default-features --features pam` and the frontend with
 `VITE_OJUNY_WIDGETS=0`. `system.capabilities` reports `ojunyWidgets: false`.
 
-The only visible difference is the
-`This Ojuny widget is not available in the minimal build.` notice for `menu`,
-`plugins`, `bar`, `dock`, `grid-configuration`, and `docker`. The engine now
-emits those exact kebab-case names, so the notice matches every listed kind.
-There are no dedicated Ojuny components to exclude yet, so the default and
-minimal trees share every renderer.
+The visible difference is that the minimal UI filters out every Ojuny record and
+its descendants, then shows `This Ojuny widget is not available in the minimal
+build.` for `menu`, `plugins`, `bar`, `dock`, `grid-configuration`, and
+`docker`. The engine emits those exact kebab-case names. There are no dedicated
+Ojuny components to exclude yet, so the default and minimal trees share every
+renderer implementation.
 
 `checks.minimal-flag` only greps for the notice string. It does not prove that no
 Ojuny renderer ships.

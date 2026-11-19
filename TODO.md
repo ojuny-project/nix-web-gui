@@ -201,8 +201,9 @@ feature and hardening gaps.
 - [ ] The `nix-settings-gui` input is `git+file:///home/den/repos/nix-settings-gui`
       for local development. Replace it with a pinned GitHub input for a
       release.
-- [ ] Add release workflow, `binary-url.json`, and prebuilt binary support like
-      the desktop repository.
+- [x] Add a tagged release workflow that builds both packages and publishes a
+      tarball with checksums.
+- [ ] Add `binary-url.json` and in-app update checks for prebuilt binaries.
 - [ ] Add a container image if self-hosting is in scope.
 - [ ] Add frontend unit tests and a browser test package to the flake checks.
 - [x] Add a `checks.parity` gate. It checks widget names against

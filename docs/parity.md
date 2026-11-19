@@ -120,7 +120,8 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 - Built-in TLS is pending.
 - Playwright and frontend unit tests and the full `nix flake check` matrix are
   pending. `checks.parity` exists.
-- The portable flake input and release workflow are pending.
+- The portable flake input and `binary-url.json` are pending. A tagged release
+  workflow exists.
 
 ## Documented limitation
 
