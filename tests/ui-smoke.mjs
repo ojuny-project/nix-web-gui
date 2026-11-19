@@ -84,7 +84,7 @@ await sleep(6000);
 const body = await evaluate(
   'document.body.innerText + "\\n" + [...document.querySelectorAll("input,textarea,select")].map((input) => input.value).join("\\n")',
 );
-for (const item of ['Users', 'alice', 'Add row', 'Binds', 'reload', 'Bar', 'clock', 'Hostname']) {
+for (const item of ['Users', 'alice', 'Add row', 'Binds', 'reload', 'Bar', 'clock', 'Monitors', 'eDP-1', 'Hostname']) {
   if (!body.includes(item)) {
     console.error(body.slice(0, 1500));
     throw new Error(`missing text: ${item}`);
@@ -92,7 +92,9 @@ for (const item of ['Users', 'alice', 'Add row', 'Binds', 'reload', 'Bar', 'cloc
 }
 const cards = await evaluate('document.querySelectorAll(".row-card").length');
 const csvFields = await evaluate('document.querySelectorAll("input.csv-input").length');
-if (cards < 3) throw new Error(`expected card rows, saw ${cards}`);
+const monitorTiles = await evaluate('document.querySelectorAll(".monitor-tile").length');
+if (cards < 4) throw new Error(`expected card rows, saw ${cards}`);
+if (monitorTiles < 1) throw new Error('expected a monitor canvas tile');
 if (csvFields < 2) throw new Error(`expected keybind CSV fields, saw ${csvFields}`);
 
 const users = `[...document.querySelectorAll('.card-collection')].find((collection) => collection.querySelector('h3')?.textContent.trim() === 'Users')`;
@@ -129,6 +131,20 @@ await sleep(1200);
 titles = await evaluate('[...document.querySelectorAll(".row-card strong")].map((item) => item.textContent.trim())');
 if (titles.includes('carol')) throw new Error('remove failed');
 
+const before = await evaluate('Number(document.querySelector(\'input[id$="-xPos"]\')?.value ?? 0)');
+await evaluate(`(() => {
+  const tile = document.querySelector('.monitor-tile');
+  const rect = tile.getBoundingClientRect();
+  const x = rect.x + rect.width / 2;
+  const y = rect.y + rect.height / 2;
+  const event = (type, clientX) => new PointerEvent(type, { bubbles: true, clientX, clientY: y, pointerId: 1, pointerType: 'mouse', button: 0, buttons: type === 'pointerup' ? 0 : 1 });
+  tile.dispatchEvent(event('pointerdown', x));
+  tile.dispatchEvent(event('pointermove', x + 30));
+  tile.dispatchEvent(event('pointerup', x + 30));
+})()`);
+await sleep(600);
+const after = await evaluate('Number(document.querySelector(\'input[id$="-xPos"]\')?.value ?? 0)');
+if (!(after > before)) throw new Error(`monitor drag did not update xPos: ${before} -> ${after}`);
 if (errors.length) throw new Error(errors.join('\n'));
-console.log(JSON.stringify({ cards, csvFields, add: true, rename: true, remove: true }));
+console.log(JSON.stringify({ cards, csvFields, monitorTiles, dragged: true, add: true, rename: true, remove: true }));
 socket.close();
