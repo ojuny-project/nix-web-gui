@@ -94,49 +94,57 @@ Other limits from the same document that apply to the web UI:
   option without the authoring action.
 - Dynamic attribute names (`${...}`) are not addressable.
 - A value wrapped in a function call is not rewritten.
-- Custom widgets own their data. `facter` finds the first `facter.json` in the
-  flake, falling back to `modules/facter.json`. `docker` reads and writes the
+- Custom widgets own their data. `facter` reads the record's `profileCatalog`
+  JSON and falls back to the built-in catalog. `docker` reads and writes the
   container set. Neither resolves an arbitrary Nix expression.
 
-## Generic editor substitution
+## Composite editor coverage
 
-Dedicated desktop renderers do not exist in the browser for the structured
-widgets. They use the generic nested editor. The exact mapping is in
+The structured widgets render through
+`/home/den/repos/ojuny-future-repos/nix-web-gui/frontend/packages/app/src/pages/CardCollection.svelte`
+as row cards. The exact mapping is in
 `/home/den/repos/ojuny-future-repos/nix-web-gui/docs/widgets.md`.
 
 - `submodule` and `horizontal-submodule`: the parent becomes a heading and its
-  described children become ordinary indented controls. `maxColumns` is not
-  applied to horizontal submodules. There is no per-child details row parity.
-- `users`: no account cards and no separate sudo switch. Add, remove, and rename
-  work, `home-manager.users` follows when present, and save validates names,
-  UIDs, shells, and the sudo-and-password invariant.
-- `monitors`: no output cards and no `disabledFeatures` filtering. The add-row
-  panel detects outputs through `monitor.detect`.
-- `keybinds`: no dedicated row editor and no comma-list handling. Add, remove,
-  and rename work on the rows.
-- `menu`, `plugins`, `bar`, `dock`, `grid-configuration`, `docker`: rows render
-  as cards. Bar and dock tiles can be seeded from `@widget-preset` entries,
-  plugins can be added from the DMS registry, and grid cards use the placement
-  canvas. Provider assistance, plugin QML controls, grid drag/resize, catalogs,
-  and profiles are still pending.
+  described children become indented controls. `maxColumns` sets the card grid
+  width. There is no per-child details row parity.
+- `users`: account cards with add, remove, rename, validation, a password action,
+  and `home-manager.users` sync when the sibling block exists. Save validates
+  names, UIDs, shells, and the sudo-and-password invariant.
+- `monitors`: output cards on a draggable canvas that updates `xPos` and `yPos`.
+  `disabledFeatures` hides matching fields and their staged edits are skipped on
+  save. The add-row panel detects outputs through `monitor.detect`.
+- `keybinds`: row cards with configurable `bindFields`, `bindFieldTypes`,
+  `bindPreview`, `bindSort`, and `bindKeyField`; list-typed fields render as
+  comma-separated inputs.
+- `docker`: row cards with configurable container field names; empty container
+  fields are hidden.
 - `bar` and `dock`: list-valued sections with attribute-set elements are
-  described as child controls. Lists of plain strings keep the list editor.
+  described as row cards. The add dialog offers `@widget-preset` tiles and writes
+  the preset defaults. Lists of plain strings keep the list editor.
+- `grid-configuration`: cards use the placement canvas with `col`, `row`, `w`,
+  and `h`, drag and resize handles, and `gridRegistry` ids as add-row choices.
+- `menu`, `plugins`: row cards. The plugin add dialog lists the DMS registry and
+  offers uninstalled entries. `plugins.settings` returns QML, but no QML
+  controls are rendered. Provider assistance for menus is still pending.
 - `wallpaper` and `file`: the media picker lists, previews, uploads, and deletes
-  files. A wallpaper with `presetSource` also lists generated presets and their
-  previews; the preset name is staged. Wallpaper preset sources and custom path handling are pending.
+  files. A wallpaper with `presetSource` also lists generated presets using
+  `presetOption`, and the picker offers a Default preset that stages `null`.
+  Uploads and deletes run `git add`. Custom path handling beyond the option's
+  directory fields is pending.
 - `secureboot`: see below.
 
-Row add, remove, and rename are refused while staged edits exist. Rename is
-offered for users, keybinds, monitors, docker, menu, and grid-configuration;
-the generic `submodule` and `horizontal-submodule` rows can be added and removed
-but not renamed from the page.
+Row add, remove, rename, and list move are refused while staged edits exist.
+Rename is offered for users, keybinds, monitors, docker, menu, and
+grid-configuration. A `submodule` row can be removed but not added or renamed; a
+`horizontal-submodule` row can be added and removed but not renamed.
 
 ## Table gaps
 
 `/home/den/repos/ojuny-future-repos/nix-web-gui/frontend/packages/ui/src/lib/controls/Table.svelte`
 implements hidden rows with a show toggle, row labels, locked keys, static first
-cells for `table-list`, bool cells, dropdown cells, icon and image upload
-buttons, move up and down, add, and remove.
+cells for `table-list`, bool cells, dropdown cells, icon and image thumbnails
+with upload buttons, move up and down, add, and remove.
 
 Remaining gaps:
 
@@ -170,28 +178,33 @@ Limits:
   root parent and fail outside it. There is no per-action password
   re-authentication.
 - The Lanzaboote flake input is still added from the Flake Inputs page.
-- Setup output is returned at the end of one blocking call. Rebuild output
-  streams line by line.
+- Setup and Secure Boot rebuild output return at the end of one blocking call
+  and are displayed in the panel. Only the settings `rebuild.run` path streams
+  line by line.
 
 ## Streaming and cancellation
 
 `GET /api/events` sends `theme`, `theme.changed`, `progress`, and `heartbeat`.
-Only `rebuild.run` emits progress notes, one per output line. The shell appends
-them to the Rebuild output panel and offers a Cancel button while a rebuild is
-running. Cancelling sends `job.cancel`, which terminates the session worker and
-reopens the session.
+Progress notes carry a `job` and one line of text:
 
-Everything else is a request and a response:
+- `scan`, `save`, and `apply` emit one stage line before the blocking call.
+- `flake.update.check` emits one line per input and can be cancelled.
+- `rebuild.run` emits one line per output line and can be cancelled.
 
-- `scan` and `page.describe` return when complete; scan sends one progress line.
-- `edits.apply` writes and rescans in one call; it sends one progress line.
-- `apply.run` runs a shell command and returns at the end; it sends one progress
+The shell shows stage and update lines in the status bar and appends rebuild
+lines to the Rebuild output panel. Cancel sends `job.cancel`, which terminates
+the session worker and reopens the session.
+
+Scan, save, and apply have no cancellation and no line-level progress. They
+return when complete:
+
+- `scan` and `page.describe` return when complete; scan sends one stage line.
+- `edits.apply` writes and rescans in one call; it sends one stage line.
+- `apply.run` runs a shell command and returns at the end; it sends one stage
   line.
-- `flake.update.check` streams one progress line per input and can be cancelled.
 
 In-process development mode has no worker process, so `job.cancel` reports that
-there is no running job. There is no progress stream or cancellation for scan,
-save, or apply.
+there is no running job.
 
 The client serializes live apply calls with one queue and keeps the latest value
 per path, so a debounce cannot run two `apply.run` calls at once. The server does
@@ -210,7 +223,7 @@ account's worker. They inherit the account's sudo configuration.
 - `terminal_command` is stored in
   `$HOME/.config/nix-settings-gui/config.json` and is not used by the web
   rebuild path.
-- Rebuild output is returned in the JSON result and the page does not render it.
+- Rebuild output streams to the page and is also returned in the JSON result.
 
 ## Auth hardening
 
@@ -246,8 +259,10 @@ The remaining limits are about feedback, not reachability:
 
 - a rebuild streams output lines and has a Cancel button, but cancelling
   terminates the worker and reopens the session;
-- a scan, save, update check, or apply returns one blocking response and has no
-  cancel action;
+- an update check streams one line per input and has a Cancel check button with
+  the same worker-restart behaviour;
+- a scan, save, or apply sends one stage line in the status bar and has no cancel
+  action;
 - the config panel no longer shows `terminal_command`, because the web frontend
   never opens a terminal. The stored value is preserved for the desktop app.
 
@@ -257,12 +272,12 @@ The remaining limits are about feedback, not reachability:
 `--no-default-features --features pam` and the frontend with
 `VITE_OJUNY_WIDGETS=0`. `system.capabilities` reports `ojunyWidgets: false`.
 
-The visible difference is that the minimal UI filters out every Ojuny record and
-its descendants, then shows `This Ojuny widget is not available in the minimal
-build.` for `menu`, `plugins`, `bar`, `dock`, `grid-configuration`, and
-`docker`. The engine emits those exact kebab-case names. There are no dedicated
-Ojuny components to exclude yet, so the default and minimal trees share every
-renderer implementation.
+The visible difference is that the minimal UI filters out the descendants of
+every Ojuny record and shows `This Ojuny widget is not available in the minimal
+build.` in place of the record itself for `menu`, `plugins`, `bar`, `dock`,
+`grid-configuration`, and `docker`. The engine emits those exact kebab-case
+names. There are no dedicated Ojuny components to exclude, so the default and
+minimal trees share every renderer implementation.
 
 `checks.minimal-flag` only greps for the notice string. It does not prove that no
 Ojuny renderer ships.

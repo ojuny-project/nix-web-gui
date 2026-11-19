@@ -32,14 +32,16 @@ server/                  nix-web-gui product
 
 frontend/packages/ui/    reusable Svelte renderer
   src/lib/components/    Control, Field, Panel
-  src/lib/controls/      switch, select, radio, number, text, color, table
+  src/lib/controls/      switch, select, radio, number, text, textarea, list,
+                         color, table, theme picker
   src/lib/theme.ts       base16 palette application
   src/lib/theme.css      semantic variables
 
 frontend/packages/app/   nix-web-gui product
   src/api.ts             RPC client
   src/theme.ts           fetch and SSE theme follow
-  src/pages/             Login, Shell, MediaPicker, SecureBootPanel
+  src/pages/             Login, Shell, CardCollection, MonitorCanvas,
+                         MediaPicker, SecureBootPanel
 ```
 
 ## Boundaries
@@ -198,9 +200,11 @@ JSON object with `method: "progress"` and no `id`:
 {"method":"progress","params":{"job":"rebuild","line":"building '/nix/store/...'"}}
 ```
 
-The parent `Worker::request` loop reads lines until it sees one without the
-`progress` method, adds the session id, and forwards progress to the
-`/api/events` SSE stream. The browser filters on its own session id.
+`scan`, `save`, and `apply` send one stage line. `update` sends one line per
+input. `rebuild` sends one line per output line. The parent `Worker::request`
+loop reads lines until it sees one without the `progress` method, adds the
+session id, and forwards progress to the `/api/events` SSE stream. The browser
+filters on its own session id.
 
 Worker loop in `/home/den/repos/ojuny-future-repos/nix-web-gui/server/src/worker.rs`:
 
@@ -221,7 +225,8 @@ not part of the protocol.
 
 1. serializes the request to a line and appends `\n`;
 2. writes and flushes it to the child stdin;
-3. reads one line from the child stdout;
+3. reads lines from the child stdout, forwarding `progress` lines, until it
+   reads the response line;
 4. returns `the settings worker exited` when the read returns 0 bytes;
 5. returns `invalid worker response` when the line is not valid JSON.
 
@@ -264,9 +269,9 @@ prompts, file descriptors, or environment updates after spawn.
 
 ## HTTP surface
 
-`/api/login`, `/api/logout`, `/api/me`, `/api/state`, `/api/theme`, `/api/rpc`,
-and `/api/events` are the API routes. The rest of the path is served from the
-built frontend with `index.html` as the fallback.
+`/api/health`, `/api/login`, `/api/logout`, `/api/me`, `/api/state`,
+`/api/theme`, `/api/rpc`, and `/api/events` are the API routes. The rest of the
+path is served from the built frontend with `index.html` as the fallback.
 
 A middleware adds the CSP and the security headers to every response. Login
 failures are throttled per username. `tracing` records login success, login
@@ -278,10 +283,12 @@ failure, rate limits, logout, and every RPC method with the account and outcome.
 settings, authoring, flake, git, preview, and structure calls:
 
 - `preview.upload` and `preview.delete` write and remove media through
-  `engine/src/preview.rs`;
-- `structure.add`, `structure.remove`, and `structure.rename` edit composite rows
-  through `engine/src/structure.rs` and `SettingsSession`;
+  `engine/src/preview.rs`; both stage the change with `git add`;
+- `structure.add`, `structure.remove`, `structure.rename`, and `structure.move`
+  edit composite rows through `engine/src/structure.rs` and `SettingsSession`;
 - `monitor.detect` reads compositor outputs through `wlr-randr`;
+- `plugins.registry` reads the DMS registry and `plugins.settings` returns QML;
+  the browser renders registry rows but no QML controls;
 - `secureboot.writeConfig` inserts the missing Lanzaboote assignments in the
   worker; `secureboot.setup`, `secureboot.rebuild`, and `secureboot.reboot` are
   intercepted by `http.rs` and run in the root parent;

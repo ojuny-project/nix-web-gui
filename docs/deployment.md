@@ -45,6 +45,22 @@ requires PAM login. It is a local launcher, not a second authentication mode.
 Without `--static-dir` the server serves a placeholder page that says the
 frontend is not built.
 
+## Engine dependency
+
+`nix-settings-gui` is the engine crate and DSL. The flake pins it through a
+local path input:
+
+```nix
+nix-settings-gui.url = "git+file:///home/den/repos/nix-settings-gui";
+```
+
+`flake.lock` locks that input to the NSG generalization commit
+`4b93ee506b2f89a73e772e117efbf4e37084356e`. The application builds against that
+checkout, so a build outside this machine needs the repository at the same
+path. A release needs a remote flake input, for example
+`github:ojuny-project/nix-settings-gui`, before the tarball can build anywhere
+else.
+
 ## NixOS module
 
 `/home/den/repos/ojuny-future-repos/nix-web-gui/modules/nixos.nix` provides
@@ -187,7 +203,9 @@ an `Origin` header are allowed and remain CSRF-gated where applicable.
 
 The SSE stream at `/api/events` sends one `theme` event on connect, a
 `theme.changed` event on a palette change, and a `heartbeat` event every 15
-seconds. Buffering proxies delay the palette update but do not break it.
+seconds. It also carries `progress` events for scan, save, apply, update-check,
+and rebuild jobs. Buffering proxies delay the palette update but do not break
+it.
 
 ## TLS termination
 
@@ -227,7 +245,9 @@ on the network. Before doing it:
   re-authentication; they run as the root service account.
 - Apply and rebuild for ordinary settings run as the signed-in account and
   depend on that account's sudo configuration.
-- There is no cross-user file-isolation VM test for bob against alice's flake.
+- The NixOS VM auth test covers cross-user isolation: bob can log in through the
+  allowed group but cannot read alice's `0700` home. Carol is rejected by the
+  allowlist.
 - There is no Playwright coverage. `nix flake check` passes.
 
 Implemented protections include login throttling, the session cap and cleanup,

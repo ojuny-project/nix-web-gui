@@ -88,7 +88,9 @@ Media handling in
   hidden names are rejected;
 - the extension must be one of the widget's accepted extensions;
 - uploads are limited to 32 MiB;
-- reads and deletes are confined to the widget's media directory.
+- reads and deletes are confined to the widget's media directory;
+- an upload or delete runs `git add -A -- <relative path>` so the change is
+  staged for the next commit.
 
 ## Audit
 

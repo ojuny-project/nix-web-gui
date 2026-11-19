@@ -36,8 +36,9 @@ calls `GET /api/me` on load. A `401` shows the login form in
 
 ## Open a flake
 
-The open form is rendered only while the menu list is empty. It posts
-`session.open` with `{ "root": "<path>" }`.
+The open form is rendered while the menu list is empty. It posts
+`session.open` with `{ "root": "<path>" }`. The sidebar `Open flake` button
+prompts for a path at any time and opens it in the same way.
 
 The initial path comes from `GET /api/state`:
 
@@ -55,9 +56,9 @@ failure in the status bar without blocking the open. It then calls
 `config.remember` with the opened path, so `flake_path` and the ten most recent
 paths follow the last open.
 
-The current page has no control that reopens a different flake after menus are
-loaded. Clear the `nix-web-gui.root` key or send `session.open` directly to
-switch roots.
+`config.remember` also feeds the recent-path suggestions on the open form and
+the `Open flake` prompt. Opening a new root replaces the current settings
+session, so save or discard staged edits first.
 
 ## Search
 
@@ -98,7 +99,8 @@ A control change updates the page value, marks the path dirty, and schedules
 `{ "path", "widget", "value" }`; the engine serializes the typed value to the
 canonical Nix literal and stores it as a staged edit.
 
-- Nothing is written until Save.
+- Nothing staged in a control is written until Save. Composite row actions and
+  media uploads or deletes write immediately and require a clean staged state.
 - `visibleWhen` gates hide controls in the page. The engine also skips a staged
   child whose gate does not hold when it builds the edit list.
 - Font, icon-theme, and cursor-theme selections can also stage the matching
@@ -122,25 +124,44 @@ A `table-attrset` or `table-list` with declared columns renders the table editor
 - `table-list` keeps its first column static unless `firstValueEditable` is
   true, and shows the row label beside the actions;
 - bool cells are checkboxes, dropdown cells use the table `choices`, and icon or
-  image cells have a `Pick` button that uploads into `iconDir`.
+  image cells show a thumbnail and a `Pick` button that uploads into `iconDir`.
 
-Unknown columns are not rendered and are dropped from a table edit.
+Unknown columns are not rendered, but their existing values are written back
+unchanged, so they are not dropped from a table edit. `@table-item` directives
+that carry row labels, hidden flags, and `visibleWhen` gates are preserved.
 
 ## Composite rows
 
-For a configured parent with child controls, the page renders a heading, the
-children, and row actions:
+Composite widgets render as row cards through
+`/home/den/repos/ojuny-future-repos/nix-web-gui/frontend/packages/app/src/pages/CardCollection.svelte`.
+A `submodule` parent instead renders as a heading with ordinary child controls.
+Each row card holds the row's fields, and the card header offers:
 
-- `Add row` appears for users, keybinds, monitors, docker, menu, submodule,
-  horizontal-submodule, and grid-configuration.
-- `Remove row` appears for those parents and for structured list elements.
-- `Rename` appears for users, keybinds, monitors, docker, menu, and
-  grid-configuration.
-- Adding a monitor can prefill the name, width, height, and refresh from
-  `monitor.detect`.
-- Adding, renaming, or removing a user also updates the matching
-  `home-manager.users` entry when that sibling block exists.
-- These writes happen immediately. Save or discard staged edits first.
+- `Add row` for users, keybinds, monitors, docker, menu, horizontal-submodule,
+  grid-configuration, and structured `list` sections;
+- `Rename` for users, keybinds, monitors, docker, menu, and
+  grid-configuration;
+- `Remove` for those parents, submodule rows, and structured `list` sections;
+- `Up` and `Down` on structured `list` rows, such as bar and dock sections.
+
+Keybind rows use `bindFields`, `bindFieldTypes`, `bindPreview`, `bindSort`, and
+`bindKeyField`. Fields typed `list` render as comma-separated inputs. Docker rows
+use the configured `containerImage`, `containerPorts`, `containerVolumes`,
+`containerEnvironment`, `containerAutoStart`, and `containerAutoStartDefault`
+names; empty container fields are hidden. `disabledFeatures` hides matching
+child fields, and the engine skips their staged edits on save.
+
+Monitors render output cards on a draggable canvas that updates `xPos` and
+`yPos`. Adding a monitor can prefill the name, width, height, and refresh from
+`monitor.detect`. Grid cards use the placement canvas with `col`, `row`, `w`,
+and `h`, drag and resize handles, and `gridRegistry` ids as add-row choices. The
+bar and dock add dialogs list `@widget-preset` tiles and write the preset
+defaults into the new row. The plugins add dialog lists uninstalled DMS registry
+entries.
+
+Adding, renaming, moving, or removing a user also updates the matching
+`home-manager.users` entry when that sibling block exists. These writes happen
+immediately. Save or discard staged edits first.
 
 Before save, each users widget is validated: account names, unique positive
 UIDs, `pkgs.*` shells, and at least one normal sudo account with a password.
@@ -169,8 +190,9 @@ map and rescans the root, so the next save has nothing to write.
 `Save` is disabled while nothing is dirty and while a request is running. It
 calls `edits.apply`, which:
 
-1. builds the edit list from the staged values, skipping readonly records and
-   records whose `visibleWhen` gate does not hold;
+1. builds the edit list from the staged values, skipping readonly records,
+   records whose `visibleWhen` gate does not hold, and records under a disabled
+   feature;
 2. validates staged package expressions with nixd; missing nixd infrastructure
    does not block the save, real diagnostics do;
 3. validates every users widget;
@@ -202,9 +224,11 @@ while the command runs.
 appending `mmsg dispatch reload_config` and `dms kill && mmsg dispatch spawn_shell,dms run`
 when the matching reload options are set. The command runs as the signed-in
 account, so the account's sudo configuration applies. There is no password
-re-entry and no `sudo -S`. Output is returned once at the end and is not shown,
-only `Rebuild finished` is displayed. The `terminal_command` config field is
-ignored by the web path.
+re-entry and no `sudo -S`. The response also carries the full output after the
+command exits. The `terminal_command` config field is ignored by the web path.
+
+Scan, save, and live apply send a single stage line to the status bar. They do
+not stream line-level output and have no Cancel action.
 
 ## Add file
 
@@ -228,8 +252,9 @@ inserts an `@option` block directly above the new assignment.
 The widget list is limited to the `optionWidgets` array in `Shell.svelte`:
 `switch`, `dropdown`, `radio`, `spin`, `slider`, `text`, `multiline`, `path`,
 `package`, `packages`, `list`, `color`, `submodule`, `users`, `facter`,
-`docker`, and `raw`. Table, keybind, monitor, theme, wallpaper, file, and Ojuny
-widgets cannot be authored from this panel.
+`docker`, and `raw`. Table, keybind, monitor, theme, wallpaper, file, secureboot,
+menu, plugins, bar, dock, and grid-configuration widgets cannot be authored from
+this panel.
 
 ## Insert snippet
 
@@ -249,9 +274,10 @@ the snippet and inserts it at the marker, then reloads.
 - the remaining top-level inputs with name, URL, and description.
 
 Each input has `Check` (`flake.update.check`) and `Update` (`flake.update`).
-`Edit` opens the same form used for adding an input. The name is fixed while
-editing. `Save` calls `flake.input.upsert` with `flake: true` and reloads the
-session. `Delete` confirms and calls `flake.input.delete`.
+`Check` streams one status line per input and the page offers `Cancel check`
+while it runs. `Edit` opens the same form used for adding an input. The name is
+fixed while editing. `Save` calls `flake.input.upsert` with `flake: true` and
+reloads the session. `Delete` confirms and calls `flake.input.delete`.
 
 The page has no channel scan or reference suggestion UI. `flake.channels` and
 `flake.suggest` exist in the RPC layer.
@@ -286,14 +312,15 @@ For a `wallpaper` or `file` record, a media grid is rendered under the control:
 - `Refresh` reloads the listing.
 
 A wallpaper option with `presetSource` shows a Presets section generated from
-that flake input, with previews; choosing a preset stages its name. Wallpaper
-images accept `png`, `jpg`, `jpeg`, `webp`, `svg`, and `gif`. File
-widgets accept those image types plus `pdf`, `txt`, and `md`, or the extensions
-declared on the option. Table icon and image columns use a file picker that
-uploads into `iconDir`, shows a thumbnail, and stages the returned file name in
-the cell. Uploads
-and deletes write directly to the media directory; Git sees them through the
-configured sync flow.
+that flake input, using `presetOption` for the metadata eval and previews from
+the generated files; choosing a preset stages its name. The picker also offers a
+`Default preset` choice, which stages `null`. Wallpaper images accept `png`,
+`jpg`, `jpeg`, `webp`, `svg`, and `gif`. File widgets accept those image types
+plus `pdf`, `txt`, and `md`, or the extensions declared on the option. Table icon
+and image columns use a file picker that uploads into `iconDir`, shows a
+thumbnail, and stages the returned file name in the cell. Uploads and deletes
+write directly to the media directory and run `git add -A -- <path>` on the
+changed file, so the next commit includes them.
 
 ## Password action
 
@@ -315,7 +342,7 @@ at least one normal sudo account with a password.
 | `Ctrl+Shift+S`, `Cmd+Shift+S` | Save and rebuild |
 | `Ctrl+F`, `Cmd+F` | Focus the search box |
 | `Ctrl+R`, `Cmd+R` | Discard |
-| `Escape` | Close the add-file, add-option, config, structure, and insert panels |
+| `Escape` | Close the add-file, add-option, config, add-row, structure, and insert panels |
 
 These bindings are global while the shell is mounted.
 
@@ -329,7 +356,6 @@ The `Configure` panel edits the shared desktop config file at
 |---|---|
 | Flake path | `flake_path`, the initial open and the first recent path |
 | Rebuild command | Command run by `rebuild.run` |
-| Terminal command | Stored, unused by the web frontend |
 | Apply changes immediately | `live_apply` |
 | Sync git on open and save | `auto_git_sync` |
 | Expand setting details | `expand_details_by_default` |
@@ -337,7 +363,9 @@ The `Configure` panel edits the shared desktop config file at
 | Reload DMS after rebuild | Appends the DMS reload to the rebuild command |
 
 `Save config` sends the whole object to `config.set`. The shell applies
-`live_apply`, `auto_git_sync`, and `expand_details_by_default` immediately.
+`live_apply`, `auto_git_sync`, and `expand_details_by_default` immediately. The
+panel does not show `terminal_command`; the stored value is preserved for the
+desktop app.
 
 The sidebar `Settings` button opens the panel. Opening a flake also calls
 `config.remember`, so `flake_path` and `recent_flake_paths` update without the
@@ -376,9 +404,10 @@ steps, including resetting to Setup Mode and enabling Secure Boot, stay manual.
   search matches the scheme id, name, and author.
 - A font control lists installed fonts, filters to monospace when the option
   asks for it, and renders a live preview sample.
-- An icon-theme control filters by the option `variant`.
-- A `packages.nix-web-gui-minimal` build sets `VITE_OJUNY_WIDGETS=0`. Ojuny
-  widgets without child descriptors show
-  `This Ojuny widget is not available in the minimal build.`
+- An icon-theme control filters by the option `variant`; icon and cursor
+  controls show preview thumbnails from `catalog.styles`.
+- A `packages.nix-web-gui-minimal` build sets `VITE_OJUNY_WIDGETS=0`. The shell
+  hides the descendants of an Ojuny record and shows
+  `This Ojuny widget is not available in the minimal build.` in its place.
 - `?popout=<page>` is read by `App.svelte`, passed to `Shell.svelte`, hides the
   sidebar and footer, and selects the matching menu.

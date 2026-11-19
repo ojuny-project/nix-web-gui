@@ -63,25 +63,25 @@ Dispatch order in `Control.svelte`:
 | `HmModules` | `hm-modules` | `List.svelte` |
 | `Color` | `color` | `Color.svelte` |
 | `Submodule` | `submodule` | Generic child controls; textarea raw when it has no children |
-| `HorizontalSubmodule` | `horizontal-submodule` | Generic child controls; textarea raw when no children; `maxColumns` is not applied |
-| `GridConfiguration` | `grid-configuration` | Card canvas positioned by `col`, `row`, `w`, and `h`; registry ids seed new cards |
+| `HorizontalSubmodule` | `horizontal-submodule` | Generic child controls; textarea raw when no children; `maxColumns` sets the card grid width |
+| `GridConfiguration` | `grid-configuration` | Placement canvas positioned by `col`, `row`, `w`, and `h`; drag and resize update those fields and `gridRegistry` ids seed new cards |
 | `TableAttrset` | `table-attrset` | `Table.svelte` when the descriptor declares columns |
 | `TableList` | `table-list` | `Table.svelte` when the descriptor declares columns |
-| `Keybinds` | `keybinds` | Row cards; configurable `bindFields`, comma list fields, previews, sorting, add, remove, and rename |
-| `Monitors` | `monitors` | Output cards on a drag canvas that updates `xPos` and `yPos`; the add-row panel detects outputs and `disabledFeatures` hides fields |
+| `Keybinds` | `keybinds` | Row cards; configurable `bindFields`, `bindFieldTypes`, `bindPreview`, `bindSort`, and `bindKeyField`; comma-separated list fields; add, remove, rename |
+| `Monitors` | `monitors` | Output cards on a draggable canvas that updates `xPos` and `yPos`; the add-row panel detects outputs and `disabledFeatures` hides fields |
 | `Theme` | `theme` | `ThemePicker.svelte` with search and swatches |
-| `Wallpaper` | `wallpaper` | `Text.svelte` plus `MediaPicker.svelte` with presets, upload, and delete |
+| `Wallpaper` | `wallpaper` | `Text.svelte` plus `MediaPicker.svelte` with `presetSource`/`presetOption` presets, a Default preset, upload, and delete |
 | `File` | `file` | `Text.svelte` plus `MediaPicker.svelte` with upload and delete |
 | `Menu` | `menu` | Row cards with add, remove, rename, and field editing |
-| `Plugins` | `plugins` | Row cards; the add dialog lists uninstalled DMS registry plugins |
-| `Bar` | `bar` | Tile cards; `@widget-preset` entries seed list rows and move/add/remove work |
-| `Dock` | `dock` | Tile cards; `@widget-preset` entries seed list rows and move/add/remove work |
+| `Plugins` | `plugins` | Row cards; the add dialog lists uninstalled DMS registry plugins; `plugins.settings` returns QML but no QML controls render |
+| `Bar` | `bar` | Row cards; `@widget-preset` tiles on each list section seed defaults, and list move/add/remove work |
+| `Dock` | `dock` | Row cards; `@widget-preset` tiles on each list section seed defaults, and list move/add/remove work |
 | `Font` | `font` | `Select.svelte` from `catalog.styles`; monospace filtering and a live font preview |
 | `IconTheme` | `icon-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails; variant filtering |
 | `CursorTheme` | `cursor-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails |
 | `Users` | `users` | Account cards with add, remove, rename, validation, password action, and `home-manager.users` sync |
-| `Facter` | `facter` | `Select.svelte` with `auto` plus profile choices |
-| `Docker` | `docker` | Row cards with configurable container field names and add, remove, rename |
+| `Facter` | `facter` | `Select.svelte` with `auto` plus profile choices read from `profileCatalog`, falling back to the built-in catalog |
+| `Docker` | `docker` | Row cards with configurable container field names; empty container fields are hidden and add, remove, and rename work |
 | `SecureBoot` | `secureboot` | `Textarea.svelte` plus `SecureBootPanel.svelte` with the setup actions |
 | `Raw` | `raw` | `Textarea.svelte` |
 
@@ -105,16 +105,18 @@ The table keeps row order in the submitted array.
 - For `table-list` the first column is static when `firstValueEditable` is
   false. The row label appears beside the row actions when one is declared.
 - `bool` columns render as checkboxes, `dropdown` columns as a select when the
-  table has `choices`, and `icon` or `image` columns as an input plus a `Pick`
-  button that uploads through `preview.upload`.
+  table has `choices`, and `icon` or `image` columns as a thumbnail plus input
+  and a `Pick` button that uploads through `preview.upload`.
 - Every row can move up or down and can be removed. `Add row` appends a row.
 - The editor submits `{ "rows": [...] }` through `control.setTyped`. The engine
   serializer writes quoted keys for attribute sets and bare attribute-set
   entries for lists.
 - Columns not declared in `columns` are not rendered. The serializer writes the
-  declared columns only, so unknown fields are dropped from a table edit.
+  declared columns first and then any undeclared fields it received, so a row
+  edit does not drop them. `@table-item` directives that carry row labels,
+  hidden flags, and `visibleWhen` gates are preserved on save.
 
-## Generic nested editor
+## Composite row editor
 
 `page.describe` adds a `children` array when a record is a composite widget or a
 structured list, up to depth 6. The composite kinds in
@@ -127,29 +129,36 @@ structured list, up to depth 6. The composite kinds in
 attribute set, such as a bar or dock section. A list of plain strings keeps the
 `List.svelte` editor.
 
-`Shell.svelte` flattens those children with `flattenControls` and renders:
+`Shell.svelte` renders composite records through
+`/home/den/repos/ojuny-future-repos/nix-web-gui/frontend/packages/app/src/pages/CardCollection.svelte`.
+A `submodule` parent is rendered as a heading and its described children are
+ordinary controls. For the other composite kinds:
 
-- an `h3` heading for the parent when it has children, indented by `depth`;
-- one ordinary control per child, using the child's own widget kind and
-  indentation;
-- `Add row` on the parent when its widget is one of `users`, `keybinds`,
-  `monitors`, `docker`, `menu`, `submodule`, `horizontal-submodule`, or
-  `grid-configuration`;
-- `Rename` on a row whose parent is one of those widgets, except `submodule` and
+- the parent heading, then one row card per child, with the child's own widget
+  kind for each field;
+- `Add row` when the parent is `users`, `keybinds`, `monitors`, `docker`, `menu`,
+  `horizontal-submodule`, `grid-configuration`, or a structured `list` section;
+- `Rename` on a row whose parent is one of those widgets, except
   `horizontal-submodule`;
-- `Remove row` on a row whose parent is one of those widgets or a `list`.
+- `Remove` on a row whose parent is one of those widgets, `submodule`, or a
+  structured `list`;
+- `Up` and `Down` on a structured `list` row;
+- monitor records also render `MonitorCanvas.svelte`, and grid records render on
+  the placement canvas with drag and resize handles.
 
-Row add, remove, and rename are written immediately and are refused while
-staged edits exist. `structure.add`, `structure.remove`, and
-`structure.rename` are the RPC methods. User rows also add, remove, or rename
-the matching `home-manager.users` entry when that sibling block exists.
+Row add, remove, rename, and move are written immediately and are refused while
+staged edits exist. `structure.add`, `structure.remove`, `structure.rename`, and
+`structure.move` are the RPC methods. User rows also add, remove, or rename the
+matching `home-manager.users` entry when that sibling block exists. A `submodule`
+row can be removed but not added or renamed from the page; a
+`horizontal-submodule` row can be added and removed but not renamed.
 
 The parent value itself is not editable in this mode, only its children. A
 composite kind with no children falls through to the raw textarea.
 
-The generic editor does not reproduce the desktop layouts: no keybind row
-editor, no monitor output cards, no user cards, no tile canvas, and no drag or
-reorder beyond the table controls. See
+Remaining differences from the desktop layouts are the menu provider assistant,
+plugin QML controls, and the bar and dock catalogs beyond the
+`@widget-preset` tiles. See
 `/home/den/repos/ojuny-future-repos/nix-web-gui/TODO.md`.
 
 ## Raw fallback behaviour
@@ -174,8 +183,8 @@ then treats these kinds as unavailable:
 
 Because the engine emits those exact kebab-case names, the notice
 `This Ojuny widget is not available in the minimal build.` matches every kind.
-It is rendered only when the descriptor has no children, because a parent with
-children is rendered as a heading and child controls.
+The shell filters every descendant of an Ojuny record and shows the notice in
+place of the parent record.
 
 The backend flag is independent: `system.capabilities` reports `ojunyWidgets`
 from the server feature `ojuny-widgets`.

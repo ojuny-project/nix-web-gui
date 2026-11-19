@@ -3,8 +3,9 @@
 Web UI variant of nix-settings-gui.
 
 A browser frontend over the same comment-driven Nix settings engine. The web UI
-targets capability parity with the GTK settings window: every action is
-available in the browser with the same Nix writes. Authentication is the one
+targets capability parity with the GTK settings window: settings writes use the
+same engine and the same Nix literals. Some desktop-only editor layouts remain
+partial; see [docs/parity.md](docs/parity.md). Authentication is the one
 deliberate difference, because the web UI can be opened from another device.
 
 ## Layout
@@ -40,39 +41,50 @@ Implemented end to end:
 - Add file, add option, insert snippet, reload from disk, and an unsaved-change
   guard.
 - Flake inputs with missing-input declarations, per-input check and update,
-  nixpkgs refresh, Git status, diff, pull, push, commit, sync, config, startup
-  page, and automatic Git pull or commit-and-push when configured.
+  nixpkgs refresh, Git status, diff, pull, push, commit, sync, config, and
+  automatic Git pull or commit-and-push when configured.
 - Font, icon-theme, and cursor-theme previews, monospace and variant filtering,
-  searchable theme swatches, media upload and delete, icon-column uploads, and
-  composite row cards with add, remove, rename, and order changes. User rows
-  validate the account invariant and follow `home-manager.users`. Keybind rows
-  use configurable field schemas and comma-separated list fields.
-- Wallpaper presets from the flake input, a default-preset choice, and
-  `git add` staging for uploaded and removed media.
+  searchable theme swatches, media upload and delete, icon-column uploads with
+  thumbnails, and composite row cards with add, remove, rename for attribute-set
+  rows, and list move.
+  User rows validate the account invariant and follow `home-manager.users`.
+  Keybind rows use configurable field schemas, previews, sorting, and
+  comma-separated list fields. Docker rows use configurable container field
+  names and hide empty ones.
+- Wallpaper presets from the flake input using `presetSource` and
+  `presetOption`, a Default preset, and `git add` staging for uploaded and
+  removed media.
 - Bar and dock rows can be seeded from `@widget-preset` metadata. Grid cards
-  render on the placement canvas and accept `gridRegistry` ids. The plugin
-  dialog lists uninstalled registry entries.
+  render on the placement canvas with `col`, `row`, `w`, and `h`, accept
+  `gridRegistry` ids, and support drag and resize. Monitors render output cards
+  on a draggable `xPos`/`yPos` canvas.
+- Plugin rows list the DMS registry and offer uninstalled entries.
+  `plugins.settings` returns QML but no QML controls are rendered.
+- `disabledFeatures` hides fields and the engine skips them on save. Facter reads
+  `profileCatalog`. Table `@table-item` directives are preserved, and icon and
+  image columns show thumbnails.
 - Secure Boot status plus key creation, migration, enrollment, config writes,
   rebuild, and reboot from the root service account.
-- Default and minimal packages. The minimal UI hides Ojuny records entirely and
-  shows the unavailable notice.
+- Default and minimal packages. The minimal UI hides the descendants of Ojuny
+  records and shows the unavailable notice in their place.
 - `checks.parity`, `checks.boundaries`, `checks.minimal-flag`, and the NixOS
   worker/auth VM test.
 
 Not yet implemented:
 
-- Dedicated Ojuny menu, plugins, bar, dock, grid, and docker editors, tile
-  catalogs, and the grid canvas. Existing values edit through the generic
-  structured renderer.
-- Dedicated keybind and monitor canvases with drag and full desktop field
-  grouping. Cards currently cover add, remove, rename, order, and field edits.
-- Keybind and monitor pop-out editors, and the menu provider assistant.
-- Plugin settings QML controls for registry plugins.
-- Grid drag, resize, catalog sizes, and profiles.
-- Line-level streaming and cancellation for scan, save, and apply; rebuild and
-  update checks stream and cancel.
-- Playwright and frontend unit tests, a portable release flake input,
-  `binary-url.json`, and prebuilt binary update checks.
+- Dedicated menu, bar, dock, grid, and plugin parity beyond the row cards:
+  the menu provider assistant, the full bar and dock tile catalog, grid catalog
+  sizes and profiles, and plugin QML controls.
+- Dedicated keybind and monitor pop-out editors and the full desktop field
+  grouping. Cards cover add, remove, rename, list move, field edits, keybind
+  previews and sorting, and monitor dragging.
+- Line-level streaming and cancellation for scan, save, and apply. They send one
+  stage progress line and cannot be cancelled; rebuild and update checks stream
+  and cancel.
+- Playwright and frontend unit tests, a remote flake input for
+  `nix-settings-gui`, `binary-url.json`, and prebuilt binary update checks. The
+  flake currently pins `nix-settings-gui` with `git+file` at NSG commit
+  `4b93ee5`.
 
 The NixOS VM auth test passes. It verifies service startup, alice login,
 wrong-password rejection, bob login through an allowed group but refusal to read
@@ -114,8 +126,9 @@ account's uid, gid, groups, HOME, and XDG directories. `--dev-auth` uses an
 in-process engine for local development only.
 
 `services.nix-web-gui.allowRemote` must be set explicitly before a non-loopback
-address is accepted. `services.nix-web-gui.startupPage` passes the CLI `--page`
-selection to the service.
+address is accepted. `services.nix-web-gui.startupPage` is declared and computes
+a `--page` argument, but the current `ExecStart` template does not interpolate
+it, so the option has no effect until that line is fixed.
 
 ## Variants
 
@@ -144,7 +157,9 @@ both packages and publishes a tarball with `SHA256SUMS`.
 A manual browser smoke test lives in `tests/ui-smoke.mjs`. Start a dev server with
 `NIX_WEB_GUI_SKIP_METADATA=1`, launch headless Chromium with
 `--remote-debugging-port=9223`, and run `node tests/ui-smoke.mjs`. It checks the
-card layout, keybind CSV fields, and the add, rename, and remove actions.
+card layout, keybind CSV fields, monitor and grid tiles, add, rename, remove, and
+monitor and grid dragging. It is a manual script and is not part of
+`nix flake check`.
 
 ## Theme
 
