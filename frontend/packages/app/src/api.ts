@@ -102,6 +102,7 @@ export type ScanRecord = {
   children?: ScanRecord[] | null;
   depth?: number | null;
   maxColumns?: number | null;
+  disabledFeatures?: string[] | null;
   bindFields?: string[] | null;
   bindFieldTypes?: string[] | null;
   bindPreview?: string[] | null;

@@ -196,6 +196,7 @@
       return false;
     }
     if (cardPaths.has(record.path)) return false;
+    if (disabledByAncestor(record)) return false;
     if (record.hidden && !advanced) return false;
     if (!visibleWhenHolds(record)) return false;
     if (!searchTerm) return true;
@@ -282,8 +283,21 @@
     return (record.children ?? []).some((child) => subtreeMatches(child, term));
   }
 
+  function disabledByAncestor(record: ScanRecord): boolean {
+    return records.some((candidate) => {
+      if (!candidate.disabledFeatures?.length) return false;
+      const prefix = `${candidate.path}.`;
+      if (!record.path.startsWith(prefix)) return false;
+      const relative = record.path.slice(prefix.length);
+      return candidate.disabledFeatures.some(
+        (feature) => relative === feature || relative.startsWith(`${feature}.`),
+      );
+    });
+  }
+
   function cardRecordVisible(record: ScanRecord): boolean {
     if (record.hidden && !advanced) return false;
+    if (disabledByAncestor(record)) return false;
     return visibleWhenHolds(record);
   }
 

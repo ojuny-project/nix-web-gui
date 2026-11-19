@@ -418,6 +418,9 @@ impl SettingsSession {
             if record.spec.readonly {
                 continue;
             }
+            if self.disabled_by_ancestor(path) {
+                continue;
+            }
             if let Some(visibility) = &record.spec.visible_when {
                 if !visibility.holds(resolve_dependency(&values, &visibility.path)) {
                     continue;
@@ -448,6 +451,22 @@ impl SettingsSession {
             values.insert(path, value);
         }
         values
+    }
+
+    fn disabled_by_ancestor(&self, path: &str) -> bool {
+        self.records().any(|candidate| {
+            let Some(disabled) = &candidate.spec.disabled_features else {
+                return false;
+            };
+            let prefix = format!("{}.", candidate.path());
+            if !path.starts_with(&prefix) {
+                return false;
+            }
+            let relative = &path[prefix.len()..];
+            disabled
+                .iter()
+                .any(|feature| relative == feature || relative.starts_with(&format!("{feature}.")))
+        })
     }
 
     /// Fail before any write when a file changed on disk after it was scanned.
