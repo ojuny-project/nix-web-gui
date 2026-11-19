@@ -527,6 +527,7 @@ impl SettingsSession {
     ) -> Result<usize, String> {
         let edits = self.pending_edits()?;
         if edits.is_empty() {
+            on_line("Wrote 0 file(s)");
             return Ok(0);
         }
         let package_errors = self.package_errors();
@@ -1388,6 +1389,19 @@ mod tests {
         assert!(session.apply().is_err());
         assert_eq!(std::fs::read_to_string(&file).unwrap(), original);
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn sorts_and_deduplicates_staged_files() {
+        let files = distinct_files(vec![
+            "modules/b.nix".to_string(),
+            "modules/a.nix".to_string(),
+            "modules/b.nix".to_string(),
+        ]);
+        assert_eq!(
+            files,
+            vec!["modules/a.nix".to_string(), "modules/b.nix".to_string()]
+        );
     }
 
     #[test]

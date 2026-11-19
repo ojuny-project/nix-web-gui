@@ -62,17 +62,18 @@ pub fn handle_with_progress(
             }))
         }),
         "scan" => {
-            progress(json!({
-                "method": "progress",
-                "params": { "job": "scan", "line": "Scanning the configuration" },
-            }));
+            progress(progress_note("scan", "Scanning the configuration"));
             with_settings(session, |settings| {
-            let menus = settings
-                .menus_filtered(params.get("host").and_then(Value::as_str));
-            Ok(json!({
-                "menus": menus.iter().map(|menu| menu_json(*menu)).collect::<Vec<_>>(),
-                "hosts": settings.hosts(),
-            }))
+                let menus = settings
+                    .menus_filtered(params.get("host").and_then(Value::as_str));
+                progress(progress_note("scan", format!("Scanned {} menus", menus.len())));
+                for menu in &menus {
+                    progress(progress_note("scan", menu.file.clone()));
+                }
+                Ok(json!({
+                    "menus": menus.iter().map(|menu| menu_json(*menu)).collect::<Vec<_>>(),
+                    "hosts": settings.hosts(),
+                }))
             })
         },
         "page.list" => with_settings(session, |settings| {
@@ -169,15 +170,12 @@ pub fn handle_with_progress(
             }))
         }),
         "edits.apply" => {
-            progress(json!({
-                "method": "progress",
-                "params": { "job": "save", "line": "Writing staged changes" },
-            }));
+            progress(progress_note("save", "Saving staged changes"));
             with_settings(session, |settings| {
-            settings
-                .apply()
-                .map(|files| json!({ "files": files }))
-                .map_err(|error| (-32012, error))
+                settings
+                    .apply_with_progress(|line| progress(progress_note("save", line)))
+                    .map(|files| json!({ "files": files }))
+                    .map_err(|error| (-32012, error))
             })
         },
         "option.add" => with_settings(session, |settings| {
@@ -292,18 +290,17 @@ pub fn handle_with_progress(
                 .map_err(|error| (-32012, error))
         })(),
         "apply.run" => {
-            progress(json!({
-                "method": "progress",
-                "params": { "job": "apply", "line": "Applying the change" },
-            }));
+            progress(progress_note("apply", "Applying the change"));
             with_settings(session, |settings| {
-            let path = string_param(&params, "path");
-            let value = string_param(&params, "value");
-            let record = settings
-                .record(&path)
-                .cloned()
-                .ok_or_else(|| (-32011, format!("unknown option path: {path}")))?;
-            apply::run_apply(&settings.root, &record, &value)
+                let path = string_param(&params, "path");
+                let value = string_param(&params, "value");
+                let record = settings
+                    .record(&path)
+                    .cloned()
+                    .ok_or_else(|| (-32011, format!("unknown option path: {path}")))?;
+                apply::run_apply(&settings.root, &record, &value, |line| {
+                    progress(progress_note("apply", line));
+                })
                 .map(|_| json!({ "applied": true }))
                 .map_err(|error| (-32012, error))
             })
@@ -681,4 +678,25 @@ fn string_param(params: &Value, name: &str) -> String {
         .and_then(Value::as_str)
         .unwrap_or_default()
         .to_string()
+}
+
+fn progress_note(job: &str, line: impl Into<String>) -> Value {
+    let line = line.into();
+    json!({
+        "method": "progress",
+        "params": { "job": job, "line": line },
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn progress_note_uses_the_worker_envelope() {
+        let note = progress_note("scan", "Scanned 2 menus");
+        assert_eq!(note["method"], "progress");
+        assert_eq!(note["params"]["job"], "scan");
+        assert_eq!(note["params"]["line"], "Scanned 2 menus");
+    }
 }
