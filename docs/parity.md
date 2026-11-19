@@ -119,8 +119,8 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
   worker. Scan, save, apply, and update checks remain blocking.
 - Full PAM `system-auth`, account expiry, and multi-factor modules are pending.
 - Built-in TLS is pending.
-- Playwright and frontend unit tests and the full `nix flake check` matrix are
-  pending. `checks.parity` exists.
+- Playwright and frontend unit tests are pending. `nix flake check` passes and
+  `checks.parity` exists.
 - The portable flake input and `binary-url.json` are pending. A tagged release
   workflow exists.
 
