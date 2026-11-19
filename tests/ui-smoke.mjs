@@ -45,7 +45,7 @@ socket.onmessage = (event) => {
     dialogPrompt = null;
   }
   if (message.method === 'Runtime.exceptionThrown') {
-    errors.push(message.params.exceptionDetails.text ?? 'exception');
+    errors.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text ?? 'exception');
   }
   if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
     errors.push(message.params.args.map((arg) => arg.value ?? arg.description).join(' '));
@@ -84,7 +84,7 @@ await sleep(6000);
 const body = await evaluate(
   'document.body.innerText + "\\n" + [...document.querySelectorAll("input,textarea,select")].map((input) => input.value).join("\\n")',
 );
-for (const item of ['Users', 'alice', 'Add row', 'Binds', 'reload', 'Bar', 'clock', 'Monitors', 'eDP-1', 'Hostname']) {
+for (const item of ['Users', 'alice', 'Add row', 'Binds', 'reload', 'Bar', 'clock', 'Monitors', 'eDP-1', 'Grid', 'clock', 'Hostname']) {
   if (!body.includes(item)) {
     console.error(body.slice(0, 1500));
     throw new Error(`missing text: ${item}`);
@@ -93,8 +93,10 @@ for (const item of ['Users', 'alice', 'Add row', 'Binds', 'reload', 'Bar', 'cloc
 const cards = await evaluate('document.querySelectorAll(".row-card").length');
 const csvFields = await evaluate('document.querySelectorAll("input.csv-input").length');
 const monitorTiles = await evaluate('document.querySelectorAll(".monitor-tile").length');
+const gridHandles = await evaluate('document.querySelectorAll(".grid-handle").length');
 if (cards < 4) throw new Error(`expected card rows, saw ${cards}`);
 if (monitorTiles < 1) throw new Error('expected a monitor canvas tile');
+if (gridHandles < 1) throw new Error('expected a grid card handle');
 if (csvFields < 2) throw new Error(`expected keybind CSV fields, saw ${csvFields}`);
 
 const users = `[...document.querySelectorAll('.card-collection')].find((collection) => collection.querySelector('h3')?.textContent.trim() === 'Users')`;
@@ -145,6 +147,18 @@ await evaluate(`(() => {
 await sleep(600);
 const after = await evaluate('Number(document.querySelector(\'input[id$="-xPos"]\')?.value ?? 0)');
 if (!(after > before)) throw new Error(`monitor drag did not update xPos: ${before} -> ${after}`);
+const gridBefore = await evaluate('Number(document.querySelector(\'input[id$="-col"]\')?.value ?? 0)');
+await evaluate(`(() => {
+  const handle = document.querySelector('.grid-handle');
+  const rect = handle.getBoundingClientRect();
+  const event = (type, clientX) => new PointerEvent(type, { bubbles: true, clientX, clientY: rect.y, pointerId: 2, pointerType: 'mouse', button: 0, buttons: type === 'pointerup' ? 0 : 1 });
+  handle.dispatchEvent(event('pointerdown', rect.x));
+  handle.dispatchEvent(event('pointermove', rect.x + 120));
+  handle.dispatchEvent(event('pointerup', rect.x + 120));
+})()`);
+await sleep(600);
+const gridAfter = await evaluate('Number(document.querySelector(\'input[id$="-col"]\')?.value ?? 0)');
+if (!(gridAfter > gridBefore)) throw new Error(`grid drag did not update col: ${gridBefore} -> ${gridAfter}`);
 if (errors.length) throw new Error(errors.join('\n'));
-console.log(JSON.stringify({ cards, csvFields, monitorTiles, dragged: true, add: true, rename: true, remove: true }));
+console.log(JSON.stringify({ cards, csvFields, monitorTiles, gridHandles, dragged: true, gridDragged: true, add: true, rename: true, remove: true }));
 socket.close();

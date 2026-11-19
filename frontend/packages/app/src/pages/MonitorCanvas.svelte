@@ -75,7 +75,11 @@
       originX: numberField(monitor, "xPos"),
       originY: numberField(monitor, "yPos"),
     };
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    try {
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer events in tests have no active pointer.
+    }
   }
 
   function moveDrag(event: PointerEvent) {
@@ -106,7 +110,11 @@
     drag = null;
     if (draft[xPath] != null) onchange(xPath, draft[xPath]);
     if (draft[yPath] != null) onchange(yPath, draft[yPath]);
-    (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    try {
+      (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer events in tests have no active pointer.
+    }
   }
 </script>
 

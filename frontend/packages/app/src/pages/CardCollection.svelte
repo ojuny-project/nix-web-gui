@@ -52,6 +52,186 @@
     ),
   }));
 
+  let gridDraft: Record<
+    string,
+    { col: number; row: number; w: number; h: number }
+  > = {};
+  let gridMove: {
+    path: string;
+    colPath: string;
+    rowPath: string;
+    startX: number;
+    startY: number;
+    originCol: number;
+    originRow: number;
+    cellWidth: number;
+    rowHeight: number;
+  } | null = null;
+  let gridResize: {
+    path: string;
+    wPath: string;
+    hPath: string;
+    startX: number;
+    startY: number;
+    originW: number;
+    originH: number;
+    cellWidth: number;
+    rowHeight: number;
+  } | null = null;
+
+  function cellField(record: ScanRecord, field: string): ScanRecord | null {
+    return (
+      allRecords.find(
+        (candidate) => candidate.path === `${record.path}.${field}`,
+      ) ?? null
+    );
+  }
+
+  function cellNumbers(record: ScanRecord) {
+    const draft = gridDraft[record.path];
+    return {
+      col: draft?.col ?? fieldValue(record, "col") ?? 0,
+      row: draft?.row ?? fieldValue(record, "row") ?? 0,
+      w: draft?.w ?? fieldValue(record, "w") ?? 1,
+      h: draft?.h ?? fieldValue(record, "h") ?? 1,
+    };
+  }
+
+  function gridMetrics(element: HTMLElement) {
+    const canvas = element.closest(".card-collection") as HTMLElement | null;
+    const columns = gridColumns ?? 1;
+    return {
+      cellWidth: (canvas?.clientWidth ?? columns * 72) / columns,
+      rowHeight: 72,
+    };
+  }
+
+  function startGridMove(event: PointerEvent, record: ScanRecord) {
+    const col = cellField(record, "col");
+    const row = cellField(record, "row");
+    if (!col || !row) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const numbers = cellNumbers(record);
+    const metrics = gridMetrics(event.currentTarget as HTMLElement);
+    gridMove = {
+      path: record.path,
+      colPath: col.path,
+      rowPath: row.path,
+      startX: event.clientX,
+      startY: event.clientY,
+      originCol: numbers.col,
+      originRow: numbers.row,
+      ...metrics,
+    };
+    try {
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer events in tests have no active pointer.
+    }
+  }
+
+  function moveGrid(event: PointerEvent) {
+    if (!gridMove) return;
+    const col = Math.max(
+      0,
+      gridMove.originCol +
+        Math.round((event.clientX - gridMove.startX) / gridMove.cellWidth),
+    );
+    const row = Math.max(
+      0,
+      gridMove.originRow +
+        Math.round((event.clientY - gridMove.startY) / gridMove.rowHeight),
+    );
+    const current = gridDraft[gridMove.path] ?? {
+      ...cellNumbers(allRecords.find((item) => item.path === gridMove?.path)!),
+    };
+    gridDraft = {
+      ...gridDraft,
+      [gridMove.path]: { ...current, col, row },
+    };
+  }
+
+  function endGridMove(event: PointerEvent) {
+    if (!gridMove) return;
+    const draft = gridDraft[gridMove.path];
+    const colPath = gridMove.colPath;
+    const rowPath = gridMove.rowPath;
+    gridMove = null;
+    if (draft) {
+      onchange(colPath, draft.col);
+      onchange(rowPath, draft.row);
+    }
+    try {
+      (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer events in tests have no active pointer.
+    }
+  }
+
+  function startGridResize(event: PointerEvent, record: ScanRecord) {
+    const w = cellField(record, "w");
+    const h = cellField(record, "h");
+    if (!w || !h) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const numbers = cellNumbers(record);
+    const metrics = gridMetrics(event.currentTarget as HTMLElement);
+    gridResize = {
+      path: record.path,
+      wPath: w.path,
+      hPath: h.path,
+      startX: event.clientX,
+      startY: event.clientY,
+      originW: numbers.w,
+      originH: numbers.h,
+      ...metrics,
+    };
+    try {
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer events in tests have no active pointer.
+    }
+  }
+
+  function resizeGrid(event: PointerEvent) {
+    if (!gridResize) return;
+    const record = allRecords.find((item) => item.path === gridResize?.path);
+    if (!record) return;
+    const current = gridDraft[record.path] ?? cellNumbers(record);
+    const w = Math.max(
+      1,
+      gridResize.originW +
+        Math.round((event.clientX - gridResize.startX) / gridResize.cellWidth),
+    );
+    const h = Math.max(
+      1,
+      gridResize.originH +
+        Math.round((event.clientY - gridResize.startY) / gridResize.rowHeight),
+    );
+    gridDraft = {
+      ...gridDraft,
+      [record.path]: { ...current, w, h },
+    };
+  }
+
+  function endGridResize(event: PointerEvent) {
+    if (!gridResize) return;
+    const draft = gridDraft[gridResize.path];
+    const wPath = gridResize.wPath;
+    const hPath = gridResize.hPath;
+    gridResize = null;
+    if (draft) {
+      onchange(wPath, draft.w);
+      onchange(hPath, draft.h);
+    }
+    try {
+      (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer events in tests have no active pointer.
+    }
+  }
+
   function fieldValue(record: ScanRecord, field: string): number | null {
     const child = allRecords.find(
       (candidate) => candidate.path === `${record.path}.${field}`,
@@ -63,11 +243,8 @@
 
   function cellStyle(record: ScanRecord): string | undefined {
     if (!gridColumns) return undefined;
-    const col = fieldValue(record, "col") ?? 0;
-    const row = fieldValue(record, "row") ?? 0;
-    const width = fieldValue(record, "w") ?? 1;
-    const height = fieldValue(record, "h") ?? 1;
-    return `grid-column: ${col + 1} / span ${width}; grid-row: ${row + 1} / span ${height};`;
+    const { col, row, w, h } = cellNumbers(record);
+    return `grid-column: ${col + 1} / span ${w}; grid-row: ${row + 1} / span ${h};`;
   }
 
   function bodyRecords(child: ScanRecord, records: ScanRecord[]): ScanRecord[] {
@@ -111,6 +288,18 @@
   {#each rows as row (row.child.path)}
     <section class="row-card" style={cellStyle(row.child)}>
       <header class="row-card-head">
+        {#if gridColumns}
+          <button
+            class="grid-handle"
+            type="button"
+            aria-label="Move card"
+            onpointerdown={(event) => startGridMove(event, row.child)}
+            onpointermove={moveGrid}
+            onpointerup={endGridMove}
+          >
+            ⠿
+          </button>
+        {/if}
         <strong>{rowTitle(row.child)}</strong>
         <span class="spacer"></span>
         {#if canMove(row.child)}
@@ -181,6 +370,16 @@
           <p class="muted small">No fields in this row.</p>
         {/if}
       </div>
+      {#if gridColumns}
+        <button
+          class="grid-resize"
+          type="button"
+          aria-label="Resize card"
+          onpointerdown={(event) => startGridResize(event, row.child)}
+          onpointermove={resizeGrid}
+          onpointerup={endGridResize}
+        ></button>
+      {/if}
     </section>
   {/each}
 </div>
