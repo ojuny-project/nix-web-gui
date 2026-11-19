@@ -13,7 +13,7 @@ feature and hardening gaps.
 - [x] Build the default package through the VM test.
 - [x] Build the minimal package and run `checks.minimal-flag` against the
       committed tree. Both pass.
-- [ ] Run the full `nix flake check` matrix.
+- [x] Run the full `nix flake check` matrix. Every check evaluated and passed.
 - [ ] Add Playwright coverage for login, open, edit, save, diff, add file, add
       option, flake inputs, apply, rebuild, and media selection.
 - [ ] Add a desktop-vs-engine golden test for every widget literal. Engine tests
