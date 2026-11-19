@@ -68,7 +68,7 @@ Dispatch order in `Control.svelte`:
 | `TableAttrset` | `table-attrset` | `Table.svelte` when the descriptor declares columns |
 | `TableList` | `table-list` | `Table.svelte` when the descriptor declares columns |
 | `Keybinds` | `keybinds` | Generic child controls with add, remove, and rename of rows |
-| `Monitors` | `monitors` | Generic child controls; the add-row panel can detect outputs |
+| `Monitors` | `monitors` | Output cards on a drag canvas that updates `xPos` and `yPos`; the add-row panel detects outputs |
 | `Theme` | `theme` | `ThemePicker.svelte` with search and swatches |
 | `Wallpaper` | `wallpaper` | `Text.svelte` plus `MediaPicker.svelte` with presets, upload, and delete |
 | `File` | `file` | `Text.svelte` plus `MediaPicker.svelte` with upload and delete |

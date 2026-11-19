@@ -841,6 +841,39 @@ button.tiny {
   padding: 0.25rem 0 0.75rem;
 }
 
+.monitor-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background:
+    linear-gradient(var(--border) 1px, transparent 1px) 0 0 / 100% 10%,
+    linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / 10% 100%,
+    var(--surface-2);
+  overflow: hidden;
+  margin-bottom: 0.65rem;
+}
+
+.monitor-tile {
+  position: absolute;
+  display: grid;
+  align-content: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: var(--text-strong);
+  cursor: grab;
+  touch-action: none;
+  overflow: hidden;
+}
+
+.monitor-tile:active {
+  cursor: grabbing;
+}
+
 .card-collection.grid-canvas {
   grid-auto-rows: minmax(4rem, auto);
   align-items: stretch;

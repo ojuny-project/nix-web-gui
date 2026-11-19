@@ -43,8 +43,8 @@ feature and hardening gaps.
 
 - [x] Live detection through `monitor_detect` and `wlr-randr` for the add-row
       picker.
-- [x] Output cards with the geometry and feature fields. There is no drag
-      canvas.
+- [x] Output cards on a drag canvas that updates `xPos` and `yPos`, with the
+      geometry and feature fields.
 - [x] Feature fields render as grouped nested headings inside the output card.
 - [x] `disabledFeatures` filtering in the editor and on save.
 - [x] Preserve the output name as the attribute key.

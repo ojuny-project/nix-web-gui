@@ -5,6 +5,7 @@
     type ControlValue,
   } from "@nix-web-gui/ui";
   import MediaPicker from "./MediaPicker.svelte";
+  import MonitorCanvas from "./MonitorCanvas.svelte";
   import type { ScanRecord } from "../api";
 
   export let parent: ScanRecord;
@@ -92,6 +93,14 @@
   }
 >
   <h3 class="group-heading">{parent.label ?? parent.path}</h3>
+  {#if parent.widget === "monitors"}
+    <MonitorCanvas
+      {parent}
+      {allRecords}
+      {values}
+      {onchange}
+    />
+  {/if}
   {#if canAdd}
     <div class="toolbar">
       <span class="spacer"></span>
