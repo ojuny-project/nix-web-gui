@@ -274,7 +274,12 @@ impl SettingsSession {
     ) -> Vec<Value> {
         let parent_segments = record.path_segments().to_vec();
         let mut out = Vec::new();
-        let mut children = nix_settings_gui::scan::scan_value(&record.value);
+        let widget = crate::render::choose_widget(record, None);
+        let mut children = if is_row_collection(widget) {
+            nix_settings_gui::scan::scan_value_direct(&record.value)
+        } else {
+            nix_settings_gui::scan::scan_value(&record.value)
+        };
         if children.is_empty()
             && nix_settings_gui::value::classify(&record.value)
                 == nix_settings_gui::value::ValueKind::List
@@ -1091,6 +1096,24 @@ fn is_composite_widget(widget: WidgetKind) -> bool {
     )
 }
 
+/// Composite widgets whose value is one attribute set per row. Their children
+/// are the rows themselves, not the flattened leaves of every row.
+fn is_row_collection(widget: WidgetKind) -> bool {
+    matches!(
+        widget,
+        WidgetKind::Users
+            | WidgetKind::Keybinds
+            | WidgetKind::Monitors
+            | WidgetKind::Docker
+            | WidgetKind::Menu
+            | WidgetKind::Plugins
+            | WidgetKind::GridConfiguration
+            | WidgetKind::HorizontalSubmodule
+            | WidgetKind::Bar
+            | WidgetKind::Dock
+    )
+}
+
 /// A list of attribute sets, such as a bar section or dock tile list. A list
 /// of plain strings or expressions keeps its list editor instead.
 fn is_structured_list(record: &Record, widget: WidgetKind) -> bool {
@@ -1382,6 +1405,7 @@ mod tests {
         session
             .describe_page_local(&file.display().to_string())
             .unwrap();
+        assert!(session.record("users.users.alice").is_some());
         session
             .set("users.users.alice.hashedPassword", "null")
             .unwrap();

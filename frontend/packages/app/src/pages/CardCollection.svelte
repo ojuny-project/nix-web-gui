@@ -32,6 +32,7 @@
     record: ScanRecord,
     value: string,
   ) => Promise<string | null> = async () => null;
+  export let isCsv: (record: ScanRecord) => boolean = () => false;
 
   $: rows = (parent.children ?? []).map((child) => ({
     child,
@@ -57,6 +58,7 @@
 </script>
 
 <div class="card-collection">
+  <h3 class="group-heading">{parent.label ?? parent.path}</h3>
   {#if canAdd}
     <div class="toolbar">
       <span class="spacer"></span>
@@ -111,6 +113,7 @@
               {expandDetails}
               onIconPick={(current) => onIconPick(record, current)}
               onIconPreview={(value) => onIconPreview(record, value)}
+              csvList={isCsv(record)}
             />
             {#if record.widget === "font"}
               <p

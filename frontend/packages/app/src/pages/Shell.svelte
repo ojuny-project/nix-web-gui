@@ -185,7 +185,10 @@
         .map((record) => record.path);
   $: cardPaths = new Set(
     records
-      .filter((record) => (record.children?.length ?? 0) > 0)
+      .filter(
+        (record) =>
+          (record.children?.length ?? 0) > 0 && record.widget !== "submodule",
+      )
       .flatMap((record) => descendantPaths(record)),
   );
   $: visibleRecords = records.filter((record) => {
@@ -1961,6 +1964,13 @@
                 <p class="muted">
                   This Ojuny widget is not available in the minimal build.
                 </p>
+              {:else if record.children?.length && record.widget === "submodule"}
+                <h3
+                  class="submodule-heading"
+                  style={`margin-left: ${(record.depth ?? 0) * 12}px`}
+                >
+                  {record.label ?? record.path}
+                </h3>
               {:else if record.children?.length}
                 <CardCollection
                   parent={record}
@@ -1982,6 +1992,7 @@
                   onpassword={setPassword}
                   onIconPick={pickIcon}
                   onIconPreview={previewIcon}
+                  isCsv={isKeybindCsv}
                 />
               {:else if record.widget === "secureboot"}
                 <Control

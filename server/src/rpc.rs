@@ -78,8 +78,12 @@ pub fn handle_with_progress(
         }),
         "page.describe" => with_settings(session, |settings| {
             let file = string_param(&params, "file");
-            settings
-                .describe_page(&file)
+            let controls = if std::env::var_os("NIX_WEB_GUI_SKIP_METADATA").is_some() {
+                settings.describe_page_local(&file)
+            } else {
+                settings.describe_page(&file)
+            };
+            controls
                 .map(|controls| json!({ "controls": controls }))
                 .map_err(|error| (-32011, error))
         }),
