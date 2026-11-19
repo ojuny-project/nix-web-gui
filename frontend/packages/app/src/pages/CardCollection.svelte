@@ -16,6 +16,7 @@
   export let csrf: string;
   export let expandDetails = false;
   export let maxColumns = 1;
+  export let gridColumns: number | undefined = undefined;
   export let canAdd = false;
   export let canMove: (record: ScanRecord) => boolean = () => false;
   export let canRename: (record: ScanRecord) => boolean = () => false;
@@ -50,6 +51,24 @@
     ),
   }));
 
+  function fieldValue(record: ScanRecord, field: string): number | null {
+    const child = allRecords.find(
+      (candidate) => candidate.path === `${record.path}.${field}`,
+    );
+    if (!child) return null;
+    const value = Number(values[child.path]);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function cellStyle(record: ScanRecord): string | undefined {
+    if (!gridColumns) return undefined;
+    const col = fieldValue(record, "col") ?? 0;
+    const row = fieldValue(record, "row") ?? 0;
+    const width = fieldValue(record, "w") ?? 1;
+    const height = fieldValue(record, "h") ?? 1;
+    return `grid-column: ${col + 1} / span ${width}; grid-row: ${row + 1} / span ${height};`;
+  }
+
   function bodyRecords(child: ScanRecord, records: ScanRecord[]): ScanRecord[] {
     const rows = records.filter(
       (record) => isVisible(record) && !(record.hidden && record.children?.length),
@@ -63,7 +82,14 @@
 
 <div
   class="card-collection"
-  style={maxColumns > 1 ? `grid-template-columns: repeat(${maxColumns}, minmax(0, 1fr));` : undefined}
+  class:grid-canvas={Boolean(gridColumns)}
+  style={
+    gridColumns
+      ? `grid-template-columns: repeat(${gridColumns}, minmax(0, 1fr));`
+      : maxColumns > 1
+        ? `grid-template-columns: repeat(${maxColumns}, minmax(0, 1fr));`
+        : undefined
+  }
 >
   <h3 class="group-heading">{parent.label ?? parent.path}</h3>
   {#if canAdd}
@@ -74,7 +100,7 @@
   {/if}
 
   {#each rows as row (row.child.path)}
-    <section class="row-card">
+    <section class="row-card" style={cellStyle(row.child)}>
       <header class="row-card-head">
         <strong>{rowTitle(row.child)}</strong>
         <span class="spacer"></span>

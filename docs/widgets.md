@@ -64,7 +64,7 @@ Dispatch order in `Control.svelte`:
 | `Color` | `color` | `Color.svelte` |
 | `Submodule` | `submodule` | Generic child controls; textarea raw when it has no children |
 | `HorizontalSubmodule` | `horizontal-submodule` | Generic child controls; textarea raw when no children; `maxColumns` is not applied |
-| `GridConfiguration` | `grid-configuration` | Generic child controls; textarea raw when no children |
+| `GridConfiguration` | `grid-configuration` | Card canvas positioned by `col`, `row`, `w`, and `h`; registry ids seed new cards |
 | `TableAttrset` | `table-attrset` | `Table.svelte` when the descriptor declares columns |
 | `TableList` | `table-list` | `Table.svelte` when the descriptor declares columns |
 | `Keybinds` | `keybinds` | Generic child controls with add, remove, and rename of rows |

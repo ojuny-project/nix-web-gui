@@ -40,6 +40,7 @@ pub fn record_json(record: &Record) -> Value {
         "reportPath": record.spec.report_path,
         "profileCatalog": record.spec.profile_catalog,
         "gridRegistry": record.spec.grid_registry,
+        "gridColumns": record.spec.grid_columns,
         "gridEnabled": record.spec.grid_enabled,
         "containerImage": record.spec.container_image,
         "containerPorts": record.spec.container_ports,

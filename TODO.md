@@ -134,7 +134,9 @@ feature and hardening gaps.
       structured list view.
 - [x] Dock tile add, remove, rename, move, and field editing through the
       structured list view.
-- [ ] Grid editor with card canvas, drag, resize, catalog sizes, and profiles.
+- [x] Grid editor renders cards on the placement canvas from `col`, `row`,
+      `w`, and `h`, and offers `gridRegistry` cards.
+- [ ] Grid drag, resize, catalog sizes, and profiles.
 - [ ] Docker row editor. Rows can be added and removed and fields edit
       generically.
 - [x] Generic grid registry ids are offered when adding a card.

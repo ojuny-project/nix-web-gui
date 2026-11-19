@@ -112,6 +112,7 @@ export type ScanRecord = {
   reportPath?: string | null;
   profileCatalog?: string | null;
   gridRegistry?: string[] | null;
+  gridColumns?: number | null;
   gridEnabled?: boolean;
   containerImage?: string | null;
   containerPorts?: string | null;

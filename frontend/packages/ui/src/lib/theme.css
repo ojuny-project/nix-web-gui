@@ -841,6 +841,11 @@ button.tiny {
   padding: 0.25rem 0 0.75rem;
 }
 
+.card-collection.grid-canvas {
+  grid-auto-rows: minmax(4rem, auto);
+  align-items: stretch;
+}
+
 .row-card {
   border: 1px solid var(--border);
   border-radius: 12px;
