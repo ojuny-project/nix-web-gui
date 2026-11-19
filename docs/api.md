@@ -156,6 +156,8 @@ account's worker and reads that account's file instead.
 | `rebuild.run` | implemented, streams `progress` notes over `/api/events` |
 | `job.cancel` | implemented, terminates the session worker |
 | `catalog.styles` | implemented |
+| `plugins.registry` | implemented |
+| `plugins.settings` | implemented |
 | `secureboot.status` | implemented |
 | `secureboot.config` | implemented |
 | `secureboot.writeConfig` | implemented |
@@ -1386,7 +1388,7 @@ The contract is filled in as the engine slices land.
 | Secure Boot | per-action privileged re-authentication and streamed setup output |
 | Users | the account-card UI |
 | Previews | wallpaper cycle settings and icon and cursor theme sheets |
-| Catalogs | `catalog.themes`, `catalog.fonts`, `catalog.icons`, `catalog.cursors`, `plugins.registry`, `plugins.settings`, and `facter.detect` |
+| Catalogs | `catalog.themes`, `catalog.fonts`, `catalog.icons`, `catalog.cursors`, and `facter.detect` |
 | Tables | rendering undeclared columns |
 | Config | nothing; the sidebar Settings button opens the panel |
 

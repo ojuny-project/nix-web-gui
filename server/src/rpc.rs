@@ -7,6 +7,7 @@ use nix_web_gui_engine::catalog;
 use nix_web_gui_engine::config::WebConfig;
 use nix_web_gui_engine::flake;
 use nix_web_gui_engine::git;
+use nix_web_gui_engine::plugins;
 use nix_web_gui_engine::preview;
 use nix_web_gui_engine::render;
 use nix_web_gui_engine::secureboot;
@@ -193,6 +194,13 @@ pub fn handle_with_progress(
                 .add_option(&file, &origin, &path, widget, &label, &value)
                 .map(|_| json!({ "added": true }))
                 .map_err(|error| (-32012, error))
+        }),
+        "plugins.registry" => with_settings(session, |settings| {
+            Ok(plugins::registry(&settings.root))
+        }),
+        "plugins.settings" => with_settings(session, |settings| {
+            let id = string_param(&params, "id");
+            plugins::settings(&settings.root, &id).map_err(|error| (-32012, error))
         }),
         "catalog.styles" => {
             let kind = string_param(&params, "kind");

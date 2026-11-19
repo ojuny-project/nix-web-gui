@@ -128,7 +128,9 @@ feature and hardening gaps.
 
 - [ ] Dedicated menu editor with providers and field help. Rows and fields edit
       through the generic structure editor.
-- [ ] Plugins editor with the DMS registry and declarative settings QML controls.
+- [x] Plugins editor lists the DMS registry and offers uninstalled plugins when
+      adding a row.
+- [ ] Declarative settings QML controls for registry plugins.
       Plugin rows can be added and removed; their settings edit generically.
 - [x] Bar tile add, remove, rename, move, and field editing through the
       structured list view.

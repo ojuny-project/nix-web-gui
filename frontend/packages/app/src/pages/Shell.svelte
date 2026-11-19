@@ -28,6 +28,7 @@
     type ScanMenu,
     type ScanRecord,
     type ScanResult,
+    type PluginRegistryEntry,
     type ScanSnippet,
     type StyleEntry,
     type WidgetPreset,
@@ -111,6 +112,8 @@
   let structureMode: { width: number; height: number; refresh: number } | null =
     null;
   let structureDefaults: Record<string, string> = {};
+  let pluginRegistry: PluginRegistryEntry[] = [];
+  let pluginRegistryError = "";
   let structureBusy = false;
   let detectedOutputs: Array<{
     name: string;
@@ -1145,8 +1148,23 @@
     structureKey = "";
     structureMode = null;
     structureDefaults = {};
+    pluginRegistry = [];
+    pluginRegistryError = "";
     detectedOutputs = [];
     error = "";
+    if (record.widget === "plugins") {
+      try {
+        const registry = await rpc<{
+          plugins: PluginRegistryEntry[];
+          error?: string | null;
+        }>("plugins.registry", {}, user.csrf);
+        pluginRegistry = registry.plugins;
+        pluginRegistryError = registry.error ?? "";
+      } catch (cause) {
+        pluginRegistryError =
+          cause instanceof Error ? cause.message : "Cannot read the plugin registry";
+      }
+    }
     if (record.widget === "monitors") {
       try {
         const detected = await rpc<{
@@ -2330,6 +2348,37 @@
               </span>
               <input bind:value={structureKey} />
             </label>
+            {#if structureTarget.widget === "plugins"}
+              {#if pluginRegistryError}
+                <p class="muted small">{pluginRegistryError}</p>
+              {/if}
+              {@const installed = new Set(
+                (structureTarget.children ?? []).map(
+                  (child) => child.path.split(".").at(-1) ?? "",
+                ),
+              )}
+              {@const available = pluginRegistry.filter(
+                (plugin) => !installed.has(plugin.id),
+              )}
+              {#if available.length}
+                <div class="toolbar">
+                  {#each available as plugin (plugin.id)}
+                    <button
+                      type="button"
+                      class="ghost"
+                      class:active={structureKey === plugin.id}
+                      title={plugin.description ?? plugin.repo ?? plugin.id}
+                      onclick={() => {
+                        structureKey = plugin.id;
+                        structureDefaults = {};
+                      }}
+                    >
+                      {plugin.name || plugin.id}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            {/if}
             {#if structureTarget.widget === "list" && (currentMenu?.widgetPresets?.length ?? 0) > 0}
               {@const section = structureTarget.path.split(".").at(-1) ?? ""}
               {@const presets = (currentMenu?.widgetPresets ?? []).filter(

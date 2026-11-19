@@ -171,6 +171,20 @@ export type TableJson = {
   rows: TableRowJson[];
 };
 
+export type PluginRegistryEntry = {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  category?: string | null;
+  repo?: string | null;
+  settings?: string | null;
+};
+
+export type PluginRegistry = {
+  plugins: PluginRegistryEntry[];
+  error?: string | null;
+};
+
 export type WidgetPreset = {
   id: string;
   label: string;

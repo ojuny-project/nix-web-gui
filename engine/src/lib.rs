@@ -15,6 +15,7 @@ pub mod config;
 pub mod flake;
 pub mod git;
 pub mod paths;
+pub mod plugins;
 pub mod preview;
 pub mod render;
 pub mod secureboot;
