@@ -46,9 +46,9 @@ feature and hardening gaps.
 - [x] Output cards with the geometry and feature fields. There is no drag
       canvas.
 - [x] Feature fields render as grouped nested headings inside the output card.
-- [ ] `disabledFeatures` filtering in the editor and on save.
-- [ ] Preserve the output name as the attribute key.
-- [ ] Adapter behavior remains outside the widget and is unchanged.
+- [x] `disabledFeatures` filtering in the editor and on save.
+- [x] Preserve the output name as the attribute key.
+- [x] Adapter behavior remains outside the widget and is unchanged.
 
 ### Users
 
@@ -137,7 +137,8 @@ feature and hardening gaps.
 - [ ] Grid editor with card canvas, drag, resize, catalog sizes, and profiles.
 - [ ] Docker row editor. Rows can be added and removed and fields edit
       generically.
-- [ ] Tile catalog and `@widget-preset` fields.
+- [x] Generic grid registry ids are offered when adding a card.
+- [ ] Tile catalog and `@widget-preset` fields for bar and dock.
 - [ ] Theme, font, icon, and cursor DMS catalogs.
 - [ ] The minimal build hides every Ojuny record, including its children, and
       shows the unavailable notice. It has no dedicated Ojuny components to
