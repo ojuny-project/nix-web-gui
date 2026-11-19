@@ -37,7 +37,7 @@ The input is pinned by `flake.lock`, not by the URL. The lock currently records:
 
 | Input | Locked value |
 |---|---|
-| `nix-settings-gui` | `git` at `file:///home/den/repos/nix-settings-gui`, rev `95779de003c77f7e90b7477f27e9b7096de8789a`, ref `refs/heads/main`, 111 commits |
+| `nix-settings-gui` | `github:ojuny-project/nix-settings-gui` at rev `3f3a980d5186321ef4c01c8e064a17a0b5b10b5d` |
 
 After changing the URL, regenerate the lock and commit it with the flake:
 
@@ -54,7 +54,7 @@ There is a conflict between the lock and the prose in
 `/home/den/repos/ojuny-future-repos/nix-web-gui/README.md`,
 `/home/den/repos/ojuny-future-repos/nix-web-gui/docs/deployment.md`, and
 `/home/den/repos/ojuny-future-repos/nix-web-gui/docs/parity.md`, which name NSG
-The lock and prose now name `95779de`. Check the locked rev before cutting a tag
+The flake pins the GitHub revision `3f3a980`. Check the locked rev before cutting a tag
 instead of trusting the prose.
 
 ## Tagged artifacts

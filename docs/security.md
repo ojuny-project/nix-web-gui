@@ -139,11 +139,25 @@ and no arbitrary root command.
 
 ## PAM
 
-The NixOS module defines `security.pam.services.nix-web-gui` with the
-NixOS-generated authentication, account, password, and session stack instead of
-hard-coded lines. NixOS PAM modules configured for the service are inherited.
-The allowlist groups are checked after PAM authentication. MFA and faillock
-still need explicit VM coverage.
+The NixOS module declares `security.pam.services.system-auth` and points
+`security.pam.services.nix-web-gui.text` at it with four `include` lines: one
+each for `auth`, `account`, `password`, and `session`. The service contains no
+module lines of its own, so every module configured on `system-auth` applies to
+a web login:
+
+- `pam_unix` authentication, account expiry, and password rules from the NixOS
+  defaults;
+- `pam_faillock` when `security.pam.services.system-auth.logFailures` is set;
+- MFA modules enabled on `system-auth`: `googleAuthenticator`, `duoSecurity`,
+  `u2f`, `oath`, `yubicoAuth`, and `otpwAuth`;
+- LDAP through `users.ldap.enable` and `users.ldap.loginPam`;
+- Kerberos through `security.pam.krb5.enable`.
+
+The allowlist groups are checked after PAM authentication. The VM test covers a
+successful login, a wrong password, allowlist rejection, cross-user denial, and
+an account whose `expires` date has passed. MFA, faillock, LDAP, and Kerberos are
+inherited but untested: each needs an external token, LDAP server, or KDC that
+the test does not provision.
 
 ## Module shape rule
 

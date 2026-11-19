@@ -45,15 +45,16 @@
       "locked": {
         "lastModified": 1795100266,
         "narHash": "sha256-OhDWYImWFkJQnarNJfqkpI8BoX+IkVy6MFvyUR9RIjc=",
-        "ref": "refs/heads/main",
+        "owner": "ojuny-project",
+        "repo": "nix-settings-gui",
         "rev": "3f3a980d5186321ef4c01c8e064a17a0b5b10b5d",
-        "revCount": 113,
-        "type": "git",
-        "url": "file:///home/den/repos/nix-settings-gui"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "file:///home/den/repos/nix-settings-gui"
+        "owner": "ojuny-project",
+        "repo": "nix-settings-gui",
+        "rev": "3f3a980d5186321ef4c01c8e064a17a0b5b10b5d",
+        "type": "github"
       }
     },
     "nixpkgs": {

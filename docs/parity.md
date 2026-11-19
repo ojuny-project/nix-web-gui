@@ -140,7 +140,7 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
   smoke test lives at `tests/ui-smoke.mjs`; it is not part of `nix flake check`.
   `checks.parity` exists.
 - The flake pins `nix-settings-gui` with `git+file:///home/den/repos/nix-settings-gui`
-  at the NSG generalization commit `95779de`. A remote flake input and
+  at the NSG revision `3f3a980`. A remote flake input and
   `binary-url.json` are still pending for a release.
 
 ## Documented limitation
