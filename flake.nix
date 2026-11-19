@@ -42,6 +42,10 @@
             withOjunyWidgets = false;
             pname = "nix-web-gui-minimal";
           };
+          container = import ./nix/container.nix {
+            inherit pkgs;
+            package = self.packages.${system}.default;
+          };
         };
 
         apps.default = {
