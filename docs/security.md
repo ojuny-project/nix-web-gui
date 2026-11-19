@@ -14,7 +14,8 @@ session limits, the security headers, and worker spawning. The listener binds to
 - The worker owns the scan, staged values, file writes, git, apply, rebuild, and
   Secure Boot status and configuration writes.
 - The root parent answers `system.ping` and `system.capabilities` and runs the
-  fixed Secure Boot setup, rebuild, and reboot actions. It never scans or writes
+  fixed Secure Boot setup, rebuild, and reboot actions. Those actions require
+  the signed-in account's device password and verify it through PAM first. It never scans or writes
   an arbitrary configuration file.
 - Cross-user reads and writes are rejected by Unix permissions, not only by
   application checks.

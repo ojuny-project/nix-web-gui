@@ -1374,8 +1374,9 @@ A JSON-RPC error keeps the request `id`:
 | `-32601` | unknown method |
 | `-32700` | parse error |
 
-`secureboot.setup`, `secureboot.rebuild`, and `secureboot.reboot` also use
-`-32012` for a validation or privilege failure.
+`secureboot.setup`, `secureboot.rebuild`, and `secureboot.reboot` require a
+`password` parameter for the signed-in device account and also use `-32012` for
+a validation, authentication, or privilege failure.
 
 Methods that do not need an open session are `echo`, `system.ping`,
 `system.capabilities`, `catalog.styles`, `secureboot.status`,

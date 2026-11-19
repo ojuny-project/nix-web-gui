@@ -18,6 +18,7 @@
   let microsoft = true;
   let firmwareBuiltin = false;
   let configBlock = "";
+  let password = "";
 
   onMount(load);
 
@@ -49,7 +50,7 @@
     try {
       const result = await rpc<{ output: string[] }>(
         "secureboot.setup",
-        { keyAction, microsoft, firmwareBuiltin },
+        { keyAction, microsoft, firmwareBuiltin, password },
         csrf,
       );
       output = result.output;
@@ -89,7 +90,7 @@
     try {
       const result = await rpc<{ output: string }>(
         "secureboot.rebuild",
-        { root },
+        { root, password },
         csrf,
       );
       output = [result.output];
@@ -106,7 +107,7 @@
     actionBusy = true;
     error = "";
     try {
-      await rpc("secureboot.reboot", { confirm: true }, csrf);
+      await rpc("secureboot.reboot", { confirm: true, password }, csrf);
       output = ["Reboot requested."];
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Reboot failed";
@@ -183,6 +184,15 @@
 
     <h3>Setup options</h3>
     <div class="input-form">
+      <label>
+        <span>Device password</span>
+        <input
+          type="password"
+          bind:value={password}
+          placeholder="Required for setup, rebuild, and reboot"
+          autocomplete="current-password"
+        />
+      </label>
       <label>
         <span>Keys</span>
         <select bind:value={keyAction}>

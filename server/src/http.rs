@@ -390,7 +390,7 @@ async fn rpc(
                 "error": { "code": -32000, "message": "no running job to cancel" },
             }),
         }
-    } else if let Some(result) = secureboot_action(&method, &request.params) {
+    } else if let Some(result) = secureboot_action(&state, &session, &method, &request.params) {
         match result {
             Ok(value) => json!({
                 "jsonrpc": "2.0",
@@ -458,9 +458,27 @@ async fn rpc(
     Ok(Json(response))
 }
 
-fn secureboot_action(method: &str, params: &Value) -> Option<Result<Value, String>> {
+fn secureboot_action(
+    state: &AppState,
+    session: &Session,
+    method: &str,
+    params: &Value,
+) -> Option<Result<Value, String>> {
+    let reauthenticate = || -> Result<(), String> {
+        let password = params
+            .get("password")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if password.is_empty() {
+            return Err("device password is required for this action".to_string());
+        }
+        auth::authenticate(&state.config, &session.username, password)
+            .map_err(|error| error.to_string())
+    };
     match method {
-        "secureboot.setup" => Some(nix_web_gui_engine::secureboot::setup(
+        "secureboot.setup" => Some((|| {
+            reauthenticate()?;
+            nix_web_gui_engine::secureboot::setup(
             params
                 .get("keyAction")
                 .and_then(Value::as_str)
@@ -473,24 +491,26 @@ fn secureboot_action(method: &str, params: &Value) -> Option<Result<Value, Strin
                 .get("firmwareBuiltin")
                 .and_then(Value::as_bool)
                 .unwrap_or(false),
-        )),
+        )
+        })()),
         "secureboot.rebuild" => {
             let root = params.get("root").and_then(Value::as_str).unwrap_or_default();
             if root.is_empty() {
                 return Some(Err("root is required".to_string()));
             }
-            Some(
+            Some((|| {
+                reauthenticate()?;
                 nix_web_gui_engine::secureboot::rebuild(root)
-                    .map(|output| json!({ "output": output })),
-            )
+                    .map(|output| json!({ "output": output }))
+            })())
         }
-        "secureboot.reboot" => Some(
-            if params.get("confirm").and_then(Value::as_bool) == Some(true) {
-                nix_web_gui_engine::secureboot::reboot().map(|_| json!({ "rebooting": true }))
-            } else {
-                Err("reboot requires confirm: true".to_string())
-            },
-        ),
+        "secureboot.reboot" => Some((|| {
+            if params.get("confirm").and_then(Value::as_bool) != Some(true) {
+                return Err("reboot requires confirm: true".to_string());
+            }
+            reauthenticate()?;
+            nix_web_gui_engine::secureboot::reboot().map(|_| json!({ "rebooting": true }))
+        })()),
         _ => None,
     }
 }
@@ -903,6 +923,38 @@ mod engine_tests {
             .await
             .unwrap();
         serde_json::from_slice(&body).unwrap()
+    }
+
+    #[tokio::test]
+    async fn privileged_secureboot_actions_require_the_device_password() {
+        let app = router(state());
+        let (cookie, csrf) = login(&app).await;
+
+        let missing = rpc(
+            &app,
+            &cookie,
+            &csrf,
+            "secureboot.reboot",
+            json!({ "confirm": true }),
+        )
+        .await;
+        assert!(missing["error"]["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("device password"));
+
+        let wrong = rpc(
+            &app,
+            &cookie,
+            &csrf,
+            "secureboot.reboot",
+            json!({ "confirm": true, "password": "wrong" }),
+        )
+        .await;
+        assert!(wrong["error"]["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("invalid"));
     }
 
     #[tokio::test]

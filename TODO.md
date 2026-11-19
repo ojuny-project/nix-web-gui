@@ -120,8 +120,9 @@ feature and hardening gaps.
       added from the Flake Inputs page.
 - [x] Enrollment marker only after successful `sbctl enroll-keys`.
 - [x] Re-enroll through the same prepare action when the stage is Enroll.
-- [ ] Per-action privileged re-authentication. Setup actions instead require the
-      root service account and fail clearly outside it.
+- [x] Per-action privileged re-authentication. Secure Boot setup, rebuild, and
+      reboot require the device password and verify it through PAM before the
+      root parent runs the fixed command.
 - [ ] Streamed rebuild output. The full output is returned when the command
       finishes.
 
