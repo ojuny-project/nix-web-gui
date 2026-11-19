@@ -135,8 +135,8 @@ feature and hardening gaps.
       iconFont, checked, when, and disabled.
 - [x] Plugins editor lists the DMS registry and offers uninstalled plugins when
       adding a row.
-- [x] Expose parsed plugin QML schemas through `plugins.schema`.
-- [ ] Render declarative plugin settings controls in the browser.
+- [x] Render parsed plugin QML schemas as typed settings controls, with an Add
+      action for fields that are not present yet.
 - [x] Bar tile add, remove, rename, move, and field editing through the
       structured list view.
 - [x] Dock tile add, remove, rename, move, and field editing through the

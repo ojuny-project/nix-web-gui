@@ -52,7 +52,7 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Apply command | live apply | `apply.run` | serial client apply queue | yes | implemented |
 | Rebuild | terminal | `rebuild.run`, `job.cancel` | streamed output panel with Cancel | yes | implemented |
 | Menu | row editor | `control.setTyped`, `structure.*` | row cards with provider assistance and inline field help | no | implemented |
-| Plugins | plugin editor | `control.setTyped`, `structure.*`, `plugins.*` | row cards and registry add; QML controls pending | no | partial |
+| Plugins | plugin editor | `control.setTyped`, `structure.*`, `plugins.*` | row cards, registry add, and schema-driven settings controls | no | implemented |
 | Bar | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles and list move | no | partial |
 | Dock | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles and list move | no | partial |
 | Grid | card canvas | `control.setTyped`, `structure.*` | placement canvas with `gridRegistry` ids, drag, and resize; catalog sizes and profiles pending | no | partial |

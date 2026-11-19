@@ -939,6 +939,26 @@ button.tiny {
   text-transform: uppercase;
 }
 
+.plugin-settings {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.35rem 0 0.65rem;
+}
+
+.plugin-setting label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: space-between;
+}
+
+.plugin-setting input[type="text"],
+.plugin-setting input[type="number"],
+.plugin-setting select,
+.plugin-setting textarea {
+  max-width: 16rem;
+}
+
 .style-previews {
   display: flex;
   gap: 0.4rem;

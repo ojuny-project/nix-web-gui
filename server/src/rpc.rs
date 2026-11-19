@@ -524,6 +524,15 @@ pub fn handle_with_progress(
                 .map(|_| json!({ "renamed": true }))
                 .map_err(|error| (-32012, error))
         }),
+        "structure.addField" => with_settings(session, |settings| {
+            let parent = string_param(&params, "parent");
+            let field = string_param(&params, "field");
+            let literal = string_param(&params, "literal");
+            settings
+                .add_field(&parent, &field, &literal)
+                .map(|_| json!({ "added": true }))
+                .map_err(|error| (-32012, error))
+        }),
         "structure.move" => with_settings(session, |settings| {
             let parent = string_param(&params, "parent");
             let child = string_param(&params, "child");

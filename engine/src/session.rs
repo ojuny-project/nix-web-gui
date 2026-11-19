@@ -856,6 +856,47 @@ impl SettingsSession {
         self.reload()
     }
 
+    /// Insert a field into an attribute-set row or update it when it already
+    /// exists. Used by plugin schema controls and other generated sub-editors.
+    pub fn add_field(
+        &mut self,
+        parent_path: &str,
+        field: &str,
+        literal: &str,
+    ) -> Result<(), String> {
+        if !self.staged.is_empty() {
+            return Err("save or discard staged changes before adding a field".to_string());
+        }
+        let path = format!("{parent_path}.{field}");
+        if self.record(&path).is_some() {
+            self.staged.insert(path, literal.to_string());
+            self.apply()?;
+            return Ok(());
+        }
+        let parent = self
+            .record(parent_path)
+            .cloned()
+            .ok_or_else(|| format!("unknown option path: {parent_path}"))?;
+        if nix_settings_gui::value::classify(&parent.value)
+            != nix_settings_gui::value::ValueKind::AttrSet
+        {
+            return Err("fields can only be added to an attribute set".to_string());
+        }
+        let offset = closing_offset(
+            &parent.value,
+            nix_settings_gui::value::ValueKind::AttrSet,
+        )?;
+        let field = crate::structure::attr_path(field)?;
+        let pending = edit::PendingEdit {
+            file: parent.file.clone(),
+            start: parent.byte_start + offset,
+            end: parent.byte_start + offset,
+            value: format!("\n  {field} = {literal};\n"),
+        };
+        edit::apply(&[pending], &self.root)?;
+        self.reload()
+    }
+
     pub fn remove_child(&mut self, parent_path: &str, child_path: &str) -> Result<(), String> {
         if !self.staged.is_empty() {
             return Err("save or discard staged changes before removing a row".to_string());
@@ -1451,6 +1492,32 @@ mod tests {
         let saved = std::fs::read_to_string(&file).unwrap();
         assert!(saved.contains("terminal ="));
         assert!(saved.contains("modifier = [ ];"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn adds_a_generated_field_to_an_attribute_set_row() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-field-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules")).unwrap();
+        let file = root.join("modules/system.nix");
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"users\"; label = \"Users\"; */\n  users.users = { alice = { isNormalUser = true; }; };\n}\n",
+        )
+        .unwrap();
+        let mut session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        session
+            .describe_page_local(&file.display().to_string())
+            .unwrap();
+        session
+            .add_field("users.users.alice", "shell", "pkgs.zsh")
+            .unwrap();
+        let saved = std::fs::read_to_string(&file).unwrap();
+        assert!(saved.contains("shell = pkgs.zsh;"), "{saved}");
         let _ = std::fs::remove_dir_all(root);
     }
 

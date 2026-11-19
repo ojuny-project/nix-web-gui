@@ -2179,6 +2179,7 @@
                   rowTitle={cardRowTitle}
                   sortRows={cardRowSort}
                   fieldHelp={cardFieldHelp}
+                  onstructurechange={reloadStructure}
                 />
               {:else if record.widget === "secureboot"}
                 <Control

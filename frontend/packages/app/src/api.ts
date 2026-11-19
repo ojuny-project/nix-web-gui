@@ -180,6 +180,17 @@ export type PluginRegistryEntry = {
   settings?: string | null;
 };
 
+export type PluginSchemaField = {
+  key: string;
+  label: string;
+  description: string;
+  kind: "bool" | "int" | "float" | "text" | "dropdown" | "color" | "raw";
+  choices: string[];
+  default: string;
+  minimum?: string | null;
+  maximum?: string | null;
+};
+
 export type PluginRegistry = {
   plugins: PluginRegistryEntry[];
   error?: string | null;

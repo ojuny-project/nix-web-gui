@@ -6,6 +6,7 @@
   } from "@nix-web-gui/ui";
   import MediaPicker from "./MediaPicker.svelte";
   import MonitorCanvas from "./MonitorCanvas.svelte";
+  import PluginSettings from "./PluginSettings.svelte";
   import type { ScanRecord } from "../api";
 
   export let parent: ScanRecord;
@@ -43,6 +44,7 @@
   export let fieldHelp:
     | ((parent: ScanRecord, record: ScanRecord) => string | null)
     | undefined = undefined;
+  export let onstructurechange: () => Promise<void> = async () => {};
 
   $: children = [...(parent.children ?? [])].sort((left, right) =>
     sortRows ? sortRows(left, right) : 0,
@@ -251,9 +253,13 @@
   }
 
   function bodyRecords(child: ScanRecord, records: ScanRecord[]): ScanRecord[] {
-    const rows = records.filter(
-      (record) => isVisible(record) && !(record.hidden && record.children?.length),
-    );
+    const rows = records.filter((record) => {
+      if (!isVisible(record)) return false;
+      if (parent.widget === "plugins" && record.path.startsWith(`${child.path}.settings`)) {
+        return false;
+      }
+      return !(record.hidden && record.children?.length);
+    });
     if (child.children?.length) {
       return rows.filter((record) => record.path !== child.path);
     }
@@ -372,6 +378,16 @@
             {/if}
           {/if}
         {/each}
+        {#if parent.widget === "plugins"}
+          <PluginSettings
+            plugin={row.child}
+            {allRecords}
+            {values}
+            {csrf}
+            {onchange}
+            {onstructurechange}
+          />
+        {/if}
         {#if bodyRecords(row.child, row.records).length === 0}
           <p class="muted small">No fields in this row.</p>
         {/if}
