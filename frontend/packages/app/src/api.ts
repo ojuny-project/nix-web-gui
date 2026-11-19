@@ -170,6 +170,27 @@ export type TableJson = {
   rows: TableRowJson[];
 };
 
+export type WidgetPreset = {
+  id: string;
+  label: string;
+  description?: string | null;
+  icon?: string | null;
+  sections: string[];
+  hasSettings: boolean;
+  defaults: Record<string, string>;
+  fields: Array<{
+    name: string;
+    widget?: string | null;
+    label?: string | null;
+    description?: string | null;
+    choices?: string[] | null;
+    min?: number | null;
+    max?: number | null;
+    step?: number | null;
+    unit?: string | null;
+  }>;
+};
+
 export type ScanMenu = {
   file: string;
   displayname: string;
@@ -181,6 +202,7 @@ export type ScanMenu = {
   systems?: string[] | null;
   hidden?: boolean;
   records: ScanRecord[];
+  widgetPresets?: WidgetPreset[];
   inserts?: ScanInsert[];
   snippets?: ScanSnippet[];
 };

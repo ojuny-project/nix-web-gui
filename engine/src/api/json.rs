@@ -105,6 +105,28 @@ pub fn menu_json(menu: &MenuModel) -> Value {
         "systems": menu.spec.systems,
         "hidden": menu.spec.hidden,
         "records": menu.records.iter().map(record_json).collect::<Vec<_>>(),
+        "widgetPresets": menu.widget_presets.iter().map(|(preset, fields)| json!({
+            "id": preset.id,
+            "label": preset.label,
+            "description": preset.description,
+            "icon": preset.icon,
+            "sections": preset.sections,
+            "hasSettings": preset.has_settings,
+            "defaults": preset.defaults.iter()
+                .map(|(key, value)| (key.clone(), value.to_nix()))
+                .collect::<std::collections::BTreeMap<_, _>>(),
+            "fields": fields.iter().map(|field| json!({
+                "name": field.name,
+                "widget": field.widget.map(|widget| format!("{widget:?}").to_lowercase()),
+                "label": field.label,
+                "description": field.description,
+                "choices": field.choices,
+                "min": field.min,
+                "max": field.max,
+                "step": field.step,
+                "unit": field.unit,
+            })).collect::<Vec<_>>(),
+        })).collect::<Vec<_>>(),
         "inserts": menu.inserts.iter().map(|marker| json!({
             "name": marker.name,
             "group": marker.group,

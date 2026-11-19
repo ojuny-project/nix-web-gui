@@ -74,8 +74,8 @@ Dispatch order in `Control.svelte`:
 | `File` | `file` | `Text.svelte` plus `MediaPicker.svelte` with upload and delete |
 | `Menu` | `menu` | Generic child controls with add, remove, and rename |
 | `Plugins` | `plugins` | Generic child controls; no row actions until the dedicated plugin editor lands |
-| `Bar` | `bar` | Generic child controls; list-valued sections edit as structured lists |
-| `Dock` | `dock` | Generic child controls; list-valued sections edit as structured lists |
+| `Bar` | `bar` | Generic child cards; `@widget-preset` entries can seed list rows |
+| `Dock` | `dock` | Generic child cards; `@widget-preset` entries can seed list rows |
 | `Font` | `font` | `Select.svelte` from `catalog.styles`; monospace filtering and a live font preview |
 | `IconTheme` | `icon-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails; variant filtering |
 | `CursorTheme` | `cursor-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails |

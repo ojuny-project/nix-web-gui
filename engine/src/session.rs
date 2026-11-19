@@ -585,6 +585,7 @@ impl SettingsSession {
         parent_path: &str,
         key: &str,
         mode: Option<(u32, u32, f64)>,
+        defaults: &[(String, String)],
     ) -> Result<(), String> {
         if !self.staged.is_empty() {
             return Err("save or discard staged changes before adding a row".to_string());
@@ -594,8 +595,32 @@ impl SettingsSession {
             .cloned()
             .ok_or_else(|| format!("unknown option path: {parent_path}"))?;
         let widget = crate::render::choose_widget(&record, None);
-        let template = crate::structure::child_template(widget, key, mode, None, &record.spec)?;
         let kind = nix_settings_gui::value::classify(&record.value);
+        let list_strings = kind == nix_settings_gui::value::ValueKind::List
+            && nix_settings_gui::value::list_items(&record.value)
+                .map(|items| {
+                    items.iter().all(|item| {
+                        nix_settings_gui::value::classify(item)
+                            == nix_settings_gui::value::ValueKind::String
+                    })
+                })
+                .unwrap_or(false);
+        let template = if list_strings && widget == WidgetKind::List {
+            crate::render::quote(key.trim())
+        } else if kind == nix_settings_gui::value::ValueKind::List
+            && widget == WidgetKind::List
+        {
+            let mut parts = vec![format!("id = {};", crate::render::quote(key.trim()))];
+            for (field, literal) in defaults {
+                parts.push(format!(
+                    "{} = {literal};",
+                    crate::structure::attr_path(field)?
+                ));
+            }
+            format!("{{ {} }}", parts.join(" "))
+        } else {
+            crate::structure::child_template(widget, key, mode, None, &record.spec)?
+        };
         let offset = closing_offset(&record.value, kind)?;
         let insertion = match kind {
             nix_settings_gui::value::ValueKind::AttrSet => {
@@ -1383,7 +1408,7 @@ mod tests {
         .unwrap();
 
         let mut session = SettingsSession::open(root.to_str().unwrap()).unwrap();
-        session.add_child("users.users", "bob", None).unwrap();
+        session.add_child("users.users", "bob", None, &[]).unwrap();
         let saved = std::fs::read_to_string(&file).unwrap();
         assert!(saved.contains("bob ="));
         assert!(saved.matches("bob =").count() >= 2);
@@ -1403,7 +1428,7 @@ mod tests {
         assert!(saved.matches("alicia =").count() >= 2);
         assert!(!saved.contains("alice ="));
 
-        session.add_child("keybinds", "terminal", None).unwrap();
+        session.add_child("keybinds", "terminal", None, &[]).unwrap();
         let saved = std::fs::read_to_string(&file).unwrap();
         assert!(saved.contains("terminal ="));
         assert!(saved.contains("modifier = [ ];"));
@@ -1428,7 +1453,14 @@ mod tests {
         session
             .describe_page_local(&file.display().to_string())
             .unwrap();
-        session.add_child("bar.left", "battery", None).unwrap();
+        session
+            .add_child(
+                "bar.left",
+                "battery",
+                None,
+                &[("enabled".to_string(), "true".to_string())],
+            )
+            .unwrap();
         session
             .describe_page_local(&file.display().to_string())
             .unwrap();
@@ -1436,6 +1468,7 @@ mod tests {
             .move_child("bar.left", "bar.left.[1]", -1)
             .unwrap();
         let saved = std::fs::read_to_string(&file).unwrap();
+        assert!(saved.contains("enabled = true"), "{saved}");
         let battery = saved.find("id = \"battery\"").unwrap();
         let clock = saved.find("id = \"clock\"").unwrap();
         assert!(battery < clock, "{saved}");

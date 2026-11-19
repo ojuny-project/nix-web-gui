@@ -138,7 +138,9 @@ feature and hardening gaps.
 - [ ] Docker row editor. Rows can be added and removed and fields edit
       generically.
 - [x] Generic grid registry ids are offered when adding a card.
-- [ ] Tile catalog and `@widget-preset` fields for bar and dock.
+- [x] `@widget-preset` tiles are offered when adding bar and dock entries and
+      their defaults are written.
+- [ ] Preset-specific field editors (`@widget-preset-field`) in the add dialog.
 - [ ] Theme, font, icon, and cursor DMS catalogs.
 - [ ] The minimal build hides every Ojuny record, including its children, and
       shows the unavailable notice. It has no dedicated Ojuny components to

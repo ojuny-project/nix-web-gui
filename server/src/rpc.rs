@@ -465,8 +465,20 @@ pub fn handle_with_progress(
                     mode.get("refresh")?.as_f64()?,
                 ))
             });
+            let defaults: Vec<(String, String)> = params
+                .get("defaults")
+                .and_then(Value::as_object)
+                .map(|values| {
+                    values
+                        .iter()
+                        .filter_map(|(key, value)| {
+                            Some((key.clone(), value.as_str()?.to_string()))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
             settings
-                .add_child(&path, &key, mode)
+                .add_child(&path, &key, mode, &defaults)
                 .map(|_| json!({ "added": true }))
                 .map_err(|error| (-32012, error))
         }),

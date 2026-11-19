@@ -30,6 +30,7 @@
     type ScanResult,
     type ScanSnippet,
     type StyleEntry,
+    type WidgetPreset,
     type User,
   } from "../api";
 
@@ -109,6 +110,7 @@
   let structureKey = "";
   let structureMode: { width: number; height: number; refresh: number } | null =
     null;
+  let structureDefaults: Record<string, string> = {};
   let structureBusy = false;
   let detectedOutputs: Array<{
     name: string;
@@ -1142,6 +1144,7 @@
     structureTarget = record;
     structureKey = "";
     structureMode = null;
+    structureDefaults = {};
     detectedOutputs = [];
     error = "";
     if (record.widget === "monitors") {
@@ -1156,6 +1159,12 @@
       }
     }
     if (record.widget === "users") structureKey = "newuser";
+  }
+
+  function choosePreset(preset: WidgetPreset) {
+    structureKey = preset.id;
+    structureDefaults = { ...preset.defaults };
+    structureMode = null;
   }
 
   function chooseOutput(output: (typeof detectedOutputs)[number]) {
@@ -1179,6 +1188,7 @@
           path: structureTarget.path,
           key: structureKey,
           mode: structureMode,
+          defaults: structureDefaults,
         },
         user.csrf,
       );
@@ -2319,6 +2329,28 @@
               </span>
               <input bind:value={structureKey} />
             </label>
+            {#if structureTarget.widget === "list" && (currentMenu?.widgetPresets?.length ?? 0) > 0}
+              {@const section = structureTarget.path.split(".").at(-1) ?? ""}
+              {@const presets = (currentMenu?.widgetPresets ?? []).filter(
+                (preset) =>
+                  preset.sections.length === 0 || preset.sections.includes(section),
+              )}
+              {#if presets.length}
+                <div class="toolbar">
+                  {#each presets as preset (preset.id)}
+                    <button
+                      type="button"
+                      class="ghost"
+                      class:active={structureKey === preset.id}
+                      title={preset.description ?? preset.label}
+                      onclick={() => choosePreset(preset)}
+                    >
+                      {preset.icon ? `${preset.icon} ` : ""}{preset.label || preset.id}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            {/if}
             {#if structureTarget.widget === "grid-configuration" && structureTarget.gridRegistry?.length}
               <div class="toolbar">
                 {#each structureTarget.gridRegistry as card (card)}
