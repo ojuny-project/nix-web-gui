@@ -10,16 +10,22 @@ pkgs.testers.nixosTest {
     services.nix-web-gui = {
       enable = true;
       package = self.packages.${system}.default;
-      allowedGroups = [ "wheel" ];
+      allowedGroups = [ "wheel" "users" ];
     };
 
     users.users.alice = {
       isNormalUser = true;
       extraGroups = [ "wheel" ];
+      homeMode = "0700";
       password = "secret";
     };
 
     users.users.bob = {
+      isNormalUser = true;
+      password = "secret";
+    };
+
+    users.users.carol = {
       isNormalUser = true;
       password = "secret";
     };
@@ -105,10 +111,28 @@ pkgs.testers.nixosTest {
         "-d '{\"username\":\"alice\",\"password\":\"wrong\"}'"
     )
 
+    bob_csrf = machine.succeed(
+        "curl -fsS -c /tmp/bob.cookies "
+        "-X POST http://127.0.0.1:8787/api/login "
+        "-H 'content-type: application/json' "
+        "-d '{\"username\":\"bob\",\"password\":\"secret\"}' "
+        "| jq -r '.csrf'"
+    ).strip()
+
+    bob_opened = machine.succeed(
+        f"curl -fsS -b /tmp/bob.cookies "
+        "-X POST http://127.0.0.1:8787/api/rpc "
+        "-H 'content-type: application/json' "
+        f"-H 'x-csrf-token: {bob_csrf}' "
+        "-d '{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"session.open\",\"params\":{\"root\":\"/home/alice/nwg-flake\"}}'"
+    )
+    machine.log(bob_opened)
+    assert "error" in json.loads(bob_opened)
+
     machine.fail(
         "curl -fsS -X POST http://127.0.0.1:8787/api/login "
         "-H 'content-type: application/json' "
-        "-d '{\"username\":\"bob\",\"password\":\"secret\"}'"
+        "-d '{\"username\":\"carol\",\"password\":\"secret\"}'"
     )
   '';
 }

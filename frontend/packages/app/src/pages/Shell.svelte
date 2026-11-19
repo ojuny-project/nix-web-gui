@@ -176,7 +176,15 @@
   }
 
   $: sortedMenus = sortMenus(menus);
+  $: ojunyPaths = OJUNY_WIDGETS
+    ? []
+    : records
+        .filter((record) => OJUNY_WIDGET_KINDS.has(record.widget ?? ""))
+        .map((record) => record.path);
   $: visibleRecords = records.filter((record) => {
+    if (!OJUNY_WIDGETS && ojunyPaths.some((path) => record.path.startsWith(`${path}.`))) {
+      return false;
+    }
     if (record.hidden && !advanced) return false;
     if (!visibleWhenHolds(record)) return false;
     if (!searchTerm) return true;

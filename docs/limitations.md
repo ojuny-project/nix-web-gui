@@ -188,8 +188,9 @@ Everything else is a request and a response:
 - `apply.run` runs a shell command and returns at the end.
 - `flake.update.check` runs every requested input check before returning.
 
-There is no progress stream or cancellation for scan, save, apply, or update
-checks.
+In-process development mode has no worker process, so `job.cancel` reports that
+there is no running job. There is no progress stream or cancellation for scan,
+save, apply, or update checks.
 
 The client serializes live apply calls with one queue and keeps the latest value
 per path, so a debounce cannot run two `apply.run` calls at once. The server does

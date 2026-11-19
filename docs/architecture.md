@@ -103,8 +103,10 @@ the worker.
 6. The worker is cached under the session id and reused for later RPC calls.
    The worker holds one `Option<SettingsSession>`, so it has one open root at a
    time.
-7. `POST /api/logout` removes the session and the worker map entry. Dropping the
-   `Worker` calls `start_kill` on the child.
+7. `POST /api/logout` removes the session, the worker map entry, and the pid map
+   entry. Dropping the `Worker` calls `start_kill` on the child. `job.cancel`
+   looks up the recorded pid, sends `SIGTERM`, and drops the worker entry; the
+   next RPC spawns a fresh worker.
 8. An expired session is removed from `SessionStore` on lookup. A five-minute
    task also calls `purge_expired` and `purge_stale_engine`, so expired sessions
    and workers or in-process state for missing sessions are dropped.
@@ -186,18 +188,31 @@ Response line, written by the worker:
 The envelope is the same one the browser uses at `/api/rpc`. The parent builds
 it in `/home/den/repos/ojuny-future-repos/nix-web-gui/server/src/http.rs` and
 forwards the `id`, `method`, and `params` unchanged. The worker dispatches it
-with the same `rpc::handle` function that serves in-process mode, so method
-names, params, results, and error codes are identical.
+with `rpc::handle_with_progress`, the same dispatcher that serves in-process
+mode, so method names, params, results, and error codes are identical.
+
+A long method may write progress lines before its response. Each is a complete
+JSON object with `method: "progress"` and no `id`:
+
+```json
+{"method":"progress","params":{"job":"rebuild","line":"building '/nix/store/...'"}}
+```
+
+The parent `Worker::request` loop reads lines until it sees one without the
+`progress` method, adds the session id, and forwards progress to the
+`/api/events` SSE stream. The browser filters on its own session id.
 
 Worker loop in `/home/den/repos/ojuny-future-repos/nix-web-gui/server/src/worker.rs`:
 
 1. read one line from stdin;
 2. skip blank lines;
 3. parse the line, or answer `-32700` with `id: null` on a parse error;
-4. handle the request against the worker's `Option<SettingsSession>`;
+4. handle the request against the worker's `Option<SettingsSession>`, writing
+   any progress lines immediately and flushing;
 5. write the response line and flush.
 
-The loop is single threaded. Only one request is in flight per worker. Stderr is
+The loop is single threaded. Only one request is in flight per worker. The
+parent's worker mutex enforces the same rule from the HTTP side. Stderr is
 not part of the protocol.
 
 ## Request proxy and failure path
