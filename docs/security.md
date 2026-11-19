@@ -131,18 +131,19 @@ the signed-in account's worker. The configuration write inserts only the missing
 Lanzaboote assignments into the module that owns the Secure Boot toggle and
 refuses a path outside the configuration root.
 
-There is no per-action password re-authentication and no `sudo -S` input path.
-`apply.run` and `rebuild.run` run as the signed-in account inside its worker and
-depend on that account's sudo configuration. There is no general root helper and
-no arbitrary root command.
+Secure Boot setup, rebuild, and reboot require the device password and verify it
+through PAM in the root parent. `rebuild.run` can feed an optional password to
+`sudo -S` when the configured command uses sudo. `apply.run` runs as the
+signed-in account and follows its sudo policy. There is no general root helper
+and no arbitrary root command.
 
 ## PAM
 
-The NixOS module defines `security.pam.services.nix-web-gui` with explicit
-`auth required pam_unix.so` and `account required pam_unix.so` lines. It does
-not include the full `system-auth` stack, account expiry, password quality, or
-multi-factor modules. The allowlist groups are checked after PAM
-authentication.
+The NixOS module defines `security.pam.services.nix-web-gui` with the
+NixOS-generated authentication, account, password, and session stack instead of
+hard-coded lines. NixOS PAM modules configured for the service are inherited.
+The allowlist groups are checked after PAM authentication. MFA and faillock
+still need explicit VM coverage.
 
 ## Module shape rule
 
