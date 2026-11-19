@@ -310,7 +310,8 @@
     return (
       record.path.toLowerCase().includes(term) ||
       (record.label ?? "").toLowerCase().includes(term) ||
-      (record.description ?? "").toLowerCase().includes(term)
+      (record.description ?? "").toLowerCase().includes(term) ||
+      record.value.toLowerCase().includes(term)
     );
   }
 

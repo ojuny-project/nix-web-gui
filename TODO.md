@@ -34,7 +34,7 @@ feature and hardening gaps.
 - [x] Card row editor with key, modifier, keys, display label, and extra
       fields. Modifier and key lists use comma-separated text.
 - [ ] Pop-out editor for long field sets.
-- [ ] Search text from labels and fields.
+- [x] Search matches labels and the raw field values of composite rows.
 - [x] Add and remove rows through the generic structure editor. Reordering is
       still pending.
 - [x] Preserve `@table-item` label, hidden, and `visibleWhen` directives when a
