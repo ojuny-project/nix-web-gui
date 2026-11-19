@@ -136,6 +136,7 @@ account's worker and reads that account's file instead.
 | `structure.add` | implemented |
 | `structure.remove` | implemented |
 | `structure.rename` | implemented |
+| `structure.move` | implemented for list rows |
 | `monitor.detect` | implemented |
 | `flake.inputs` | implemented |
 | `flake.input.addAll` | implemented |
@@ -497,6 +498,32 @@ Response:
   "id": 9,
   "result": { "renamed": true }
 }
+```
+
+### `structure.move`
+
+Moves a direct list element by `offset` positions. Only list rows can move;
+attribute-set rows keep their key order.
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 31,
+  "method": "structure.move",
+  "params": {
+    "parent": "desktop.ojuny.bar.left",
+    "child": "desktop.ojuny.bar.left.[1]",
+    "offset": -1
+  }
+}
+```
+
+Response:
+
+```json
+{ "jsonrpc": "2.0", "id": 31, "result": { "moved": true } }
 ```
 
 ### `monitor.detect`

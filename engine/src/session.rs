@@ -690,6 +690,67 @@ impl SettingsSession {
         edit::apply(&edits, &self.root)?;
         self.reload()
     }
+    /// Move one list element by `offset` positions, used by bar and dock tile
+    /// sections and horizontal submodule lists.
+    pub fn move_child(
+        &mut self,
+        parent_path: &str,
+        child_path: &str,
+        offset: isize,
+    ) -> Result<(), String> {
+        if !self.staged.is_empty() {
+            return Err("save or discard staged changes before moving a row".to_string());
+        }
+        let parent = self
+            .record(parent_path)
+            .cloned()
+            .ok_or_else(|| format!("unknown option path: {parent_path}"))?;
+        if nix_settings_gui::value::classify(&parent.value)
+            != nix_settings_gui::value::ValueKind::List
+        {
+            return Err("only list rows can be moved".to_string());
+        }
+        let parent_segments = parent.path_segments().to_vec();
+        let child_segments: Vec<String> = child_path
+            .split('.')
+            .filter(|segment| !segment.is_empty())
+            .map(str::to_string)
+            .collect();
+        let Some(relative) = child_segments.strip_prefix(parent_segments.as_slice()) else {
+            return Err("the row is not inside the selected widget".to_string());
+        };
+        if relative.len() != 1 {
+            return Err("only a direct list element can be moved".to_string());
+        }
+        let elements = scan_list_elements(&parent);
+        let index = elements
+            .iter()
+            .position(|element| element.segments == relative)
+            .ok_or_else(|| "cannot locate the list element".to_string())?;
+        let target = index as isize + offset;
+        if target < 0 || target as usize >= elements.len() {
+            return Err("the row is already at the edge".to_string());
+        }
+        let target = target as usize;
+        if index == target {
+            return Ok(());
+        }
+        let moved = edit::PendingEdit {
+            file: parent.file.clone(),
+            start: parent.byte_start + elements[index].byte_start,
+            end: parent.byte_start + elements[index].byte_end,
+            value: elements[target].value.clone(),
+        };
+        let replaced = edit::PendingEdit {
+            file: parent.file.clone(),
+            start: parent.byte_start + elements[target].byte_start,
+            end: parent.byte_start + elements[target].byte_end,
+            value: elements[index].value.clone(),
+        };
+        edit::apply(&[moved, replaced], &self.root)?;
+        self.reload()
+    }
+
     pub fn remove_child(&mut self, parent_path: &str, child_path: &str) -> Result<(), String> {
         if !self.staged.is_empty() {
             return Err("save or discard staged changes before removing a row".to_string());
@@ -1290,8 +1351,16 @@ mod tests {
             .describe_page_local(&file.display().to_string())
             .unwrap();
         session.add_child("bar.left", "battery", None).unwrap();
+        session
+            .describe_page_local(&file.display().to_string())
+            .unwrap();
+        session
+            .move_child("bar.left", "bar.left.[1]", -1)
+            .unwrap();
         let saved = std::fs::read_to_string(&file).unwrap();
-        assert!(saved.contains("id = \"battery\""), "{saved}");
+        let battery = saved.find("id = \"battery\"").unwrap();
+        let clock = saved.find("id = \"clock\"").unwrap();
+        assert!(battery < clock, "{saved}");
         let _ = std::fs::remove_dir_all(root);
     }
 

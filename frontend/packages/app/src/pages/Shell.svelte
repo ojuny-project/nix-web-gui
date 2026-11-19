@@ -982,6 +982,11 @@
     );
   }
 
+  function canMoveRow(record: ScanRecord): boolean {
+    const parent = parentOf(record);
+    return Boolean(parent && parent.widget === "list" && dirty.size === 0);
+  }
+
   function canRemoveRow(record: ScanRecord): boolean {
     const parent = parentOf(record);
     return Boolean(
@@ -1062,6 +1067,22 @@
       await reloadStructure();
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Cannot rename the row";
+    }
+  }
+
+  async function moveStructureRow(record: ScanRecord, offset: number) {
+    const parent = parentOf(record);
+    if (!parent) return;
+    error = "";
+    try {
+      await rpc(
+        "structure.move",
+        { parent: parent.path, child: record.path, offset },
+        user.csrf,
+      );
+      await reloadStructure();
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot move the row";
     }
   }
 
@@ -1966,8 +1987,22 @@
                     </button>
                   </div>
                 {/if}
-                {#if canRenameRow(record) || canRemoveRow(record)}
+                {#if canRenameRow(record) || canRemoveRow(record) || canMoveRow(record)}
                   <div class="inline-actions">
+                    {#if canMoveRow(record)}
+                      <button
+                        class="ghost"
+                        onclick={() => moveStructureRow(record, -1)}
+                      >
+                        Move up
+                      </button>
+                      <button
+                        class="ghost"
+                        onclick={() => moveStructureRow(record, 1)}
+                      >
+                        Move down
+                      </button>
+                    {/if}
                     {#if canRenameRow(record)}
                       <button
                         class="ghost"

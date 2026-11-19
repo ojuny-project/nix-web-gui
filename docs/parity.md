@@ -108,8 +108,9 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 
 - The generic nested editor replaces dedicated keybind, monitor, user-card, and
   Ojuny renderers. The desktop layouts, tile catalog, bar and dock tile
-  actions, grid canvas, and plugin registry are still pending. Tile rows for
-  bar and dock can be added with an id and edited as structured list elements.
+  actions, grid canvas, and plugin registry are still pending. Bar and dock tile
+  rows can be added, removed, renamed, moved, and edited as structured list
+  elements.
 - Wallpaper cycle settings next to the option are pending.
 - Icon-theme and cursor-theme preview sheets are pending.
 - Secure Boot has no per-action privileged re-authentication. Actions run in the

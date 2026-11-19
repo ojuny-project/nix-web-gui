@@ -131,10 +131,10 @@ feature and hardening gaps.
       through the generic structure editor.
 - [ ] Plugins editor with the DMS registry and declarative settings QML controls.
       Plugin rows can be added and removed; their settings edit generically.
-- [ ] Bar editor with move actions. Tile add, remove, rename, and field editing
-      work through the structured list view.
-- [ ] Dock editor with extras. Tile add, remove, rename, and field editing work
-      through the structured list view.
+- [x] Bar tile add, remove, rename, move, and field editing through the
+      structured list view.
+- [x] Dock tile add, remove, rename, move, and field editing through the
+      structured list view.
 - [ ] Grid editor with card canvas, drag, resize, catalog sizes, and profiles.
 - [ ] Docker row editor. Rows can be added and removed and fields edit
       generically.

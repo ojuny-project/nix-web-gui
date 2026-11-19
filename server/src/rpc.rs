@@ -458,6 +458,18 @@ pub fn handle_with_progress(
                 .map(|_| json!({ "renamed": true }))
                 .map_err(|error| (-32012, error))
         }),
+        "structure.move" => with_settings(session, |settings| {
+            let parent = string_param(&params, "parent");
+            let child = string_param(&params, "child");
+            let offset = params
+                .get("offset")
+                .and_then(Value::as_i64)
+                .unwrap_or(0) as isize;
+            settings
+                .move_child(&parent, &child, offset)
+                .map(|_| json!({ "moved": true }))
+                .map_err(|error| (-32012, error))
+        }),
         "monitor.detect" => Ok(nix_web_gui_engine::structure::detect_monitors()),
         "insert.apply" => with_settings(session, |settings| {
             let file = string_param(&params, "file");
