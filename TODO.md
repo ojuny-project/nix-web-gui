@@ -1,8 +1,8 @@
 # TODO
 
 Missing or partial work in nix-web-gui. The engine, server, frontend, worker VM
-test, minimal package, and minimal-flag check pass. The remaining items below are
-feature and hardening gaps.
+test, packages, browser check, and static checks pass. The only open item is the
+undecided binary release manifest.
 
 ## Verification gaps
 
