@@ -70,7 +70,7 @@ Dispatch order in `Control.svelte`:
 | `Keybinds` | `keybinds` | Generic child controls with add, remove, and rename of rows |
 | `Monitors` | `monitors` | Generic child controls; the add-row panel can detect outputs |
 | `Theme` | `theme` | `ThemePicker.svelte` with search and swatches |
-| `Wallpaper` | `wallpaper` | `Text.svelte` plus `MediaPicker.svelte` with upload and delete |
+| `Wallpaper` | `wallpaper` | `Text.svelte` plus `MediaPicker.svelte` with presets, upload, and delete |
 | `File` | `file` | `Text.svelte` plus `MediaPicker.svelte` with upload and delete |
 | `Menu` | `menu` | Generic child controls with add, remove, and rename |
 | `Plugins` | `plugins` | Generic child controls; no row actions until the dedicated plugin editor lands |

@@ -285,7 +285,9 @@ For a `wallpaper` or `file` record, a media grid is rendered under the control:
 - `Delete` calls `preview.delete` after a confirmation;
 - `Refresh` reloads the listing.
 
-Wallpaper images accept `png`, `jpg`, `jpeg`, `webp`, `svg`, and `gif`. File
+A wallpaper option with `presetSource` shows a Presets section generated from
+that flake input, with previews; choosing a preset stages its name. Wallpaper
+images accept `png`, `jpg`, `jpeg`, `webp`, `svg`, and `gif`. File
 widgets accept those image types plus `pdf`, `txt`, and `md`, or the extensions
 declared on the option. Table icon and image columns use a file picker that
 uploads into `iconDir`, shows a thumbnail, and stages the returned file name in

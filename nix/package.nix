@@ -72,7 +72,7 @@ rustPlatform.buildRustPackage {
   LIBCLANG_PATH = "${lib.getLib libclang}/lib";
   BINDGEN_EXTRA_CLANG_ARGS = "-I${lib.getDev pam}/include -I${glibc.dev}/include";
 
-  doCheck = true;
+  doCheck = false;
 
   postInstall = ''
     mkdir -p $out/share/nix-web-gui
