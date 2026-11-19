@@ -64,7 +64,8 @@ Implemented end to end:
   `profileCatalog`. Table `@table-item` directives are preserved, and icon and
   image columns show thumbnails.
 - Secure Boot status plus key creation, migration, enrollment, config writes,
-  rebuild, and reboot from the root service account.
+  rebuild, and reboot from the root service account, each privileged action
+  re-authenticated with the device password.
 - Default and minimal packages. The minimal UI hides the descendants of Ojuny
   records and shows the unavailable notice in their place.
 - `checks.parity`, `checks.boundaries`, `checks.minimal-flag`, and the NixOS
