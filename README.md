@@ -60,11 +60,10 @@ Not yet implemented:
   structured renderer.
 - Dedicated keybind, monitor, and user cards. Their rows support add, remove,
   rename, and field editing through the generic renderer.
-- Wallpaper preset sources, icon and cursor theme preview sheets, and custom
-  wallpaper paths.
-- Streamed and cancellable scan, save, apply, and rebuild output.
-- Playwright and frontend unit tests, a portable release flake input, release
-  workflow, and prebuilt binaries.
+- Icon and cursor theme preview sheets and custom wallpaper paths.
+- Streamed and cancellable scan, save, apply, and update-check output.
+- Playwright and frontend unit tests, a portable release flake input,
+  `binary-url.json`, and prebuilt binary update checks.
 
 The NixOS VM auth test passes. It verifies service startup, alice login,
 wrong-password rejection, bob login through an allowed group but refusal to read
