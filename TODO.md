@@ -30,9 +30,8 @@ feature and hardening gaps.
 
 ### Keybinds
 
-- [ ] Dedicated row editor with key, modifier, keys, display label, and extra
-      fields. Rows currently render as nested child controls.
-- [ ] Comma-separated modifier and key lists rendered as Nix string lists.
+- [x] Card row editor with key, modifier, keys, display label, and extra
+      fields. Modifier and key lists use comma-separated text.
 - [ ] Pop-out editor for long field sets.
 - [ ] Search text from labels and fields.
 - [x] Add and remove rows through the generic structure editor. Reordering is
@@ -44,18 +43,17 @@ feature and hardening gaps.
 
 - [x] Live detection through `monitor_detect` and `wlr-randr` for the add-row
       picker.
-- [ ] Output cards with width, height, refresh, position, scale, transform,
-      primary, mirror, and enabled state. Existing fields edit through the
-      generic child controls.
-- [ ] Grouped color, HDR, sync, render, signal, reserved, hot-corner, and
-      background fields.
+- [x] Output cards with the geometry and feature fields. There is no drag
+      canvas.
+- [x] Feature fields render as grouped nested headings inside the output card.
 - [ ] `disabledFeatures` filtering in the editor and on save.
 - [ ] Preserve the output name as the attribute key.
 - [ ] Adapter behavior remains outside the widget and is unchanged.
 
 ### Users
 
-- [ ] Dedicated account cards instead of the generic nested editor.
+- [x] Account cards with the account fields, add, remove, rename, validation,
+      password action, and `home-manager.users` synchronization.
 - [x] Add, remove, and rename users through the generic structure editor.
 - [x] Validate account names, UIDs, shells, and the invariant that at least one
       normal sudo account with a password remains.
@@ -108,9 +106,9 @@ feature and hardening gaps.
 
 ### Submodules and horizontal submodules
 
-- [ ] Horizontal submodule grid capped by `maxColumns`.
+- [x] Horizontal submodule grid capped by `maxColumns`.
 - [ ] Per-child details rows and depth indentation parity.
-- [ ] Advanced and hidden child handling when the parent is advanced.
+- [x] Advanced and hidden child handling when the parent is advanced.
 
 ### Secure Boot
 

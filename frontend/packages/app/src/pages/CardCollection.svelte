@@ -15,6 +15,7 @@
   export let isVisible: (record: ScanRecord) => boolean;
   export let csrf: string;
   export let expandDetails = false;
+  export let maxColumns = 1;
   export let canAdd = false;
   export let canMove: (record: ScanRecord) => boolean = () => false;
   export let canRename: (record: ScanRecord) => boolean = () => false;
@@ -57,7 +58,10 @@
   }
 </script>
 
-<div class="card-collection">
+<div
+  class="card-collection"
+  style={maxColumns > 1 ? `grid-template-columns: repeat(${maxColumns}, minmax(0, 1fr));` : undefined}
+>
   <h3 class="group-heading">{parent.label ?? parent.path}</h3>
   {#if canAdd}
     <div class="toolbar">

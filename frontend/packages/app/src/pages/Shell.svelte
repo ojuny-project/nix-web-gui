@@ -1981,6 +1981,7 @@
                   isVisible={cardRecordVisible}
                   csrf={user.csrf}
                   expandDetails={expandDetailsDefault}
+                  maxColumns={record.maxColumns ?? 1}
                   canAdd={canAddRow(record)}
                   canMove={canMoveRow}
                   canRename={canRenameRow}

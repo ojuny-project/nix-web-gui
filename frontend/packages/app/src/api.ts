@@ -101,6 +101,7 @@ export type ScanRecord = {
   visibleWhen?: Visibility | null;
   children?: ScanRecord[] | null;
   depth?: number | null;
+  maxColumns?: number | null;
   monospace?: boolean;
   variant?: string | null;
   table?: TableJson | null;
