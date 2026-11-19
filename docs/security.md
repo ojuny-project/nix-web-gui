@@ -56,8 +56,9 @@ carries `X-Forwarded-Proto: https`.
 
 - The HTTP listener is loopback-only by default. A non-loopback address requires
   `services.nix-web-gui.allowRemote = true` and a non-empty allowed group list.
-- TLS is terminated by a reverse proxy. There is no built-in certificate
-  authority or TLS listener.
+- TLS is out of scope. The service is designed for loopback use. If an operator
+  exposes it through a reverse proxy, certificate management and proxy
+  hardening are their responsibility.
 - Mutating RPC calls require the per-session CSRF token in `X-CSRF-Token`.
 - `POST /api/login`, `POST /api/logout`, and `POST /api/rpc` check the `Origin`
   header. An `Origin` that does not match the request `Host` is rejected, and

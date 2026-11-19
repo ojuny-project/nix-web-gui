@@ -238,7 +238,7 @@ Exposing the service beyond loopback puts a root parent that performs PAM
 authentication, runs the Secure Boot setup actions, and spawns per-user workers
 on the network. Before doing it:
 
-- There is no built-in TLS listener. A proxy must terminate TLS.
+- There is no built-in TLS listener. The service is designed for loopback use; a proxy is the operator's responsibility.
 - PAM uses explicit `pam_unix.so` lines, without the full `system-auth` stack,
   account expiry, or multi-factor modules.
 - Secure Boot setup, rebuild, and reboot have no per-action password

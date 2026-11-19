@@ -210,7 +210,9 @@ feature and hardening gaps.
 - [x] Cross-user file-isolation VM test for bob against alice's flake.
 - [x] A documented policy for privileged actions: the service parent runs as
       root and only fixed engine commands are executed.
-- [ ] TLS is still terminated by a reverse proxy and is not built in.
+- [x] TLS is intentionally out of scope for the local-only design. Users who
+      expose the service through a reverse proxy own the certificate and proxy
+      hardening.
 - [ ] `allowRemote` remains a gate; production remote exposure still needs the
       hardening above.
 
