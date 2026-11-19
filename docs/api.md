@@ -139,6 +139,7 @@ account's worker and reads that account's file instead.
 | `structure.remove` | implemented |
 | `structure.rename` | implemented |
 | `structure.move` | implemented for list rows |
+| `structure.addField` | implemented |
 | `monitor.detect` | implemented |
 | `flake.inputs` | implemented |
 | `flake.input.addAll` | implemented |
@@ -534,6 +535,37 @@ Response:
 ```json
 { "jsonrpc": "2.0", "id": 31, "result": { "moved": true } }
 ```
+
+### `structure.addField`
+
+Inserts a field into an attribute-set row, or updates it when present. Used by
+schema-driven plugin settings.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 32,
+  "method": "structure.addField",
+  "params": {
+    "parent": "desktop.ojuny.dux.plugins.clock",
+    "field": "settings",
+    "literal": "{ }"
+  }
+}
+```
+
+### `plugins.registry`
+
+Returns the DMS plugin registry when the flake declares one.
+
+```json
+{ "jsonrpc": "2.0", "id": 33, "method": "plugins.registry", "params": {} }
+```
+
+`plugins.schema` takes `{ "id": "clock" }` and returns typed controls parsed
+from that plugin's Settings.qml. `menu.providers` takes `{ "topLevel": true }`
+and returns provider labels, values, and field names; `menu.fieldHelp` takes a
+field name and returns its help text.
 
 ### `monitor.detect`
 
