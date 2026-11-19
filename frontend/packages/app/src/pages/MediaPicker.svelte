@@ -151,6 +151,22 @@
   {#if presetError}
     <p class="error">{presetError}</p>
   {/if}
+  {#if record.widget === "wallpaper"}
+    <div class="media-grid">
+      <button
+        class="media-item"
+        class:selected={selected === "null"}
+        type="button"
+        onclick={() => {
+          selected = "null";
+          onchange(record.path, null);
+        }}
+      >
+        <span class="media-placeholder">auto</span>
+        <span class="media-name">Default preset</span>
+      </button>
+    </div>
+  {/if}
   {#if presets.length}
     <h4 class="media-heading">Presets</h4>
     <div class="media-grid">

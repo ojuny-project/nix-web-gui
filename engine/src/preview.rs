@@ -183,6 +183,7 @@ pub fn upload(
         .map_err(|error| error.to_string())?;
     std::fs::write(&target, data)
         .map_err(|error| format!("cannot write {}: {error}", target.display()))?;
+    stage(&root, &target);
     Ok(json!({
         "name": name,
         "value": name,
@@ -213,7 +214,18 @@ pub fn delete(session: &SettingsSession, option_path: &str, name: &str) -> Resul
     }
     std::fs::remove_file(&target)
         .map_err(|error| format!("cannot remove {}: {error}", target.display()))?;
+    stage(&root, &target);
     Ok(json!({ "deleted": name }))
+}
+
+fn stage(root: &Path, path: &Path) {
+    if let Ok(relative) = path.strip_prefix(root) {
+        let _ = std::process::Command::new("git")
+            .args(["add", "-A", "--"])
+            .arg(relative)
+            .current_dir(root)
+            .output();
+    }
 }
 
 fn session_root(session: &SettingsSession) -> Result<PathBuf, String> {
