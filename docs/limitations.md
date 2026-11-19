@@ -115,8 +115,9 @@ widgets. They use the generic nested editor. The exact mapping is in
 - `keybinds`: no dedicated row editor and no comma-list handling. Add, remove,
   and rename work on the rows.
 - `menu`, `plugins`, `bar`, `dock`, `grid-configuration`, `docker`: no dedicated
-  Ojuny editors, catalogs, tile add, grid canvas, drag, resize, or profiles.
-  Existing rows edit through the generic controls.
+  Ojuny editors, catalogs, grid canvas, drag, resize, or profiles. Existing rows
+  edit through the generic controls, and bar or dock tile rows can be added with
+  an id.
 - `bar` and `dock`: list-valued sections with attribute-set elements are
   described as child controls. Lists of plain strings keep the list editor.
 - `wallpaper` and `file`: the media picker lists, previews, uploads, and deletes
@@ -242,9 +243,10 @@ option, Discard, Diff, Save, and Save & rebuild.
 
 The remaining limits are about feedback, not reachability:
 
-- a rebuild returns its whole output only when the command finishes; there is no
-  streamed progress and no cancel button;
-- a scan, save, update check, or apply likewise returns one blocking response;
+- a rebuild streams output lines and has a Cancel button, but cancelling
+  terminates the worker and reopens the session;
+- a scan, save, update check, or apply returns one blocking response and has no
+  cancel action;
 - the config panel no longer shows `terminal_command`, because the web frontend
   never opens a terminal. The stored value is preserved for the desktop app.
 

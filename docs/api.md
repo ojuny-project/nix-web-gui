@@ -152,7 +152,8 @@ account's worker and reads that account's file instead.
 | `git.commit` | implemented |
 | `git.push` | implemented |
 | `apply.run` | implemented |
-| `rebuild.run` | implemented |
+| `rebuild.run` | implemented, streams `progress` notes over `/api/events` |
+| `job.cancel` | implemented, terminates the session worker |
 | `catalog.styles` | implemented |
 | `secureboot.status` | implemented |
 | `secureboot.config` | implemented |
@@ -1074,8 +1075,27 @@ Response:
 }
 ```
 
-The call blocks until the command exits. The output is stdout on success. On
-failure the error message is the first non-empty stderr line.
+The call returns when the command exits. While it runs, `/api/events` sends one
+`progress` event per output line with `params.job = "rebuild"`. The response
+contains the full combined output. On failure the error message is the last
+non-empty output line.
+
+### `job.cancel`
+
+Stops the worker running a long job. The browser cookie stays valid; the next RPC
+starts a fresh worker, so the flake must be reopened.
+
+Request:
+
+```json
+{ "jsonrpc": "2.0", "id": 28, "method": "job.cancel", "params": {} }
+```
+
+Response:
+
+```json
+{ "jsonrpc": "2.0", "id": 28, "result": { "cancelled": true } }
+```
 
 ### `secureboot.status`
 

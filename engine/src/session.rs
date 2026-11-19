@@ -1257,6 +1257,30 @@ mod tests {
     }
 
     #[test]
+    fn adds_a_structured_list_element() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-list-add-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules")).unwrap();
+        let file = root.join("modules/system.nix");
+        std::fs::write(
+            &file,
+            "/* @menu displayname = \"Test\"; */\n{ ... }: {\n  /* @option widget = \"bar\"; label = \"Bar\"; */\n  bar = {\n    left = [ { id = \"clock\"; } ];\n  };\n}\n",
+        )
+        .unwrap();
+        let mut session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        session
+            .describe_page_local(&file.display().to_string())
+            .unwrap();
+        session.add_child("bar.left", "battery", None).unwrap();
+        let saved = std::fs::read_to_string(&file).unwrap();
+        assert!(saved.contains("id = \"battery\""), "{saved}");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn validates_the_users_invariant() {
         let root = std::env::temp_dir().join(format!(
             "nix-web-gui-users-{}-{:?}",
