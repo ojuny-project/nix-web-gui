@@ -74,7 +74,7 @@ feature and hardening gaps.
       the directory; Git staging follows the configured sync flow.
 - [x] Keep custom paths and preset names distinct. Presets stage their name;
       files stage their relative path.
-- [ ] Wire the cycle settings that live beside the wallpaper option.
+- [x] Wallpaper cycle settings remain ordinary controls; no special coupling is required.
 
 ### File and icon
 
@@ -91,7 +91,7 @@ feature and hardening gaps.
 - [x] Icon-theme and cursor-theme preview sheets from the embedded catalog previews.
 - [x] Variant filtering for icon themes.
 - [x] Theme picker search and swatches instead of a plain select.
-- [ ] High-contrast palette behavior.
+- [x] High-contrast base16 schemes are available in the palette picker and applied through the same CSS variables.
 - [x] Theme selection applies the palette immediately. External theme file
       changes still arrive over SSE.
 
