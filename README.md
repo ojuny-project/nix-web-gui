@@ -42,10 +42,16 @@ Implemented end to end:
 - Flake inputs with missing-input declarations, per-input check and update,
   nixpkgs refresh, Git status, diff, pull, push, commit, sync, config, startup
   page, and automatic Git pull or commit-and-push when configured.
-- Font previews, monospace and variant filtering, searchable theme swatches,
-  media upload and delete, icon-column upload, and composite row add, remove,
-  and rename. User rows validate the account invariant and follow
-  `home-manager.users`.
+- Font, icon-theme, and cursor-theme previews, monospace and variant filtering,
+  searchable theme swatches, media upload and delete, icon-column uploads, and
+  composite row cards with add, remove, rename, and order changes. User rows
+  validate the account invariant and follow `home-manager.users`. Keybind rows
+  use configurable field schemas and comma-separated list fields.
+- Wallpaper presets from the flake input, a default-preset choice, and
+  `git add` staging for uploaded and removed media.
+- Bar and dock rows can be seeded from `@widget-preset` metadata. Grid cards
+  render on the placement canvas and accept `gridRegistry` ids. The plugin
+  dialog lists uninstalled registry entries.
 - Secure Boot status plus key creation, migration, enrollment, config writes,
   rebuild, and reboot from the root service account.
 - Default and minimal packages. The minimal UI hides Ojuny records entirely and
@@ -58,10 +64,13 @@ Not yet implemented:
 - Dedicated Ojuny menu, plugins, bar, dock, grid, and docker editors, tile
   catalogs, and the grid canvas. Existing values edit through the generic
   structured renderer.
-- Dedicated keybind, monitor, and user cards. Their rows support add, remove,
-  rename, and field editing through the generic renderer.
-- Icon and cursor theme preview sheets and custom wallpaper paths.
-- Streamed and cancellable scan, save, and apply output.
+- Dedicated keybind and monitor canvases with drag and full desktop field
+  grouping. Cards currently cover add, remove, rename, order, and field edits.
+- Keybind and monitor pop-out editors, and the menu provider assistant.
+- Plugin settings QML controls for registry plugins.
+- Grid drag, resize, catalog sizes, and profiles.
+- Line-level streaming and cancellation for scan, save, and apply; rebuild and
+  update checks stream and cancel.
 - Playwright and frontend unit tests, a portable release flake input,
   `binary-url.json`, and prebuilt binary update checks.
 
