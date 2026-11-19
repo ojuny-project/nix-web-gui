@@ -40,10 +40,17 @@ server_pid=$!
 chrome_pid=""
 
 cleanup() {
+  status=$?
   if [ -n "$chrome_pid" ]; then
     kill "$chrome_pid" 2>/dev/null || true
   fi
   kill "$server_pid" 2>/dev/null || true
+  if [ "$status" -ne 0 ]; then
+    echo "--- chromium log ---" >&2
+    cat "$chrome_log" 2>/dev/null || true
+    echo "--- server log ---" >&2
+    cat "$server_log" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
 
