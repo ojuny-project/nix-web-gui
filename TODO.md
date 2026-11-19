@@ -89,7 +89,7 @@ feature and hardening gaps.
 
 - [x] Font previews and installed-only filtering from the catalog.
 - [x] Monospace filtering.
-- [ ] Icon-theme and cursor-theme preview sheets.
+- [x] Icon-theme and cursor-theme preview sheets from the embedded catalog previews.
 - [x] Variant filtering for icon themes.
 - [x] Theme picker search and swatches instead of a plain select.
 - [ ] High-contrast palette behavior.

@@ -10,6 +10,7 @@
     type ControlDescriptor,
     type ControlValue,
   } from "@nix-web-gui/ui";
+  import CardCollection from "./CardCollection.svelte";
   import MediaPicker from "./MediaPicker.svelte";
   import SecureBootPanel from "./SecureBootPanel.svelte";
   import {
@@ -182,18 +183,20 @@
     : records
         .filter((record) => OJUNY_WIDGET_KINDS.has(record.widget ?? ""))
         .map((record) => record.path);
+  $: cardPaths = new Set(
+    records
+      .filter((record) => (record.children?.length ?? 0) > 0)
+      .flatMap((record) => descendantPaths(record)),
+  );
   $: visibleRecords = records.filter((record) => {
     if (!OJUNY_WIDGETS && ojunyPaths.some((path) => record.path.startsWith(`${path}.`))) {
       return false;
     }
+    if (cardPaths.has(record.path)) return false;
     if (record.hidden && !advanced) return false;
     if (!visibleWhenHolds(record)) return false;
     if (!searchTerm) return true;
-    return (
-      record.path.toLowerCase().includes(searchTerm) ||
-      (record.label ?? "").toLowerCase().includes(searchTerm) ||
-      (record.description ?? "").toLowerCase().includes(searchTerm)
-    );
+    return subtreeMatches(record, searchTerm);
   });
   $: currentMenu = sortedMenus[selected];
   $: orderedRecords = [...visibleRecords].sort(
@@ -263,6 +266,23 @@
         )
         .slice(0, 40)
     : [];
+
+  function descendantPaths(record: ScanRecord): string[] {
+    return (record.children ?? []).flatMap((child) => [
+      child.path,
+      ...descendantPaths(child),
+    ]);
+  }
+
+  function subtreeMatches(record: ScanRecord, term: string): boolean {
+    if (matchesRecord(record, term)) return true;
+    return (record.children ?? []).some((child) => subtreeMatches(child, term));
+  }
+
+  function cardRecordVisible(record: ScanRecord): boolean {
+    if (record.hidden && !advanced) return false;
+    return visibleWhenHolds(record);
+  }
 
   function matchesRecord(record: ScanRecord, term: string): boolean {
     return (
@@ -960,6 +980,29 @@
         candidate.children?.some((child) => child.path === record.path),
       ) ?? null
     );
+  }
+
+  function styleEntriesFor(record: ScanRecord): StyleEntry[] {
+    if (record.widget === "icon-theme") {
+      return record.variant
+        ? iconEntries.filter((entry) => entry.variant === record.variant)
+        : iconEntries;
+    }
+    if (record.widget === "cursor-theme") return cursorEntries;
+    return [];
+  }
+
+  function stylePreview(entry: StyleEntry): string | null {
+    return entry.preview ?? entry.previews?.[0] ?? null;
+  }
+
+  function isKeybindCsv(record: ScanRecord): boolean {
+    if (!record.path.endsWith(".modifier") && !record.path.endsWith(".keys")) {
+      return false;
+    }
+    const row = parentOf(record);
+    const widget = row ? parentOf(row) : null;
+    return widget?.widget === "keybinds";
   }
 
   function canAddRow(record: ScanRecord): boolean {
@@ -1919,22 +1962,27 @@
                   This Ojuny widget is not available in the minimal build.
                 </p>
               {:else if record.children?.length}
-                <div class="structure-heading">
-                  <h3
-                    class="submodule-heading"
-                    style={`margin-left: ${(record.depth ?? 0) * 12}px`}
-                  >
-                    {record.label ?? record.path}
-                  </h3>
-                  {#if canAddRow(record)}
-                    <button
-                      class="ghost tiny"
-                      onclick={() => openStructureAdd(record)}
-                    >
-                      Add row
-                    </button>
-                  {/if}
-                </div>
+                <CardCollection
+                  parent={record}
+                  allRecords={records}
+                  values={values}
+                  descriptor={descriptor}
+                  onchange={onChange}
+                  isVisible={cardRecordVisible}
+                  csrf={user.csrf}
+                  expandDetails={expandDetailsDefault}
+                  canAdd={canAddRow(record)}
+                  canMove={canMoveRow}
+                  canRename={canRenameRow}
+                  canRemove={canRemoveRow}
+                  onadd={() => openStructureAdd(record)}
+                  onmove={moveStructureRow}
+                  onrename={renameStructureRow}
+                  onremove={removeStructureRow}
+                  onpassword={setPassword}
+                  onIconPick={pickIcon}
+                  onIconPreview={previewIcon}
+                />
               {:else if record.widget === "secureboot"}
                 <Control
                   descriptor={descriptor(record)}
@@ -1957,6 +2005,7 @@
                   expandDetails={expandDetailsDefault}
                   onIconPick={(current) => pickIcon(record, current)}
                   onIconPreview={(value) => previewIcon(record, value)}
+                  csvList={isKeybindCsv(record)}
                 />
                 {#if record.widget === "font"}
                   <p
@@ -1965,6 +2014,27 @@
                   >
                     The quick brown fox jumps over the lazy dog · 0123456789
                   </p>
+                {/if}
+                {#if record.widget === "icon-theme" || record.widget === "cursor-theme"}
+                  {@const previews = styleEntriesFor(record)
+                    .filter((entry) => stylePreview(entry))
+                    .slice(0, 12)}
+                  {#if previews.length}
+                    <div class="style-previews">
+                      {#each previews as entry (entry.value)}
+                        <button
+                          type="button"
+                          class="style-preview"
+                          class:selected={values[record.path] === entry.value}
+                          title={entry.label}
+                          onclick={() => onChange(record.path, entry.value)}
+                        >
+                          <img src={stylePreview(entry) ?? ""} alt={entry.label} />
+                          <span>{entry.label}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
                 {/if}
                 {#if record.widget === "wallpaper" || record.widget === "file" || record.widget === "icon"}
                   <MediaPicker

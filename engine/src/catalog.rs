@@ -1,5 +1,13 @@
+use base64::Engine as _;
 use nix_settings_gui::widgets::style_catalog;
 use serde_json::{json, Value};
+
+fn preview_data(bytes: &'static [u8]) -> String {
+    format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    )
+}
 
 pub fn kind_for_widget(widget: &str) -> Option<&'static str> {
     match widget {
@@ -40,6 +48,8 @@ pub fn styles(kind: &str) -> Result<Value, String> {
                     "package": entry.package,
                     "monospace": entry.monospace,
                     "variant": entry.variant,
+                    "preview": entry.preview.map(preview_data),
+                    "previews": entry.previews.iter().map(|bytes| preview_data(bytes)).collect::<Vec<_>>(),
                 })
             })
             .collect(),

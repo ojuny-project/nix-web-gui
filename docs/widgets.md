@@ -77,8 +77,8 @@ Dispatch order in `Control.svelte`:
 | `Bar` | `bar` | Generic child controls; list-valued sections edit as structured lists |
 | `Dock` | `dock` | Generic child controls; list-valued sections edit as structured lists |
 | `Font` | `font` | `Select.svelte` from `catalog.styles`; monospace filtering and a live font preview |
-| `IconTheme` | `icon-theme` | `Select.svelte` from `catalog.styles`; variant filtering |
-| `CursorTheme` | `cursor-theme` | `Select.svelte` from `catalog.styles` |
+| `IconTheme` | `icon-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails; variant filtering |
+| `CursorTheme` | `cursor-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails |
 | `Users` | `users` | Generic child controls with add, remove, and rename; `home-manager.users` follows when present |
 | `Facter` | `facter` | `Select.svelte` with `auto` plus profile choices |
 | `Docker` | `docker` | Generic child controls with add, remove, and rename |

@@ -28,6 +28,7 @@
   export let onIconPreview:
     | ((value: string) => Promise<string | null>)
     | undefined = undefined;
+  export let csvList = false;
 
   $: id = `control-${descriptor.path.replaceAll(".", "-")}`;
   $: disabled = descriptor.readonly === true;
@@ -95,13 +96,31 @@
       onchange={change}
     />
   {:else if descriptor.widget === "list" || descriptor.widget === "packages" || descriptor.widget === "nixos-modules" || descriptor.widget === "hm-modules"}
-    <ListInput
-      {id}
-      items={Array.isArray(value) ? (value as string[]) : []}
-      packages={descriptor.widget === "packages"}
-      {disabled}
-      onchange={change}
-    />
+    {#if csvList}
+      <input
+        {id}
+        type="text"
+        class="csv-input"
+        value={(Array.isArray(value) ? (value as string[]) : []).join(", ")}
+        {disabled}
+        placeholder="comma separated"
+        oninput={(event) =>
+          change(
+            event.currentTarget.value
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean),
+          )}
+      />
+    {:else}
+      <ListInput
+        {id}
+        items={Array.isArray(value) ? (value as string[]) : []}
+        packages={descriptor.widget === "packages"}
+        {disabled}
+        onchange={change}
+      />
+    {/if}
   {:else if descriptor.widget === "color"}
     <Color {id} value={String(value ?? "#000000")} {disabled} onchange={change} />
   {:else if !OJUNY_WIDGETS && OJUNY_WIDGET_KINDS.has(descriptor.widget)}

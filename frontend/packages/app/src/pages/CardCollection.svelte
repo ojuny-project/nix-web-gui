@@ -1,0 +1,141 @@
+<script lang="ts">
+  import {
+    Control,
+    type ControlDescriptor,
+    type ControlValue,
+  } from "@nix-web-gui/ui";
+  import MediaPicker from "./MediaPicker.svelte";
+  import type { ScanRecord } from "../api";
+
+  export let parent: ScanRecord;
+  export let allRecords: ScanRecord[];
+  export let values: Record<string, ControlValue>;
+  export let descriptor: (record: ScanRecord) => ControlDescriptor;
+  export let onchange: (path: string, value: ControlValue) => void;
+  export let isVisible: (record: ScanRecord) => boolean;
+  export let csrf: string;
+  export let expandDetails = false;
+  export let canAdd = false;
+  export let canMove: (record: ScanRecord) => boolean = () => false;
+  export let canRename: (record: ScanRecord) => boolean = () => false;
+  export let canRemove: (record: ScanRecord) => boolean = () => false;
+  export let onadd: () => void = () => {};
+  export let onmove: (record: ScanRecord, offset: number) => void = () => {};
+  export let onrename: (record: ScanRecord) => void = () => {};
+  export let onremove: (record: ScanRecord) => void = () => {};
+  export let onpassword: (record: ScanRecord) => void = () => {};
+  export let onIconPick: (
+    record: ScanRecord,
+    current: string,
+  ) => Promise<string | null> = async () => null;
+  export let onIconPreview: (
+    record: ScanRecord,
+    value: string,
+  ) => Promise<string | null> = async () => null;
+
+  $: rows = (parent.children ?? []).map((child) => ({
+    child,
+    records: allRecords.filter(
+      (record) =>
+        record.path === child.path || record.path.startsWith(`${child.path}.`),
+    ),
+  }));
+
+  function rowTitle(record: ScanRecord): string {
+    return record.label ?? record.path.split(".").at(-1) ?? record.path;
+  }
+
+  function bodyRecords(child: ScanRecord, records: ScanRecord[]): ScanRecord[] {
+    const rows = records.filter(
+      (record) => isVisible(record) && !(record.hidden && record.children?.length),
+    );
+    if (child.children?.length) {
+      return rows.filter((record) => record.path !== child.path);
+    }
+    return rows;
+  }
+</script>
+
+<div class="card-collection">
+  {#if canAdd}
+    <div class="toolbar">
+      <span class="spacer"></span>
+      <button class="ghost" onclick={onadd}>Add row</button>
+    </div>
+  {/if}
+
+  {#each rows as row (row.child.path)}
+    <section class="row-card">
+      <header class="row-card-head">
+        <strong>{rowTitle(row.child)}</strong>
+        <span class="spacer"></span>
+        {#if canMove(row.child)}
+          <button
+            class="ghost tiny"
+            onclick={() => onmove(row.child, -1)}
+          >
+            Up
+          </button>
+          <button
+            class="ghost tiny"
+            onclick={() => onmove(row.child, 1)}
+          >
+            Down
+          </button>
+        {/if}
+        {#if canRename(row.child)}
+          <button class="ghost tiny" onclick={() => onrename(row.child)}>
+            Rename
+          </button>
+        {/if}
+        {#if canRemove(row.child)}
+          <button class="ghost tiny" onclick={() => onremove(row.child)}>
+            Remove
+          </button>
+        {/if}
+      </header>
+      <div class="row-card-body">
+        {#each bodyRecords(row.child, row.records) as record (record.path)}
+          {#if record.children?.length}
+            <h4
+              class="nested-heading"
+              style={`margin-left: ${(record.depth ?? 0) * 10}px`}
+            >
+              {rowTitle(record)}
+            </h4>
+          {:else}
+            <Control
+              descriptor={descriptor(record)}
+              value={values[record.path]}
+              onchange={onchange}
+              {expandDetails}
+              onIconPick={(current) => onIconPick(record, current)}
+              onIconPreview={(value) => onIconPreview(record, value)}
+            />
+            {#if record.widget === "font"}
+              <p
+                class="font-preview"
+                style={`font-family: "${String(values[record.path] ?? "").replaceAll('"', "")}", sans-serif`}
+              >
+                The quick brown fox jumps over the lazy dog · 0123456789
+              </p>
+            {/if}
+            {#if record.widget === "wallpaper" || record.widget === "file"}
+              <MediaPicker {record} {csrf} onchange={onchange} />
+            {/if}
+            {#if record.path.endsWith(".hashedPassword")}
+              <div class="inline-actions">
+                <button class="ghost" onclick={() => onpassword(record)}>
+                  Set password
+                </button>
+              </div>
+            {/if}
+          {/if}
+        {/each}
+        {#if bodyRecords(row.child, row.records).length === 0}
+          <p class="muted small">No fields in this row.</p>
+        {/if}
+      </div>
+    </section>
+  {/each}
+</div>

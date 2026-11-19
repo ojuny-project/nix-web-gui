@@ -270,6 +270,8 @@ export type StyleEntry = {
   package: string;
   monospace: boolean;
   variant: string;
+  preview?: string | null;
+  previews?: string[];
 };
 
 export type SecureBootState = {
