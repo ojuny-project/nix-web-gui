@@ -130,12 +130,7 @@ in
       }
     ];
 
-    security.pam.services.nix-web-gui = {
-      text = ''
-        auth required pam_unix.so
-        account required pam_unix.so
-      '';
-    };
+    security.pam.services.nix-web-gui = { };
 
     environment.etc."nix-web-gui/theme".text = cfg.theme + "\n";
 

@@ -204,9 +204,10 @@ feature and hardening gaps.
 - [x] Origin check on mutating requests. Requests without an Origin header stay
       usable for CLI clients and are still gated by CSRF.
 - [x] Strict CSP and standard security headers.
-- [ ] Full PAM `system-auth` behavior. The service currently uses explicit
-      `pam_unix.so` auth and account lines.
-- [ ] PAM account expiration and multi-factor modules.
+- [x] Use the NixOS-generated PAM stack for the service instead of explicit
+      `pam_unix.so` lines.
+- [ ] Add explicit MFA and faillock coverage; the generated stack inherits the
+      NixOS account and session modules configured for the service.
 - [x] Audit log through structured tracing: login success and failure, rate
       limits, logout, and every RPC method with the account and outcome.
 - [x] Cross-user file-isolation VM test for bob against alice's flake.

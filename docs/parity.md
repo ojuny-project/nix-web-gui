@@ -134,7 +134,7 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 - Rebuild streams one line per output line and update checks stream one line per
   input; both can be cancelled by terminating the session worker. Scan, save, and
   apply send one stage line and have no cancellation or line-level progress.
-- Full PAM `system-auth`, account expiry, and multi-factor modules are pending.
+- The NixOS-generated PAM stack is used. Explicit MFA and faillock tests are pending.
 - Built-in TLS is out of scope for the local-only design; a remote reverse proxy is the operator's responsibility.
 - Playwright and frontend unit tests are pending. A manual headless Chromium
   smoke test lives at `tests/ui-smoke.mjs`; it is not part of `nix flake check`.
