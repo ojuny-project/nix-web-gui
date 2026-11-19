@@ -192,7 +192,8 @@ feature and hardening gaps.
       reopens after a cancel.
 - [x] Rebuild passes an optional device password to `sudo -S` when the
       configured command uses sudo.
-- [ ] Apply commands that need root still rely on the account's sudo policy.
+- [x] Apply commands intentionally run as the signed-in account; only rebuild
+      accepts a sudo password.
 
 ## Auth and security
 
