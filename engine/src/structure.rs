@@ -17,10 +17,20 @@ pub fn child_template(
         }
         WidgetKind::Keybinds => {
             let key_field = spec.bind_key_field.as_deref();
-            let fields = spec
-                .bind_fields
-                .clone()
-                .unwrap_or_else(|| vec!["modifier".to_string(), "keys".to_string()]);
+            let fields = spec.bind_fields.clone().unwrap_or_else(|| {
+                [
+                    "modifier",
+                    "keys",
+                    "dispatcher",
+                    "args",
+                    "description",
+                    "group",
+                    "subcat",
+                ]
+                .iter()
+                .map(|field| field.to_string())
+                .collect()
+            });
             let types = spec.bind_field_types.clone().unwrap_or_default();
             let mut parts = Vec::new();
             if let Some(key_field) = key_field {
@@ -50,7 +60,7 @@ pub fn child_template(
             format!("{{ {} }}", parts.join(" "))
         }
         WidgetKind::Monitors => format!(
-            "{{ width = {width}; height = {height}; refresh = {refresh}; xPos = 0; yPos = 0; scale = 1.0; }}"
+            "{{ width = {width}; height = {height}; refresh = {refresh}; xPos = 0; yPos = 0; scale = 1.0; transform = \"normal\"; }}"
         ),
         WidgetKind::Docker => {
             let field = |value: &Option<String>, default: &str| -> Option<String> {

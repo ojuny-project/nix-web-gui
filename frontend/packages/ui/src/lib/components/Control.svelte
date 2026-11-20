@@ -48,6 +48,7 @@
     "monitors",
     "users",
     "secureboot",
+    "secure-boot",
     "menu",
     "plugins",
     "bar",

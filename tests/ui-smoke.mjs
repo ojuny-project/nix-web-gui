@@ -97,13 +97,20 @@ for (const item of ['Users', 'alice', 'Add row', 'Binds', 'reload', 'Bar', 'cloc
   }
 }
 const cards = await evaluate('document.querySelectorAll(".row-card").length');
-const csvFields = await evaluate('document.querySelectorAll("input.csv-input").length');
 const monitorTiles = await evaluate('document.querySelectorAll(".monitor-tile").length');
 const gridHandles = await evaluate('document.querySelectorAll(".grid-handle").length');
-if (cards < 4) throw new Error(`expected card rows, saw ${cards}`);
+if (cards < 1) throw new Error(`expected the Users card rows, saw ${cards}`);
 if (monitorTiles < 1) throw new Error('expected a monitor canvas tile');
 if (gridHandles < 1) throw new Error('expected a grid card handle');
-if (csvFields < 2) throw new Error(`expected keybind CSV fields, saw ${csvFields}`);
+
+await evaluate(`(() => {
+  const row = document.querySelector('.bind-row');
+  if (!row) throw new Error('no bind row');
+  [...row.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Edit').click();
+})()`);
+await sleep(400);
+const bindFields = await evaluate('document.querySelectorAll(".bind-field input").length');
+if (bindFields < 2) throw new Error(`expected bind edit fields, saw ${bindFields}`);
 
 const users = `[...document.querySelectorAll('.card-collection')].find((collection) => collection.querySelector('h3')?.textContent.trim() === 'Users')`;
 if (!(await evaluate(`Boolean(${users})`))) throw new Error('Users collection missing');
@@ -272,5 +279,5 @@ const flakeBody = await evaluate('document.body.innerText');
 if (!flakeBody.includes('Add input')) throw new Error('flake inputs view did not open');
 
 if (errors.length) throw new Error(errors.join('\n'));
-console.log(JSON.stringify({ cards, csvFields, monitorTiles, gridHandles, dragged: true, gridDragged: true, add: true, rename: true, remove: true, diff: true, save: true, media: true, apply: true, addOption: true, addFile: true, rebuild: true, flakeInputs: true }));
+console.log(JSON.stringify({ cards, monitorTiles, gridHandles, dragged: true, gridDragged: true, add: true, rename: true, remove: true, diff: true, save: true, media: true, apply: true, addOption: true, addFile: true, rebuild: true, flakeInputs: true, bindFields }));
 socket.close();

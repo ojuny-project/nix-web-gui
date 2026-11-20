@@ -11,9 +11,14 @@
     type ControlValue,
   } from "@nix-web-gui/ui";
   import CardCollection from "./CardCollection.svelte";
+  import BindsEditor from "./widgets/BindsEditor.svelte";
+  import DisplayEditor from "./widgets/DisplayEditor.svelte";
+  import BarDockEditor from "./widgets/BarDockEditor.svelte";
+  import GridEditor from "./widgets/GridEditor.svelte";
+  import MenuEditor from "./widgets/MenuEditor.svelte";
+  import SecureBootFlow from "./widgets/SecureBootFlow.svelte";
   import FileEditor from "./FileEditor.svelte";
   import MediaPicker from "./MediaPicker.svelte";
-  import SecureBootPanel from "./SecureBootPanel.svelte";
   import {
     activeRequests,
     getState,
@@ -209,13 +214,6 @@
     return [...input].sort(
       (a, b) => a.order - b.order || a.displayname.localeCompare(b.displayname),
     );
-  }
-
-  function menuAt(index: number): ScanMenu | undefined {
-    const list = sortMenus(pageMenus);
-    const candidate = list[index];
-    if (candidate && (!candidate.hidden || showHidden)) return candidate;
-    return list.find((menu) => !menu.hidden || showHidden) ?? candidate;
   }
 
   $: pageMenus = menus.filter((menu) => menu.hasMenu !== false);
@@ -1127,10 +1125,90 @@
     }
   }
 
+  function ensureMenuMetadata() {
+    if (!records.some((record) => record.widget === "menu")) return;
+    if (menuProviders.length) return;
+    void rpc<Array<{ label: string; provider: string; fields: string[] }>>(
+      "menu.providers",
+      { topLevel: true },
+      user.csrf,
+    )
+      .then((providers) => {
+        menuProviders = providers;
+      })
+      .catch(() => {
+        menuProviders = [];
+      });
+    if (Object.keys(menuHelp).length) return;
+    const names = [
+      "provider",
+      "target",
+      "action",
+      "title",
+      "icon",
+      "iconFont",
+      "checked",
+      "when",
+      "disabled",
+    ];
+    void Promise.all(
+      names.map((name) => rpc<string | null>("menu.fieldHelp", { name }, user.csrf)),
+    )
+      .then((help) => {
+        menuHelp = Object.fromEntries(
+          names
+            .map((name, index) => [name, help[index]] as const)
+            .filter((entry): entry is readonly [string, string] =>
+              Boolean(entry[1]),
+            ),
+        );
+      })
+      .catch(() => {
+        menuHelp = {};
+      });
+  }
+
+  function ensureGridMetadata() {
+    if (!records.some((record) => record.widget === "grid-configuration")) return;
+    if (gridSizes.length) return;
+    void rpc<{ sizes: typeof gridSizes; profiles: typeof gridProfiles }>(
+      "grid.metadata",
+      {},
+      user.csrf,
+    )
+      .then((metadata) => {
+        gridSizes = metadata.sizes;
+        gridProfiles = metadata.profiles;
+      })
+      .catch(() => {
+        gridSizes = [];
+        gridProfiles = [];
+      });
+  }
+
+  function gridRegistryFor(
+    record: ScanRecord,
+  ): Array<{ id: string; label: string }> {
+    const labels = new Map(
+      gridProfiles
+        .flatMap((profile) => profile.registry)
+        .map((entry) => [entry.id, entry.label] as const),
+    );
+    return (record.gridRegistry ?? []).map((id) => ({
+      id,
+      label: labels.get(id) ?? id,
+    }));
+  }
+
   function loadPage() {
     for (const timer of timers.values()) clearTimeout(timer);
     timers.clear();
-    const menu = menuAt(selected);
+    const list = sortMenus(menus.filter((item) => item.hasMenu !== false));
+    const candidate = list[selected];
+    const menu =
+      candidate && (!candidate.hidden || showHidden)
+        ? candidate
+        : list.find((item) => !item.hidden || showHidden) ?? candidate;
     records = menu?.records ?? [];
     values = Object.fromEntries(
       records.map((record) => [record.path, displayValue(record)]),
@@ -1140,6 +1218,8 @@
     showDiff = false;
     pageToken += 1;
     describing = Boolean(menu?.file);
+    ensureMenuMetadata();
+    ensureGridMetadata();
     describePage(pageToken, menu?.file);
   }
 
@@ -1617,7 +1697,12 @@
       };
     }
     const raw = record.value.trim();
-    if (record.widget === "switch") return raw === "true";
+    if (
+      record.widget === "switch" ||
+      record.widget === "secure-boot" ||
+      record.widget === "secureboot"
+    )
+      return raw === "true";
     if (record.widget === "spin" || record.widget === "slider") {
       const number = Number(raw);
       return Number.isFinite(number) ? number : 0;
@@ -1774,7 +1859,14 @@
               packageValue?: string;
             }>(
               "control.setTyped",
-              { path, widget: record.widget ?? "text", value },
+              {
+                path,
+                widget:
+                  record.widget === "secure-boot" || record.widget === "secureboot"
+                    ? "switch"
+                    : record.widget ?? "text",
+                value,
+              },
               user.csrf,
             );
             if (
@@ -2565,6 +2657,65 @@
                 >
                   {record.label ?? record.path}
                 </h3>
+              {:else if record.widget === "keybinds"}
+                <h3 class="group-heading">{record.label ?? record.path}</h3>
+                <BindsEditor
+                  parent={record}
+                  allRecords={records}
+                  {values}
+                  onchange={onChange}
+                  csrf={user.csrf}
+                  onstructurechange={reloadStructure}
+                />
+              {:else if record.widget === "monitors"}
+                <h3 class="group-heading">{record.label ?? record.path}</h3>
+                <DisplayEditor
+                  parent={record}
+                  allRecords={records}
+                  {values}
+                  onchange={onChange}
+                  csrf={user.csrf}
+                  onstructurechange={reloadStructure}
+                />
+              {:else if record.widget === "bar" || record.widget === "dock"}
+                <h3 class="group-heading">{record.label ?? record.path}</h3>
+                <BarDockEditor
+                  parent={record}
+                  allRecords={records}
+                  {values}
+                  onchange={onChange}
+                  csrf={user.csrf}
+                  widgetPresets={currentMenu?.widgetPresets ?? []}
+                  onstructurechange={reloadStructure}
+                />
+              {:else if record.widget === "grid-configuration"}
+                <h3 class="group-heading">{record.label ?? record.path}</h3>
+                <GridEditor
+                  parent={record}
+                  allRecords={records}
+                  {values}
+                  onchange={onChange}
+                  csrf={user.csrf}
+                  registry={gridRegistryFor(record)}
+                  sizes={gridSizes}
+                  columns={record.gridColumns ?? 6}
+                  onstructurechange={reloadStructure}
+                />
+              {:else if record.widget === "menu"}
+                <h3 class="group-heading">{record.label ?? record.path}</h3>
+                <MenuEditor
+                  parent={record}
+                  allRecords={records}
+                  {values}
+                  onchange={onChange}
+                  csrf={user.csrf}
+                  providers={menuProviders.map((provider) => ({
+                    id: provider.provider || provider.label,
+                    ...provider,
+                  }))}
+                  fieldHelp={(name) => menuHelp[name] ?? null}
+                  onstructurechange={reloadStructure}
+                />
               {:else if compositeWidgets.has(record.widget ?? "") || record.children?.length}
                 <CardCollection
                   parent={record}
@@ -2594,16 +2745,16 @@
                   fieldHelp={cardFieldHelp}
                   onstructurechange={reloadStructure}
                 />
-              {:else if record.widget === "secureboot"}
+              {:else if record.widget === "secureboot" || record.widget === "secure-boot"}
                 <Control
-                  descriptor={descriptor(record)}
-                  value={values[record.path]}
+                  descriptor={{ ...descriptor(record), widget: "switch" }}
+                  value={String(values[record.path] ?? "").trim() === "true"}
                   onchange={onChange}
                   expandDetails={expandDetailsDefault}
                 />
-                <SecureBootPanel
+                <SecureBootFlow
                   csrf={user.csrf}
-                  configured={Boolean(values[record.path])}
+                  configured={String(values[record.path] ?? "").trim() === "true"}
                   file={record.file}
                   origin={record.origin ?? ""}
                   {root}
