@@ -18,6 +18,7 @@
   import MenuEditor from "./widgets/MenuEditor.svelte";
   import SecureBootFlow from "./widgets/SecureBootFlow.svelte";
   import FileEditor from "./FileEditor.svelte";
+  import TerminalPage from "./Terminal.svelte";
   import MediaPicker from "./MediaPicker.svelte";
   import {
     activeRequests,
@@ -55,7 +56,8 @@
   let systemOnly = false;
   let selectedHost = "";
   let selected = 0;
-  let view: "settings" | "flake" | "git" | "config" | "editor" = "settings";
+  let view: "settings" | "flake" | "git" | "config" | "editor" | "terminal" =
+    "settings";
   let editorFile = "";
   let popoutMode = false;
   let records: ScanRecord[] = [];
@@ -533,7 +535,8 @@
       showAddOption = false;
       structureTarget = null;
       insert = null;
-      if (view === "config" || view === "editor") view = "settings";
+      if (view === "config" || view === "editor" || view === "terminal")
+        view = "settings";
     }
   }
 
@@ -957,6 +960,16 @@
     } finally {
       gitBusy = false;
     }
+  }
+
+  function openTerminal() {
+    if (!root) {
+      status = "Open a flake first";
+      return;
+    }
+    closeDialogs();
+    view = "terminal";
+    scrollContentTop();
   }
 
   async function openGit() {
@@ -2272,6 +2285,13 @@
         <button class:active={view === "git"} disabled={busy || !root} onclick={openGit}>
           Git
         </button>
+        <button
+          class:active={view === "terminal"}
+          disabled={busy || !root}
+          onclick={openTerminal}
+        >
+          Terminal
+        </button>
         <button onclick={promptOpenFlake}>Open flake</button>
         <button disabled={busy || !root} onclick={openAddFile}>Add file</button>
         <button class:active={view === "config"} onclick={openConfig}>Settings</button>
@@ -2581,6 +2601,8 @@
           <pre class="diff">{gitDiff}</pre>
         {/if}
       </Panel>
+    {:else if view === "terminal"}
+      <TerminalPage {root} />
     {:else if view === "editor"}
       <FileEditor
         file={editorFile}

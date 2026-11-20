@@ -3,6 +3,7 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::{Request, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::sse::{Event, KeepAlive, Sse};
@@ -78,6 +79,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
         .route("/api/rpc", post(rpc))
+        .route("/api/terminal", get(terminal_socket))
         .route("/api/events", get(events))
         .fallback(static_handler)
         .layer(TraceLayer::new_for_http())
@@ -525,6 +527,24 @@ fn secureboot_action(
         })()),
         _ => None,
     }
+}
+
+async fn terminal_socket(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    headers: HeaderMap,
+    ws: WebSocketUpgrade,
+) -> Result<Response, ApiError> {
+    check_origin(&headers)?;
+    let session = require_session(&state, &jar)?;
+    let username = session.username.clone();
+    let dev_auth = state.config.dev_auth;
+    Ok(ws.on_upgrade(move |socket| async move {
+        if let Err(error) = crate::terminal::handle_socket(socket, username.clone(), dev_auth).await
+        {
+            tracing::warn!(user = %username, %error, "terminal socket failed");
+        }
+    }))
 }
 
 async fn events(

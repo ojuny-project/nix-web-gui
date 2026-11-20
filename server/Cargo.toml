@@ -17,7 +17,7 @@ ojuny-widgets = ["nix-web-gui-engine/ojuny-widgets"]
 [dependencies]
 async-stream = "0.3"
 nix-web-gui-engine = { path = "../engine" }
-axum = { version = "0.8", features = ["json"] }
+axum = { version = "0.8", features = ["json", "ws"] }
 axum-extra = { version = "0.10", features = ["cookie"] }
 clap = { version = "4", features = ["derive"] }
 futures = "0.3"

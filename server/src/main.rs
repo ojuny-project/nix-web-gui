@@ -2,6 +2,7 @@ mod auth;
 mod config;
 mod http;
 mod rpc;
+mod terminal;
 mod worker;
 mod worker_process;
 

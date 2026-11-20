@@ -295,11 +295,30 @@ const rebuildPanel = await evaluate(`(() => {
 })()`);
 if (!rebuildPanel.includes('rebuilt')) throw new Error(`rebuild output missing: ${rebuildPanel}`);
 
+await clickText('Terminal');
+await sleep(600);
+await setInput('terminal-command', "printf TERMINAL_OK");
+await clickText('Run');
+await sleep(1200);
+const terminalText = await evaluate(`(() => {
+  const terminal = window.__nwgTerminal;
+  if (!terminal) return '';
+  const buffer = terminal.buffer.active;
+  let out = '';
+  for (let index = 0; index < buffer.length; index += 1) {
+    out += buffer.getLine(index).translateToString(true) + " | ";
+  }
+  return out;
+})()`);
+if (!terminalText.includes('TERMINAL_OK')) {
+  throw new Error(`terminal did not show output: ${terminalText.slice(0, 300)}`);
+}
+
 await clickText('Flake Inputs');
 await sleep(600);
 const flakeBody = await evaluate('document.body.innerText');
 if (!flakeBody.includes('Add input')) throw new Error('flake inputs view did not open');
 
 if (errors.length) throw new Error(errors.join('\n'));
-console.log(JSON.stringify({ cards, monitorTiles, gridHandles, dragged: true, gridDragged: true, add: true, rename: true, remove: true, diff: true, save: true, media: true, apply: true, addOption: true, addFile: true, rebuild: true, flakeInputs: true, bindFields, visibleWhen: true }));
+console.log(JSON.stringify({ cards, monitorTiles, gridHandles, dragged: true, gridDragged: true, add: true, rename: true, remove: true, diff: true, save: true, media: true, apply: true, addOption: true, addFile: true, rebuild: true, flakeInputs: true, bindFields, visibleWhen: true, terminal: true }));
 socket.close();
