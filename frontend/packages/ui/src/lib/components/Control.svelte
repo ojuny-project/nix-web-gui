@@ -55,6 +55,7 @@
     "dock",
     "grid-configuration",
     "docker",
+    "mounts",
   ]);
 
   function change(next: unknown) {

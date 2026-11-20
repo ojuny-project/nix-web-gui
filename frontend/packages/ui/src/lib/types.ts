@@ -34,6 +34,7 @@ export type WidgetKind =
   | "users"
   | "facter"
   | "docker"
+  | "mounts"
   | "secureboot"
   | "raw";
 

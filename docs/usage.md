@@ -309,6 +309,21 @@ upstream, remote state, working tree, and ahead and behind counts. It offers:
 Automatic Git behaviour is config-driven: `git.pull` on open and
 commit-and-push after save when `auto_git_sync` is enabled.
 
+## Mounts
+
+The `mounts` page renders a detected-disk panel above the mount rows.
+
+- `Add from disk` adds the selected internal partition under `/mnt/<name>`,
+  with the UUID device, the filesystem type, the default options, and an owner
+  mapping for vfat, exfat and ntfs. A non-empty target is allowed only when the
+  signed-in account owns it.
+- `Automount all` adds one row per detected partition.
+- `Open cfdisk` runs `sudo cfdisk <device>` in the Terminal page.
+- `Apply filesystem` runs `sudo mkfs.<type> ...` in the Terminal page. The
+  Terminal page is opened with the command already started.
+
+sudo authenticates in the terminal, so the settings process never holds root.
+
 ## Terminal
 
 The sidebar `Terminal` page opens an xterm.js terminal connected to

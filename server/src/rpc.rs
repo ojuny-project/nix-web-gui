@@ -494,6 +494,40 @@ pub fn handle_with_progress(
         "file.templates" => with_settings(session, |settings| {
             Ok(authoring::templates_json(&settings.root))
         }),
+        "mounts.candidates" => Ok(nix_web_gui_engine::mounts::candidates()),
+        "mounts.mkfs" => {
+            let fs_type = string_param(&params, "fsType");
+            let device = string_param(&params, "device");
+            nix_web_gui_engine::mounts::mkfs_command(&fs_type, &device)
+                .map(|command| json!({ "command": command }))
+                .ok_or_else(|| (-32012, format!("unknown filesystem: {fs_type}")))
+        }
+        "mounts.add" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            let mountpoint = string_param(&params, "mountpoint");
+            let device = string_param(&params, "device");
+            let fs_type = string_param(&params, "fsType");
+            let options: Vec<String> = params
+                .get("options")
+                .and_then(Value::as_array)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.as_str().map(str::to_string))
+                        .collect()
+                })
+                .unwrap_or_default();
+            nix_web_gui_engine::mounts::add(
+                settings,
+                &path,
+                &mountpoint,
+                &device,
+                &fs_type,
+                &options,
+            )
+            .map(|_| json!({ "added": true }))
+            .map_err(|error| (-32012, error))
+        }),
         "structure.add" => with_settings(session, |settings| {
             let path = string_param(&params, "path");
             let key = string_param(&params, "key");

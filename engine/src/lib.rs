@@ -14,6 +14,7 @@ pub mod catalog;
 pub mod config;
 pub mod flake;
 pub mod git;
+pub mod mounts;
 pub mod paths;
 pub mod plugins;
 pub mod preview;

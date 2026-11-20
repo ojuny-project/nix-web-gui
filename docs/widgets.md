@@ -92,6 +92,25 @@ still tests `record.widget === "icon"` before rendering `MediaPicker.svelte`, bu
 no engine descriptor carries that name. Icon-column uploads go through the
 table's `onIconPick` callback instead.
 
+## Mounts panel
+
+`/home/den/repos/ojuny-future-repos/nix-web-gui/frontend/packages/app/src/pages/MountsPanel.svelte`
+renders above the row cards when the parent widget is `mounts`. It asks
+`mounts.candidates` for the internal disks, mountable partitions and unformatted
+partitions detected by the worker.
+
+- `Add from disk` calls `mounts.add` with the mountpoint, the UUID device, the
+  filesystem type, the default options and, for vfat, exfat and ntfs, a umask
+  from the owner, group and everyone selects. The engine adds the worker's uid
+  and gid. A non-empty target is rejected unless the worker account owns it.
+- `Automount all` adds one row per candidate under `/mnt/<name>`.
+- `Open cfdisk` opens the Terminal page with `sudo cfdisk <device>`.
+- `Apply filesystem` asks `mounts.mkfs` for the command, then opens the
+  Terminal page with `sudo <command>`.
+
+The terminal runs as the signed-in device account, so sudo prompts there and the
+settings process never gains root.
+
 ## Table editor
 
 `/home/den/repos/ojuny-future-repos/nix-web-gui/frontend/packages/ui/src/lib/controls/Table.svelte`

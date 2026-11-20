@@ -33,4 +33,5 @@ plugins
 bar
 dock
 docker
+mounts
 raw

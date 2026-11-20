@@ -5,6 +5,7 @@
   import "@xterm/xterm/css/xterm.css";
 
   export let root: string;
+  export let initialCommand = "";
 
   let host: HTMLDivElement | null = null;
   let command = "";
@@ -66,6 +67,10 @@
       fit?.fit();
     });
     if (host) observer.observe(host);
+    if (initialCommand.trim()) {
+      command = initialCommand;
+      setTimeout(run, 50);
+    }
     return () => observer?.disconnect();
   });
 

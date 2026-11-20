@@ -116,6 +116,7 @@
   let configBusy = false;
   let rebuildCommand = "";
   let terminalCommand = "";
+  let terminalRequest = "";
   let configFlakePath = "";
   let showAddFile = false;
   let fileTemplates: FileTemplate[] = [];
@@ -967,6 +968,18 @@
       status = "Open a flake first";
       return;
     }
+    closeDialogs();
+    terminalRequest = "";
+    view = "terminal";
+    scrollContentTop();
+  }
+
+  function openTerminalWith(command: string) {
+    if (!root) {
+      status = "Open a flake first";
+      return;
+    }
+    terminalRequest = command;
     closeDialogs();
     view = "terminal";
     scrollContentTop();
@@ -2602,7 +2615,7 @@
         {/if}
       </Panel>
     {:else if view === "terminal"}
-      <TerminalPage {root} />
+      <TerminalPage {root} initialCommand={terminalRequest} />
     {:else if view === "editor"}
       <FileEditor
         file={editorFile}
@@ -2800,6 +2813,7 @@
                   sortRows={cardRowSort}
                   fieldHelp={cardFieldHelp}
                   onstructurechange={reloadStructure}
+                  onterminal={openTerminalWith}
                 />
               {:else if record.widget === "secureboot" || record.widget === "secure-boot"}
                 <Control

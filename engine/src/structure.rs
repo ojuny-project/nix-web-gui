@@ -89,6 +89,7 @@ pub fn child_template(
             }
             format!("{{ {} }}", parts.join(" "))
         }
+        WidgetKind::Mounts => "{ device = \"\"; fsType = \"\"; options = [ ]; }".to_string(),
         WidgetKind::Menu => format!(
             "{{ label = {}; }}",
             crate::render::quote(label.unwrap_or("New entry"))

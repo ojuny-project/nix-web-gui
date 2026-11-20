@@ -57,6 +57,7 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Dock | tile editor | `control.setTyped`, `structure.*` | section tiles with enable switches, preset picker, drag reorder, and selected-tile settings | no | implemented |
 | Grid | card canvas | `control.setTyped`, `structure.*` | placement canvas with registry add flow, catalog sizes, profile columns, and selected-card settings | no | implemented |
 | Docker | row editor | `control.setTyped`, `structure.*` | row cards with configurable container field names | no | implemented |
+| Mounts | row editor and detected disks | `mounts.candidates`, `mounts.add`, `mounts.mkfs`, `structure.*`, `/api/terminal` | detected internal disks and partitions, Add from disk, Automount all, cfdisk and mkfs through the Terminal page | yes | implemented |
 | Config and flake path | settings dialog | `config.get`, `config.set`, `config.remember` | sidebar Settings button and panel | yes | implemented |
 
 ## Implemented end to end

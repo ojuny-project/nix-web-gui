@@ -6,6 +6,7 @@
   } from "@nix-web-gui/ui";
   import MediaPicker from "./MediaPicker.svelte";
   import MonitorCanvas from "./MonitorCanvas.svelte";
+  import MountsPanel from "./MountsPanel.svelte";
   import PluginSettings from "@ojuny/plugin-settings";
   import EnvEditor from "@ojuny/env-editor";
   import type { ScanRecord } from "../api";
@@ -17,6 +18,7 @@
   export let onchange: (path: string, value: ControlValue) => void;
   export let isVisible: (record: ScanRecord) => boolean;
   export let csrf: string;
+  export let onterminal: (command: string) => void = () => {};
   export let expandDetails = false;
   export let maxColumns = 1;
   export let gridColumns: number | undefined = undefined;
@@ -291,6 +293,9 @@
       {values}
       {onchange}
     />
+  {/if}
+  {#if parent.widget === "mounts"}
+    <MountsPanel {parent} {csrf} {onstructurechange} {onterminal} />
   {/if}
   {#if canAdd}
     <div class="toolbar">

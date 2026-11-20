@@ -1248,6 +1248,7 @@ fn is_composite_widget(widget: WidgetKind) -> bool {
             | WidgetKind::Users
             | WidgetKind::Monitors
             | WidgetKind::Docker
+            | WidgetKind::Mounts
             | WidgetKind::Menu
             | WidgetKind::Bar
             | WidgetKind::Dock
@@ -1266,6 +1267,7 @@ fn is_row_collection(widget: WidgetKind) -> bool {
             | WidgetKind::Keybinds
             | WidgetKind::Monitors
             | WidgetKind::Docker
+            | WidgetKind::Mounts
             | WidgetKind::Menu
             | WidgetKind::Plugins
             | WidgetKind::GridConfiguration

@@ -156,6 +156,7 @@ pub fn serialize(record: &Record, widget: WidgetKind, value: &Value) -> Result<S
         }
         WidgetKind::TableAttrset => serialize_table(record, false, value),
         WidgetKind::TableList => serialize_table(record, true, value),
+        WidgetKind::Mounts => serialize_mounts(record, value),
         WidgetKind::Raw => Ok(string_value(value)?.to_string()),
         // Structured widgets fall back to a raw Nix editor until their
         // dedicated renderer lands. The browser sends the text verbatim.
@@ -209,8 +210,73 @@ fn string_list(value: &Value) -> Result<Vec<String>, String> {
         .collect()
 }
 
-pub fn serialize_table(record: &Record, list: bool, value: &Value) -> Result<String, String> {
+pub fn serialize_mounts(record: &Record, value: &Value) -> Result<String, String> {
     let rows = value
+        .get("rows")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "mount value must contain rows".to_string())?;
+    let originals = nix_settings_gui::mounts::scan_file_systems(&record.value);
+    let mut mounts: Vec<nix_settings_gui::mounts::MountRow> = Vec::new();
+    let mut seen: Vec<String> = Vec::new();
+    for row in rows {
+        let object = row
+            .as_object()
+            .ok_or_else(|| "mount row must be an object".to_string())?;
+        let text = |name: &str| {
+            object
+                .get(name)
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        };
+        let mountpoint = text("key");
+        if mountpoint.is_empty() {
+            return Err("every mount needs a mountpoint".to_string());
+        }
+        let Some(normalized) = nix_settings_gui::mounts::paths::normalize(&mountpoint) else {
+            return Err(format!("{mountpoint} is not an absolute path"));
+        };
+        if let Err(error) = nix_settings_gui::mounts::paths::check_target(&normalized) {
+            return Err(error);
+        }
+        if seen.contains(&normalized) {
+            return Err(format!("{normalized} is used by more than one mount"));
+        }
+        seen.push(normalized.clone());
+        let options: Vec<String> = object
+            .get("options")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let device = text("device");
+        let fs_type = text("fsType");
+        mounts.push(nix_settings_gui::mounts::MountRow {
+            mountpoint: normalized.clone(),
+            device: (!device.is_empty()).then_some(device),
+            fs_type: (!fs_type.is_empty()).then_some(fs_type),
+            options_present: object.contains_key("options"),
+            options,
+            needed_for_boot: object
+                .get("neededForBoot")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            extras: originals
+                .iter()
+                .find(|original| original.mountpoint == normalized)
+                .map(|original| original.extras.clone())
+                .unwrap_or_default(),
+        });
+    }
+    Ok(nix_settings_gui::mounts::serialize_file_systems(&mounts))
+}
+
+pub fn serialize_table(record: &Record, list: bool, value: &Value) -> Result<String, String> {    let rows = value
         .get("rows")
         .and_then(Value::as_array)
         .ok_or_else(|| "table value must contain rows".to_string())?;
@@ -677,6 +743,7 @@ mod tests {
             WidgetKind::Bar,
             WidgetKind::Dock,
             WidgetKind::Docker,
+            WidgetKind::Mounts,
             WidgetKind::Raw,
         ];
         for kind in kinds {
@@ -687,6 +754,33 @@ mod tests {
                 "widget name {name} does not parse back"
             );
         }
+    }
+
+    #[test]
+    fn serializes_mount_rows_and_preserves_extras() {
+        let mut record = Record::default();
+        record.value = r#"{ "/mnt/data" = { device = "/dev/disk/by-uuid/abc"; fsType = "ext4"; label = "data"; }; }"#.into();
+        let value = serde_json::json!({
+            "rows": [
+                {"key": "/mnt/data", "device": "/dev/disk/by-uuid/abc", "fsType": "ext4", "options": ["noatime"], "neededForBoot": false}
+            ]
+        });
+        let nix = serialize_mounts(&record, &value).unwrap();
+        assert!(nix.contains("\"/mnt/data\""), "{nix}");
+        assert!(nix.contains("fsType = \"ext4\""), "{nix}");
+        assert!(nix.contains("label = \"data\""), "{nix}");
+    }
+
+    #[test]
+    fn rejects_protected_and_duplicate_mountpoints() {
+        let record = Record::default();
+        let protected = serde_json::json!({"rows": [{"key": "/nix/store", "device": "/dev/sda1", "fsType": "ext4"}]});
+        assert!(serialize_mounts(&record, &protected).is_err());
+        let duplicate = serde_json::json!({"rows": [
+            {"key": "/mnt/a", "device": "/dev/sda1", "fsType": "ext4"},
+            {"key": "/mnt/a/", "device": "/dev/sda2", "fsType": "ext4"}
+        ]});
+        assert!(serialize_mounts(&record, &duplicate).is_err());
     }
 
     #[test]
