@@ -14,6 +14,7 @@
   import MediaPicker from "./MediaPicker.svelte";
   import SecureBootPanel from "./SecureBootPanel.svelte";
   import {
+    activeRequests,
     getState,
     logout,
     rpc,
@@ -58,6 +59,7 @@
   let collapsed = new Set<string>();
   let advanced = false;
   let busy = false;
+  let describing = false;
   let status = "";
   let error = "";
   let diff = "";
@@ -184,7 +186,22 @@
     );
   }
 
-  $: sortedMenus = sortMenus(menus);
+  function menuAt(index: number): ScanMenu | undefined {
+    const list = sortMenus(pageMenus);
+    const candidate = list[index];
+    if (candidate && (!candidate.hidden || advanced)) return candidate;
+    return list.find((menu) => !menu.hidden || advanced) ?? candidate;
+  }
+
+  $: pageMenus = menus.filter((menu) => menu.hasMenu !== false);
+  $: sortedMenus = sortMenus(pageMenus);
+  $: requestsPending = $activeRequests;
+  $: dialogOpen =
+    showConfig ||
+    showAddFile ||
+    showAddOption ||
+    Boolean(structureTarget) ||
+    Boolean(insert);
   $: ojunyPaths = OJUNY_WIDGETS
     ? []
     : records
@@ -209,7 +226,13 @@
     if (!searchTerm) return true;
     return subtreeMatches(record, searchTerm);
   });
-  $: currentMenu = sortedMenus[selected];
+  $: currentMenu = (() => {
+    const candidate = sortedMenus[selected];
+    if (candidate && (!candidate.hidden || advanced)) return candidate;
+    return (
+      sortedMenus.find((menu) => !menu.hidden || advanced) ?? candidate
+    );
+  })();
   $: orderedRecords = [...visibleRecords].sort(
     (left, right) =>
       (left.groupOrder ?? 1e9) - (right.groupOrder ?? 1e9) ||
@@ -218,12 +241,8 @@
       left.path.localeCompare(right.path),
   );
   $: groupedRecords = (() => {
-    const normal = orderedRecords.filter(
-      (record) => !record.advanced && !record.hidden,
-    );
-    const advancedRecords = orderedRecords.filter(
-      (record) => record.advanced || record.hidden,
-    );
+    const normal = orderedRecords.filter((record) => !record.advanced);
+    const advancedRecords = orderedRecords.filter((record) => record.advanced);
     const groups: Array<{ name: string; records: ScanRecord[] }> = [];
     for (const record of normal) {
       const name = record.group ?? "";
@@ -234,13 +253,14 @@
         groups.push({ name, records: [record] });
       }
     }
-    if (advanced && advancedRecords.length) {
+    if (advancedRecords.length) {
       groups.push({ name: "Advanced", records: advancedRecords });
     }
     return groups;
   })();
   $: searchTerm = search.trim().toLowerCase();
   $: filteredMenus = sortedMenus.filter((menu) => {
+    if (menu.hidden && !advanced) return false;
     if (!searchTerm) return true;
     if (
       menu.displayname.toLowerCase().includes(searchTerm) ||
@@ -266,6 +286,7 @@
   >;
   $: searchMatches = searchTerm
     ? sortedMenus
+        .filter((menu) => !menu.hidden || advanced)
         .flatMap((menu) =>
           menu.records
             .filter(
@@ -443,7 +464,14 @@
   }
 
   async function openFlakeInputs() {
+    if (busy) return;
+    if (!root) {
+      status = "Open a flake first";
+      return;
+    }
+    closeDialogs();
     view = "flake";
+    scrollContentTop();
     await loadFlakeInputs();
   }
 
@@ -548,6 +576,12 @@
   }
 
   async function openAddFile() {
+    if (busy) return;
+    if (!root) {
+      status = "Open a flake first";
+      return;
+    }
+    closeDialogs();
     view = "settings";
     error = "";
     try {
@@ -558,6 +592,7 @@
       addFilePath = `${root}/modules/module.nix`;
       addFilePlaceholders = {};
       showAddFile = true;
+      scrollContentTop();
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Cannot read templates";
     }
@@ -612,7 +647,9 @@
   }
 
   function openAddOption() {
+    closeDialogs();
     showAddOption = true;
+    scrollContentTop();
     optionPath = "";
     optionWidget = "text";
     optionLabel = "";
@@ -671,7 +708,32 @@
     }
   }
 
+  function closeDialogs() {
+    showAddFile = false;
+    showAddOption = false;
+    structureTarget = null;
+    insert = null;
+    showConfig = false;
+  }
+
+  function onAdvancedToggle() {
+    if (advanced) return;
+    if (!sortedMenus[selected]?.hidden) return;
+    const visible = sortedMenus.findIndex((menu) => !menu.hidden);
+    if (visible >= 0) {
+      selected = visible;
+      loadPage();
+    }
+  }
+
+  function scrollContentTop() {
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(".content")?.scrollTo({ top: 0 });
+    });
+  }
+
   async function openConfig() {
+    closeDialogs();
     view = "settings";
     error = "";
     try {
@@ -680,6 +742,7 @@
       terminalCommand = config.terminal_command ?? "";
       configFlakePath = config.flake_path ?? "";
       showConfig = true;
+      scrollContentTop();
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Cannot read config";
     }
@@ -747,7 +810,14 @@
   }
 
   async function openGit() {
+    if (busy) return;
+    if (!root) {
+      status = "Open a flake first";
+      return;
+    }
+    closeDialogs();
     view = "git";
+    scrollContentTop();
     gitDiff = "";
     await refreshGit();
   }
@@ -899,6 +969,7 @@
       selected = 0;
       view = "settings";
       loadPage();
+      scrollContentTop();
       localStorage.setItem("nix-web-gui.root", path);
       status = `Opened ${opened.menus} menus, ${opened.records} records`;
       refreshGit();
@@ -932,7 +1003,7 @@
   function loadPage() {
     for (const timer of timers.values()) clearTimeout(timer);
     timers.clear();
-    const menu = sortMenus(menus)[selected];
+    const menu = menuAt(selected);
     records = menu?.records ?? [];
     values = Object.fromEntries(
       records.map((record) => [record.path, displayValue(record)]),
@@ -941,6 +1012,7 @@
     dirty = new Set();
     showDiff = false;
     pageToken += 1;
+    describing = Boolean(menu?.file);
     describePage(pageToken, menu?.file);
   }
 
@@ -980,13 +1052,19 @@
       })
       .catch(() => {
         // Keep the scanned shape when metadata is unavailable.
+      })
+      .finally(() => {
+        if (token === pageToken) describing = false;
       });
   }
 
   function selectMenu(menu: ScanMenu) {
+    closeDialogs();
+    error = "";
     selected = sortedMenus.findIndex((candidate) => candidate.file === menu.file);
     view = "settings";
     loadPage();
+    scrollContentTop();
   }
 
   function goToMatch(menu: ScanMenu, record: ScanRecord) {
@@ -1025,8 +1103,23 @@
     "monitors",
     "docker",
     "menu",
+    "plugins",
+    "bar",
+    "dock",
     "submodule",
     "horizontal-submodule",
+    "grid-configuration",
+  ]);
+
+  const compositeWidgets = new Set([
+    "users",
+    "keybinds",
+    "monitors",
+    "docker",
+    "menu",
+    "plugins",
+    "bar",
+    "dock",
     "grid-configuration",
   ]);
 
@@ -1050,6 +1143,20 @@
 
   function stylePreview(entry: StyleEntry): string | null {
     return entry.preview ?? entry.previews?.[0] ?? null;
+  }
+
+  function stylePreviews(entry: StyleEntry): string[] {
+    if (entry.previews?.length) return entry.previews;
+    return entry.preview ? [entry.preview] : [];
+  }
+
+  function fontInstalled(family: string): boolean {
+    if (!family.trim()) return false;
+    try {
+      return document.fonts.check(`16px "${family.replaceAll('"', "")}"`);
+    } catch {
+      return false;
+    }
   }
 
   function keybindAncestor(record: ScanRecord): ScanRecord | null {
@@ -1153,7 +1260,9 @@
   }
 
   async function openStructureAdd(record: ScanRecord) {
+    closeDialogs();
     structureTarget = record;
+    scrollContentTop();
     structureKey = "";
     structureMode = null;
     structureDefaults = {};
@@ -1581,7 +1690,9 @@
     marker: ScanInsert,
     snippet: ScanSnippet,
   ) {
+    closeDialogs();
     insert = { menuFile, marker, snippet };
+    scrollContentTop();
     insertValues = Object.fromEntries(
       snippet.placeholders.map((placeholder) => [
         placeholder.name,
@@ -1849,6 +1960,12 @@
       {/if}
     </div>
     <div class="topbar-actions">
+      {#if requestsPending}
+        <span class="chip muted loading-chip" role="status" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          Working
+        </span>
+      {/if}
       <span class="chip">{themeName}</span>
       <span class="chip muted">{user.username}</span>
       <button class="ghost" onclick={signOut}>Sign out</button>
@@ -1858,12 +1975,18 @@
   {#if !popoutMode}
     <aside class="sidebar">
       <nav aria-label="Settings sections">
-        <button class:active={view === "flake"} onclick={openFlakeInputs}>
+        <button
+          class:active={view === "flake"}
+          disabled={busy || !root}
+          onclick={openFlakeInputs}
+        >
           Flake Inputs
         </button>
-        <button class:active={view === "git"} onclick={openGit}>Git</button>
+        <button class:active={view === "git"} disabled={busy || !root} onclick={openGit}>
+          Git
+        </button>
         <button onclick={promptOpenFlake}>Open flake</button>
-        <button onclick={openAddFile}>Add file</button>
+        <button disabled={busy || !root} onclick={openAddFile}>Add file</button>
         <button class:active={showConfig} onclick={openConfig}>Settings</button>
         <p class="nav-label">Menus</p>
         {#each menuGroups as [category, group] (category)}
@@ -1879,7 +2002,9 @@
           {#if !category || !collapsed.has(category)}
             {#each group as menu (menu.file)}
               <button
-                class:active={view === "settings" && currentMenu?.file === menu.file}
+                class:active={view === "settings" &&
+                  !dialogOpen &&
+                  currentMenu?.file === menu.file}
                 onclick={() => selectMenu(menu)}
               >
                 {#if menu.icon}
@@ -1898,6 +2023,9 @@
   {/if}
 
   <main class="content">
+    {#if error}
+      <p class="error" role="alert">{error}</p>
+    {/if}
     {#if !popoutMode && searchTerm && searchMatches.length}
       <Panel
         title={`Search results (${searchMatches.length})`}
@@ -1920,7 +2048,16 @@
       </Panel>
     {/if}
 
-    {#if menus.length === 0}
+    {#if busy}
+      <Panel
+        title="Opening the flake"
+        description={root || "Reading the configuration directory."}
+      >
+        <p class="muted">
+          Scanning menus and options. Large flakes can take a moment.
+        </p>
+      </Panel>
+    {:else if pageMenus.length === 0}
       <Panel title="Open a flake" description="The directory is scanned for @menu and @option markers.">
         <form
           class="open-form"
@@ -1946,6 +2083,14 @@
         </form>
       </Panel>
     {:else if view === "flake"}
+      {#if flakeBusy && !flakeData}
+        <Panel
+          title="Loading flake inputs"
+          description="Reading flake.nix and flake.lock."
+        >
+          <p class="muted">Loading…</p>
+        </Panel>
+      {/if}
       <div class="toolbar">
         <span class="spacer"></span>
         {#if flakeCheckBusy}
@@ -2133,13 +2278,18 @@
         {/if}
       </Panel>
     {:else}
+      {#if !dialogOpen}
       <Panel
-        title={sortedMenus[selected]?.displayname ?? "Settings"}
-        description={sortedMenus[selected]?.description}
+        title={currentMenu?.displayname ?? "Settings"}
+        description={currentMenu?.description}
       >
         <div class="toolbar">
           <label class="inline">
-            <input type="checkbox" bind:checked={advanced} />
+            <input
+              type="checkbox"
+              bind:checked={advanced}
+              onchange={onAdvancedToggle}
+            />
             <span>Advanced</span>
           </label>
           <span class="spacer"></span>
@@ -2176,6 +2326,8 @@
                 <p class="muted">
                   This Ojuny widget is not available in the minimal build.
                 </p>
+              {:else if describing && !record.children?.length && compositeWidgets.has(record.widget ?? "")}
+                <p class="muted small">Loading widget…</p>
               {:else if record.children?.length && record.widget === "submodule"}
                 <h3
                   class="submodule-heading"
@@ -2183,7 +2335,7 @@
                 >
                   {record.label ?? record.path}
                 </h3>
-              {:else if record.children?.length}
+              {:else if compositeWidgets.has(record.widget ?? "") || record.children?.length}
                 <CardCollection
                   parent={record}
                   allRecords={records}
@@ -2238,17 +2390,27 @@
                   csvList={isKeybindCsv(record)}
                 />
                 {#if record.widget === "font"}
-                  <p
-                    class="font-preview"
-                    style={`font-family: "${String(values[record.path] ?? "").replaceAll('"', "")}", sans-serif`}
-                  >
-                    The quick brown fox jumps over the lazy dog · 0123456789
-                  </p>
+                  {@const family = String(values[record.path] ?? "").replaceAll('"', "")}
+                  {@const entry = fontEntries.find((item) => item.value === family)}
+                  {#if entry?.preview && !fontInstalled(family)}
+                    <img
+                      class="font-preview-image"
+                      src={entry.preview}
+                      alt={`${entry.label} sample`}
+                    />
+                  {:else}
+                    <p
+                      class="font-preview"
+                      style={`font-family: "${family}", sans-serif`}
+                    >
+                      The quick brown fox jumps over the lazy dog · 0123456789
+                    </p>
+                  {/if}
                 {/if}
                 {#if record.widget === "icon-theme" || record.widget === "cursor-theme"}
-                  {@const previews = styleEntriesFor(record)
-                    .filter((entry) => stylePreview(entry))
-                    .slice(0, 12)}
+                  {@const previews = styleEntriesFor(record).filter(
+                    (entry) => stylePreviews(entry).length,
+                  )}
                   {#if previews.length}
                     <div class="style-previews">
                       {#each previews as entry (entry.value)}
@@ -2259,7 +2421,11 @@
                           title={entry.label}
                           onclick={() => onChange(record.path, entry.value)}
                         >
-                          <img src={stylePreview(entry) ?? ""} alt={entry.label} />
+                          <span class="style-preview-set">
+                            {#each stylePreviews(entry) as preview, index (index)}
+                              <img src={preview} alt={entry.label} />
+                            {/each}
+                          </span>
                           <span>{entry.label}</span>
                         </button>
                       {/each}
@@ -2344,6 +2510,7 @@
           </div>
         {/if}
       </Panel>
+      {/if}
 
       {#if showAddFile}
         <Panel title="Add file" description="Create a module or render a template.">
@@ -2736,10 +2903,6 @@
           <pre class="diff">{rebuildOutput}</pre>
         </Panel>
       {/if}
-    {/if}
-
-    {#if error}
-      <p class="error" role="alert">{error}</p>
     {/if}
   </main>
 

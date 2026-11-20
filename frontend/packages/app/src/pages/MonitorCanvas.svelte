@@ -36,23 +36,45 @@
     return Number.isFinite(value) ? value : fallback;
   }
 
+  function axisField(record: ScanRecord, axis: string): ScanRecord | null {
+    return fieldRecord(record, `${axis}Pos`) ?? fieldRecord(record, axis);
+  }
+
+  function axisValue(record: ScanRecord, axis: string): number {
+    const field = axisField(record, axis);
+    if (!field) return 0;
+    const value = Number(values[field.path]);
+    return Number.isFinite(value) ? value : 0;
+  }
+
   $: monitors = parent.children ?? [];
   $: maxX = Math.max(
     1,
     ...monitors.map(
-      (monitor) => numberField(monitor, "xPos") + numberField(monitor, "width", 1920),
+      (monitor) => axisValue(monitor, "x") + numberField(monitor, "width", 1920),
     ),
   );
   $: maxY = Math.max(
     1,
     ...monitors.map(
-      (monitor) => numberField(monitor, "yPos") + numberField(monitor, "height", 1080),
+      (monitor) => axisValue(monitor, "y") + numberField(monitor, "height", 1080),
     ),
   );
 
+  let selectedPath = "";
+  let moved = false;
+
+  function selectMonitor(monitor: ScanRecord) {
+    selectedPath = monitor.path;
+    const card = [...document.querySelectorAll<HTMLElement>(".row-card")].find(
+      (element) => element.dataset.path === monitor.path,
+    );
+    card?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
   function styleFor(monitor: ScanRecord): string {
-    const x = numberField(monitor, "xPos");
-    const y = numberField(monitor, "yPos");
+    const x = axisValue(monitor, "x");
+    const y = axisValue(monitor, "y");
     const width = numberField(monitor, "width", 1920);
     const height = numberField(monitor, "height", 1080);
     return [
@@ -64,16 +86,17 @@
   }
 
   function beginDrag(event: PointerEvent, monitor: ScanRecord) {
-    const x = fieldRecord(monitor, "xPos");
-    const y = fieldRecord(monitor, "yPos");
+    const x = axisField(monitor, "x");
+    const y = axisField(monitor, "y");
     if (!x || !y) return;
+    moved = false;
     drag = {
       xPath: x.path,
       yPath: y.path,
       startX: event.clientX,
       startY: event.clientY,
-      originX: numberField(monitor, "xPos"),
-      originY: numberField(monitor, "yPos"),
+      originX: axisValue(monitor, "x"),
+      originY: axisValue(monitor, "y"),
     };
     try {
       (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
@@ -90,6 +113,12 @@
     if (!container) return;
     const scaleX = maxX / container.clientWidth;
     const scaleY = maxY / container.clientHeight;
+    if (
+      Math.abs(event.clientX - drag.startX) > 3 ||
+      Math.abs(event.clientY - drag.startY) > 3
+    ) {
+      moved = true;
+    }
     draft = {
       ...draft,
       [drag.xPath]: Math.max(
@@ -119,21 +148,36 @@
 </script>
 
 {#if monitors.length}
-  <div class="monitor-canvas">
+  <div
+    class="monitor-canvas"
+    style={`aspect-ratio: ${maxX} / ${maxY};`}
+  >
     {#each monitors as monitor (monitor.path)}
       <div
         class="monitor-tile"
-        role="group"
+        class:selected={selectedPath === monitor.path}
+        role="button"
+        tabindex="0"
         aria-label={monitor.label ?? monitor.path}
         style={styleFor(monitor)}
         onpointermove={moveDrag}
         onpointerup={endDrag}
         onpointerdown={(event) => beginDrag(event, monitor)}
+        onclick={() => {
+          if (!moved) selectMonitor(monitor);
+          moved = false;
+        }}
+        onkeydown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectMonitor(monitor);
+          }
+        }}
       >
         <strong>{monitor.label ?? monitor.path.split(".").at(-1)}</strong>
         <span class="muted small">
           {numberField(monitor, "width", 1920)}x{numberField(monitor, "height", 1080)}
-          @ {numberField(monitor, "xPos")},{numberField(monitor, "yPos")}
+          @ {axisValue(monitor, "x")},{axisValue(monitor, "y")}
         </span>
       </div>
     {/each}

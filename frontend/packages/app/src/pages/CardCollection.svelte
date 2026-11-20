@@ -300,7 +300,7 @@
   {/if}
 
   {#each rows as row (row.child.path)}
-    <section class="row-card" style={cellStyle(row.child)}>
+    <section class="row-card" data-path={row.child.path} style={cellStyle(row.child)}>
       <header class="row-card-head">
         {#if gridColumns}
           <button

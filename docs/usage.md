@@ -75,7 +75,9 @@ into view, and highlights it for about two seconds.
 The sidebar lists `Flake Inputs`, `Git`, then a `Menus` label, then menus grouped
 by the `@menu category` value. A menu without a category appears before the
 first category heading. Menu icons are rendered when the menu declares one, and
-a category heading collapses and expands its group.
+a category heading collapses and expands its group. A `.nix` file without an
+`@menu` block is never shown as a page, and a menu with `hidden = true` appears
+only after the `Advanced` checkbox is enabled.
 
 ## Host filter
 
@@ -87,10 +89,11 @@ returned by the scan.
 
 ## Advanced controls
 
-The `Advanced` checkbox reveals records whose `hidden` flag is true and shows the
-records whose `advanced` flag is true. Both are collected under an `Advanced`
-heading after the normal groups. Group headings come from the record `group` and
-`groupOrder` values.
+Records whose `advanced` flag is true are always collected under an `Advanced`
+heading after the normal groups, matching the desktop expander. The `Advanced`
+checkbox reveals records and menus whose `hidden` flag is true; hidden records
+keep their normal group when revealed. Group headings come from the record
+`group` and `groupOrder` values.
 
 ## Editing and staging
 

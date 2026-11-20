@@ -118,6 +118,7 @@ pub fn menu_json(menu: &MenuModel) -> Value {
         "order": menu.order(),
         "systems": menu.spec.systems,
         "hidden": menu.spec.hidden,
+        "hasMenu": menu.has_menu,
         "records": menu.records.iter().map(record_json).collect::<Vec<_>>(),
         "widgetPresets": menu.widget_presets.iter().map(|(preset, fields)| json!({
             "id": preset.id,
@@ -172,6 +173,7 @@ pub fn page_json(menu: &MenuModel) -> Value {
         "order": menu.order(),
         "systems": menu.spec.systems,
         "hidden": menu.spec.hidden,
+        "hasMenu": menu.has_menu,
         "records": menu.records.iter().map(|record| record.path()).collect::<Vec<_>>(),
     })
 }

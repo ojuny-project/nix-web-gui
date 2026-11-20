@@ -1,3 +1,7 @@
+import { writable } from "svelte/store";
+
+export const activeRequests = writable(0);
+
 export type User = {
   username: string;
   csrf: string;
@@ -50,19 +54,24 @@ export async function rpc<T>(
   params: unknown,
   csrf: string,
 ): Promise<T> {
-  const response = await fetch("/api/rpc", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: {
-      "content-type": "application/json",
-      "x-csrf-token": csrf,
-    },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-  });
-  if (!response.ok) throw new Error(await readError(response));
-  const body = await response.json();
-  if (body.error) throw new Error(body.error.message);
-  return body.result as T;
+  activeRequests.update((count) => count + 1);
+  try {
+    const response = await fetch("/api/rpc", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "content-type": "application/json",
+        "x-csrf-token": csrf,
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    });
+    if (!response.ok) throw new Error(await readError(response));
+    const body = await response.json();
+    if (body.error) throw new Error(body.error.message);
+    return body.result as T;
+  } finally {
+    activeRequests.update((count) => Math.max(0, count - 1));
+  }
 }
 
 export type Visibility = {
@@ -239,6 +248,7 @@ export type ScanMenu = {
   order: number;
   systems?: string[] | null;
   hidden?: boolean;
+  hasMenu?: boolean;
   records: ScanRecord[];
   widgetPresets?: WidgetPreset[];
   inserts?: ScanInsert[];

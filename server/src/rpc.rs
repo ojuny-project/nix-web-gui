@@ -39,8 +39,8 @@ pub fn handle_with_progress(
             settings.reload().map_err(|error| (-32013, error))?;
             Ok(json!({
                 "root": settings.root,
-                "menus": settings.menus().len(),
-                "records": settings.records().count(),
+                "menus": visible_menu_count(settings),
+                "records": visible_record_count(settings),
                 "staged": settings.staged().len(),
             }))
         }),
@@ -48,16 +48,16 @@ pub fn handle_with_progress(
             settings.discard().map_err(|error| (-32013, error))?;
             Ok(json!({
                 "root": settings.root,
-                "menus": settings.menus().len(),
-                "records": settings.records().count(),
+                "menus": visible_menu_count(settings),
+                "records": visible_record_count(settings),
                 "staged": 0,
             }))
         }),
         "session.state" => with_settings(session, |settings| {
             Ok(json!({
                 "root": settings.root,
-                "menus": settings.menus().len(),
-                "records": settings.records().count(),
+                "menus": visible_menu_count(settings),
+                "records": visible_record_count(settings),
                 "staged": settings.staged().len(),
             }))
         }),
@@ -86,10 +86,12 @@ pub fn handle_with_progress(
         }),
         "page.describe" => with_settings(session, |settings| {
             let file = string_param(&params, "file");
-            let controls = if std::env::var_os("NIX_WEB_GUI_SKIP_METADATA").is_some() {
-                settings.describe_page_local(&file)
-            } else {
+            let use_metadata = std::env::var_os("NIX_WEB_GUI_METADATA").is_some()
+                && std::env::var_os("NIX_WEB_GUI_SKIP_METADATA").is_none();
+            let controls = if use_metadata {
                 settings.describe_page(&file)
+            } else {
+                settings.describe_page_local(&file)
             };
             controls
                 .map(|controls| json!({ "controls": controls }))
@@ -663,8 +665,8 @@ fn open_settings(session: &mut Option<SettingsSession>, params: &Value) -> Resul
         return Err((-32010, "root is required".to_string()));
     }
     let settings = SettingsSession::open(root).map_err(|error| (-32010, error))?;
-    let menus = settings.menus().len();
-    let records = settings.records().count();
+    let menus = visible_menu_count(&settings);
+    let records = visible_record_count(&settings);
     *session = Some(settings);
     Ok(json!({
         "apiVersion": nix_web_gui_engine::API_VERSION,
@@ -684,6 +686,19 @@ where
         .as_mut()
         .ok_or_else(|| (-32000, "no open session".to_string()))?;
     handler(settings)
+}
+
+fn visible_menu_count(settings: &SettingsSession) -> usize {
+    settings.menus().iter().filter(|menu| menu.has_menu).count()
+}
+
+fn visible_record_count(settings: &SettingsSession) -> usize {
+    settings
+        .menus()
+        .iter()
+        .filter(|menu| menu.has_menu)
+        .map(|menu| menu.records.len())
+        .sum()
 }
 
 fn string_param(params: &Value, name: &str) -> String {

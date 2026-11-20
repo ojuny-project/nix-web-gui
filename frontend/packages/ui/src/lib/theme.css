@@ -239,6 +239,7 @@ label {
 }
 
 .shell {
+  height: 100vh;
   min-height: 100vh;
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr);
@@ -295,8 +296,31 @@ label {
   background: var(--surface);
 }
 
+.loading-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.spinner {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .sidebar {
   grid-area: side;
+  min-height: 0;
+  overflow-y: auto;
   padding: 1rem 0.75rem;
   border-right: 1px solid var(--border);
   background: var(--surface);
@@ -360,6 +384,7 @@ label {
 
 .content {
   grid-area: content;
+  min-height: 0;
   overflow: auto;
   padding: 1.25rem;
 }
@@ -916,6 +941,12 @@ button.tiny {
   cursor: grabbing;
 }
 
+.monitor-tile.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface));
+}
+
 .card-collection.grid-canvas {
   grid-auto-rows: minmax(4rem, auto);
   align-items: stretch;
@@ -1042,6 +1073,17 @@ button.tiny {
   border-radius: 4px;
 }
 
+.style-preview-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+}
+
+.style-preview-set img {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
 .style-preview.selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
@@ -1068,6 +1110,16 @@ button.tiny {
   font-size: 1rem;
 }
 
+.font-preview-image {
+  display: block;
+  max-width: 100%;
+  margin: 0 0 0.75rem 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
 .plain-list {
   margin: 0;
   padding: 0 1.1rem 0.75rem;
@@ -1085,51 +1137,116 @@ button.tiny {
 
 .theme-picker {
   display: grid;
-  gap: 0.5rem;
-  max-height: 22rem;
-  overflow: auto;
+  grid-template-columns: minmax(16rem, 22rem) minmax(14rem, 1fr);
+  gap: 0.75rem;
+  align-items: start;
 }
 
-.theme-grid {
+.theme-list-pane {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
   gap: 0.4rem;
+  min-width: 0;
 }
 
-.theme-swatch {
+.theme-list {
   display: grid;
-  gap: 0.25rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
-  padding: 0.35rem;
+  gap: 0.1rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.theme-group {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.35rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-align: left;
-  font-weight: 500;
+  text-transform: uppercase;
 }
 
-.theme-swatch:hover:not(:disabled) {
-  border-color: var(--accent);
+.theme-group:hover {
+  background: var(--surface-2);
 }
 
-.theme-swatch.selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
-.swatch-colors {
+.theme-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  height: 1.1rem;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  padding: 0.25rem 0.4rem;
+  text-align: left;
+}
+
+.theme-row:hover:not(:disabled) {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.theme-row.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.theme-strip {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  height: 0.9rem;
   border-radius: 4px;
   overflow: hidden;
 }
 
-.swatch-name {
+.theme-row-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+}
+
+.theme-preview {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.theme-preview-head {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.theme-preview-code {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.theme-preview-strip {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  height: 1.4rem;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+@media (max-width: 760px) {
+  .theme-picker {
+    grid-template-columns: 1fr;
+  }
 }
 
 input.search-input.small {

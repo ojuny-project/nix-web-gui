@@ -123,14 +123,14 @@ account's worker and reads that account's file instead.
 | `session.state` | implemented |
 | `scan` | implemented, sends one stage progress line |
 | `page.list` | implemented |
-| `page.describe` | implemented with nixd and eval fallback |
+| `page.describe` | implemented; local metadata by default, nixd with `NIX_WEB_GUI_METADATA=1` |
 | `control.get` | implemented |
 | `control.describe` | implemented with nixd and eval fallback |
 | `control.set` | implemented |
 | `control.setTyped` | implemented |
 | `control.reset` | implemented |
 | `edits.preview` | implemented |
-| `edits.apply` | implemented, sends one stage progress line |
+| `edits.apply` | implemented, sends one progress line per written file |
 | `file.add` | implemented |
 | `file.templates` | implemented |
 | `option.add` | implemented |
@@ -261,6 +261,11 @@ Response:
 
 Describes every control on a page with metadata. `file` is the menu file from
 `page.list`.
+
+The server uses the scanner's local metadata by default, so pages open without
+waiting on nixd. Set `NIX_WEB_GUI_METADATA=1` in the service environment to use
+nixd and the eval fallback. `NIX_WEB_GUI_SKIP_METADATA=1` forces local metadata
+even when that variable is set.
 
 Request:
 

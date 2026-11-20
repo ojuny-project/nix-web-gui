@@ -207,13 +207,21 @@ The client serializes live apply calls with one queue and keeps the latest value
 per path, so a debounce cannot run two `apply.run` calls at once. The server does
 not add a second queue.
 
+`page.describe` uses the scanner's local metadata by default so pages open
+without waiting on nixd. Set `NIX_WEB_GUI_METADATA=1` to use nixd and the eval
+fallback. That path runs one eval per parent option and can block the session
+worker for minutes on a large flake; `NIX_WEB_GUI_SKIP_METADATA=1` forces local
+metadata.
+
 ## Apply and rebuild privileges
 
-`apply.run` and `rebuild.run` execute as the signed-in account, inside that
-account's worker. They inherit the account's sudo configuration.
+`apply.run` executes as the signed-in account, inside that account's worker, and
+inherits the account's sudo configuration. `rebuild.run` can also run there, but
+accepts an optional device password and feeds it to `sudo -S` when the configured
+command uses `sudo`.
 
-- There is no password re-entry.
-- There is no `sudo -S` input path.
+- `apply.run` has no password re-entry.
+- `rebuild.run` has the optional `sudo -S` input path.
 - There is no general root helper and no arbitrary root command.
 - `rebuild_command` and each `applyCommand` are shell strings run with
   `sh -lc` in the flake root.
