@@ -49,7 +49,7 @@
   let systemOnly = false;
   let selectedHost = "";
   let selected = 0;
-  let view: "settings" | "flake" | "git" = "settings";
+  let view: "settings" | "flake" | "git" | "config" = "settings";
   let popoutMode = false;
   let records: ScanRecord[] = [];
   let values: Record<string, ControlValue> = {};
@@ -57,7 +57,20 @@
   let dirty: Set<string> = new Set();
   let highlightPath = "";
   let collapsed = new Set<string>();
-  let advanced = false;
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem("nix-web-gui.collapsed-categories") ?? "[]",
+    );
+    if (Array.isArray(stored)) {
+      collapsed = new Set(
+        (stored as string[]).filter((item) => typeof item === "string"),
+      );
+    }
+  } catch {
+    // Keep every category open when storage is unavailable.
+  }
+  let showHidden = false;
+  let advancedOpen = false;
   let busy = false;
   let describing = false;
   let status = "";
@@ -83,6 +96,7 @@
   let editingName: string | null = null;
   let gitStatus: GitStatus | null = null;
   let gitBusy = false;
+  let gitStatusBusy = false;
   let gitDiff = "";
   let gitDiffBusy = false;
   let commitMessage = "";
@@ -90,7 +104,6 @@
   let autoGitSync = false;
   let expandDetailsDefault = false;
   let config: WebConfig | null = null;
-  let showConfig = false;
   let configBusy = false;
   let rebuildCommand = "";
   let terminalCommand = "";
@@ -178,6 +191,14 @@
     if (next.has(category)) next.delete(category);
     else next.add(category);
     collapsed = next;
+    try {
+      localStorage.setItem(
+        "nix-web-gui.collapsed-categories",
+        JSON.stringify([...next]),
+      );
+    } catch {
+      // Collapsing still works for this session.
+    }
   }
 
   function sortMenus(input: ScanMenu[]) {
@@ -189,15 +210,14 @@
   function menuAt(index: number): ScanMenu | undefined {
     const list = sortMenus(pageMenus);
     const candidate = list[index];
-    if (candidate && (!candidate.hidden || advanced)) return candidate;
-    return list.find((menu) => !menu.hidden || advanced) ?? candidate;
+    if (candidate && (!candidate.hidden || showHidden)) return candidate;
+    return list.find((menu) => !menu.hidden || showHidden) ?? candidate;
   }
 
   $: pageMenus = menus.filter((menu) => menu.hasMenu !== false);
   $: sortedMenus = sortMenus(pageMenus);
   $: requestsPending = $activeRequests;
   $: dialogOpen =
-    showConfig ||
     showAddFile ||
     showAddOption ||
     Boolean(structureTarget) ||
@@ -221,16 +241,16 @@
     }
     if (cardPaths.has(record.path)) return false;
     if (disabledByAncestor(record)) return false;
-    if (record.hidden && !advanced) return false;
+    if (record.hidden && !showHidden) return false;
     if (!visibleWhenHolds(record)) return false;
     if (!searchTerm) return true;
     return subtreeMatches(record, searchTerm);
   });
   $: currentMenu = (() => {
     const candidate = sortedMenus[selected];
-    if (candidate && (!candidate.hidden || advanced)) return candidate;
+    if (candidate && (!candidate.hidden || showHidden)) return candidate;
     return (
-      sortedMenus.find((menu) => !menu.hidden || advanced) ?? candidate
+      sortedMenus.find((menu) => !menu.hidden || showHidden) ?? candidate
     );
   })();
   $: orderedRecords = [...visibleRecords].sort(
@@ -243,7 +263,11 @@
   $: groupedRecords = (() => {
     const normal = orderedRecords.filter((record) => !record.advanced);
     const advancedRecords = orderedRecords.filter((record) => record.advanced);
-    const groups: Array<{ name: string; records: ScanRecord[] }> = [];
+    const groups: Array<{
+      name: string;
+      records: ScanRecord[];
+      advanced?: boolean;
+    }> = [];
     for (const record of normal) {
       const name = record.group ?? "";
       const last = groups.at(-1);
@@ -254,13 +278,13 @@
       }
     }
     if (advancedRecords.length) {
-      groups.push({ name: "Advanced", records: advancedRecords });
+      groups.push({ name: "Advanced", records: advancedRecords, advanced: true });
     }
     return groups;
   })();
   $: searchTerm = search.trim().toLowerCase();
   $: filteredMenus = sortedMenus.filter((menu) => {
-    if (menu.hidden && !advanced) return false;
+    if (menu.hidden && !showHidden) return false;
     if (!searchTerm) return true;
     if (
       menu.displayname.toLowerCase().includes(searchTerm) ||
@@ -286,12 +310,12 @@
   >;
   $: searchMatches = searchTerm
     ? sortedMenus
-        .filter((menu) => !menu.hidden || advanced)
+        .filter((menu) => !menu.hidden || showHidden)
         .flatMap((menu) =>
           menu.records
             .filter(
               (record) =>
-                (!record.hidden || advanced) &&
+                (!record.hidden || showHidden) &&
                 matchesRecord(record, searchTerm),
             )
             .map((record) => ({ menu, record })),
@@ -324,7 +348,7 @@
   }
 
   function cardRecordVisible(record: ScanRecord): boolean {
-    if (record.hidden && !advanced) return false;
+    if (record.hidden && !showHidden) return false;
     if (disabledByAncestor(record)) return false;
     return visibleWhenHolds(record);
   }
@@ -442,9 +466,9 @@
     } else if (event.key === "Escape") {
       showAddFile = false;
       showAddOption = false;
-      showConfig = false;
       structureTarget = null;
       insert = null;
+      if (view === "config") view = "settings";
     }
   }
 
@@ -713,11 +737,10 @@
     showAddOption = false;
     structureTarget = null;
     insert = null;
-    showConfig = false;
   }
 
-  function onAdvancedToggle() {
-    if (advanced) return;
+  function onHiddenToggle() {
+    if (showHidden) return;
     if (!sortedMenus[selected]?.hidden) return;
     const visible = sortedMenus.findIndex((menu) => !menu.hidden);
     if (visible >= 0) {
@@ -734,17 +757,20 @@
 
   async function openConfig() {
     closeDialogs();
-    view = "settings";
+    view = "config";
+    config = null;
+    configBusy = true;
     error = "";
     try {
       config = await rpc<WebConfig>("config.get", {}, user.csrf);
       rebuildCommand = config.rebuild_command ?? "";
       terminalCommand = config.terminal_command ?? "";
       configFlakePath = config.flake_path ?? "";
-      showConfig = true;
       scrollContentTop();
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Cannot read config";
+    } finally {
+      configBusy = false;
     }
   }
 
@@ -765,7 +791,7 @@
       liveApply = next.live_apply;
       autoGitSync = next.auto_git_sync;
       expandDetailsDefault = next.expand_details_by_default;
-      showConfig = false;
+      view = "settings";
       status = "Config saved";
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Cannot save config";
@@ -776,10 +802,28 @@
 
   async function refreshGit() {
     if (!root) return;
+    gitStatusBusy = true;
     try {
       gitStatus = await rpc<GitStatus>("git.status", {}, user.csrf);
     } catch {
       gitStatus = null;
+    } finally {
+      gitStatusBusy = false;
+    }
+  }
+
+  function gitStateLabel(state: string): string {
+    switch (state) {
+      case "current":
+        return "up to date with upstream";
+      case "behind":
+        return "behind upstream";
+      case "diverged":
+        return "diverged from upstream";
+      case "no-upstream":
+        return "no upstream configured";
+      default:
+        return state;
     }
   }
 
@@ -819,6 +863,7 @@
     view = "git";
     scrollContentTop();
     gitDiff = "";
+    gitStatus = null;
     await refreshGit();
   }
 
@@ -1960,6 +2005,24 @@
       {/if}
     </div>
     <div class="topbar-actions">
+      {#if view === "settings" && !dialogOpen && pageMenus.length}
+        <button class="ghost" onclick={discard}>Discard</button>
+        <button class="ghost" onclick={preview}>Diff</button>
+        {#if rebuildRunning}
+          <button class="ghost" onclick={cancelJob}>Cancel</button>
+        {:else}
+          <button
+            class="ghost"
+            onclick={saveAndRebuild}
+            disabled={busy || dirty.size === 0}
+          >
+            Save &amp; rebuild
+          </button>
+        {/if}
+        <button onclick={save} disabled={busy || dirty.size === 0}>
+          {busy ? "Saving..." : "Save"}
+        </button>
+      {/if}
       {#if requestsPending}
         <span class="chip muted loading-chip" role="status" aria-live="polite">
           <span class="spinner" aria-hidden="true"></span>
@@ -1987,13 +2050,14 @@
         </button>
         <button onclick={promptOpenFlake}>Open flake</button>
         <button disabled={busy || !root} onclick={openAddFile}>Add file</button>
-        <button class:active={showConfig} onclick={openConfig}>Settings</button>
+        <button class:active={view === "config"} onclick={openConfig}>Settings</button>
         <p class="nav-label">Menus</p>
         {#each menuGroups as [category, group] (category)}
           {#if category}
             <button
               class="nav-label nav-toggle"
               aria-expanded={!collapsed.has(category)}
+              title={`${collapsed.has(category) ? "Expand" : "Collapse"} ${category}`}
               onclick={() => toggleCategory(category)}
             >
               {collapsed.has(category) ? "▸" : "▾"} {category}
@@ -2224,22 +2288,38 @@
         description="Commit locally or push to the configured upstream."
       >
         {#if gitStatus}
-          <div class="git-summary">
-            <span class="chip mono">{gitStatus.branch}</span>
-            <span class="chip muted">{gitStatus.state}</span>
-            <span class="chip muted">{gitStatus.dirty ? "dirty" : "clean"}</span>
-            {#if gitStatus.upstream}
-              <span class="chip muted mono">{gitStatus.upstream}</span>
-            {/if}
-            {#if gitStatus.ahead}
-              <span class="chip">{gitStatus.ahead} ahead</span>
-            {/if}
-            {#if gitStatus.behind}
-              <span class="chip">{gitStatus.behind} behind</span>
-            {/if}
-          </div>
+          <dl class="facts">
+            <div>
+              <dt>Branch</dt>
+              <dd class="mono">{gitStatus.branch}</dd>
+            </div>
+            <div>
+              <dt>Upstream</dt>
+              <dd class="mono">{gitStatus.upstream ?? "not configured"}</dd>
+            </div>
+            <div>
+              <dt>Remote state</dt>
+              <dd>{gitStateLabel(gitStatus.state)}</dd>
+            </div>
+            <div>
+              <dt>Working tree</dt>
+              <dd>{gitStatus.dirty ? "uncommitted changes" : "clean"}</dd>
+            </div>
+            <div>
+              <dt>Ahead</dt>
+              <dd>{gitStatus.ahead} commit(s)</dd>
+            </div>
+            <div>
+              <dt>Behind</dt>
+              <dd>{gitStatus.behind} commit(s)</dd>
+            </div>
+          </dl>
+        {:else if gitStatusBusy}
+          <p class="muted">Reading repository status…</p>
         {:else}
-          <p class="muted">No git repository information. Open a flake first.</p>
+          <p class="muted">
+            No git repository information. Open a flake that is tracked by git.
+          </p>
         {/if}
         <div class="toolbar">
           <button class="ghost" onclick={refreshGit} disabled={gitBusy}>
@@ -2277,6 +2357,66 @@
           <pre class="diff">{gitDiff}</pre>
         {/if}
       </Panel>
+    {:else if view === "config"}
+      {#if config}
+        <Panel title="Configure" description="The same config file as the desktop settings app.">
+          <form class="input-form" onsubmit={saveConfig}>
+            <label>
+              <span>Flake path</span>
+              <input
+                bind:value={configFlakePath}
+                list="config-recent-flakes"
+                placeholder="/home/den/repos/nixos-configs/dendrite"
+              />
+              <datalist id="config-recent-flakes">
+                {#each config.recent_flake_paths as recent (recent)}
+                  <option value={recent}></option>
+                {/each}
+              </datalist>
+            </label>
+            <label>
+              <span>Rebuild command</span>
+              <input bind:value={rebuildCommand} placeholder="sudo nixos-rebuild switch --flake .#host" />
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.live_apply} />
+              <span>Apply changes immediately</span>
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.auto_git_sync} />
+              <span>Sync git on open and save</span>
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.expand_details_by_default} />
+              <span>Expand setting details</span>
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.reload_mango_on_rebuild} />
+              <span>Reload mango after rebuild</span>
+            </label>
+            <label class="inline">
+              <input type="checkbox" bind:checked={config.reload_dms_on_rebuild} />
+              <span>Reload DMS after rebuild</span>
+            </label>
+            <div class="toolbar">
+              <span class="spacer"></span>
+              <button type="button" class="ghost" onclick={() => (view = "settings")}>
+                Cancel
+              </button>
+              <button type="submit" disabled={configBusy}>
+                {configBusy ? "Saving..." : "Save config"}
+              </button>
+            </div>
+          </form>
+        </Panel>
+      {:else}
+        <Panel title="Configure" description="Reading the shared settings file.">
+          <p class="muted">
+            {configBusy ? "Loading settings…" : "Cannot read the settings file."}
+          </p>
+        </Panel>
+      {/if}
+
     {:else}
       {#if !dialogOpen}
       <Panel
@@ -2287,39 +2427,38 @@
           <label class="inline">
             <input
               type="checkbox"
-              bind:checked={advanced}
-              onchange={onAdvancedToggle}
+              bind:checked={showHidden}
+              onchange={onHiddenToggle}
             />
-            <span>Advanced</span>
+            <span>Show hidden</span>
           </label>
           <span class="spacer"></span>
           <button class="ghost" onclick={reloadFromDisk}>Reload</button>
           <button class="ghost" onclick={openAddOption}>Add option</button>
-          <button class="ghost" onclick={discard}>Discard</button>
-          <button class="ghost" onclick={preview}>Diff</button>
-          {#if rebuildRunning}
-            <button class="ghost" onclick={cancelJob}>Cancel</button>
-          {:else}
-            <button class="ghost" onclick={saveAndRebuild} disabled={busy || dirty.size === 0}>
-              Save &amp; rebuild
-            </button>
-          {/if}
-          <button onclick={save} disabled={busy || dirty.size === 0}>
-            {busy ? "Saving..." : "Save"}
-          </button>
         </div>
 
         {#if visibleRecords.length === 0}
           <p class="muted">This menu has no controls.</p>
         {/if}
 
-        {#each groupedRecords as group (group.name)}
-          {#if group.name}
+        {#each groupedRecords as group, groupIndex (groupIndex)}
+          {#if group.advanced}
+            <button
+              type="button"
+              class="advanced-toggle"
+              aria-expanded={advancedOpen}
+              onclick={() => (advancedOpen = !advancedOpen)}
+            >
+              <span>{advancedOpen ? "▾" : "▸"}</span>
+              Advanced
+            </button>
+          {:else if group.name}
             <h3 class="group-heading">{group.name}</h3>
           {/if}
           {#each group.records as record (record.path)}
             <div
               class="control-record"
+              hidden={group.advanced && !advancedOpen}
               class:highlight={highlightPath === record.path}
             >
               {#if !OJUNY_WIDGETS && OJUNY_WIDGET_KINDS.has(record.widget ?? "")}
@@ -2805,59 +2944,6 @@
                 disabled={structureBusy || !structureKey.trim()}
               >
                 {structureBusy ? "Adding..." : "Add row"}
-              </button>
-            </div>
-          </form>
-        </Panel>
-      {/if}
-
-      {#if showConfig && config}
-        <Panel title="Configure" description="The same config file as the desktop settings app.">
-          <form class="input-form" onsubmit={saveConfig}>
-            <label>
-              <span>Flake path</span>
-              <input
-                bind:value={configFlakePath}
-                list="config-recent-flakes"
-                placeholder="/home/den/repos/nixos-configs/dendrite"
-              />
-              <datalist id="config-recent-flakes">
-                {#each config.recent_flake_paths as recent (recent)}
-                  <option value={recent}></option>
-                {/each}
-              </datalist>
-            </label>
-            <label>
-              <span>Rebuild command</span>
-              <input bind:value={rebuildCommand} placeholder="sudo nixos-rebuild switch --flake .#host" />
-            </label>
-            <label class="inline">
-              <input type="checkbox" bind:checked={config.live_apply} />
-              <span>Apply changes immediately</span>
-            </label>
-            <label class="inline">
-              <input type="checkbox" bind:checked={config.auto_git_sync} />
-              <span>Sync git on open and save</span>
-            </label>
-            <label class="inline">
-              <input type="checkbox" bind:checked={config.expand_details_by_default} />
-              <span>Expand setting details</span>
-            </label>
-            <label class="inline">
-              <input type="checkbox" bind:checked={config.reload_mango_on_rebuild} />
-              <span>Reload mango after rebuild</span>
-            </label>
-            <label class="inline">
-              <input type="checkbox" bind:checked={config.reload_dms_on_rebuild} />
-              <span>Reload DMS after rebuild</span>
-            </label>
-            <div class="toolbar">
-              <span class="spacer"></span>
-              <button type="button" class="ghost" onclick={() => (showConfig = false)}>
-                Cancel
-              </button>
-              <button type="submit" disabled={configBusy}>
-                {configBusy ? "Saving..." : "Save config"}
               </button>
             </div>
           </form>

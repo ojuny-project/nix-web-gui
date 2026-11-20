@@ -77,7 +77,7 @@ by the `@menu category` value. A menu without a category appears before the
 first category heading. Menu icons are rendered when the menu declares one, and
 a category heading collapses and expands its group. A `.nix` file without an
 `@menu` block is never shown as a page, and a menu with `hidden = true` appears
-only after the `Advanced` checkbox is enabled.
+only after the `Show hidden` checkbox is enabled.
 
 ## Host filter
 
@@ -89,11 +89,11 @@ returned by the scan.
 
 ## Advanced controls
 
-Records whose `advanced` flag is true are always collected under an `Advanced`
-heading after the normal groups, matching the desktop expander. The `Advanced`
-checkbox reveals records and menus whose `hidden` flag is true; hidden records
-keep their normal group when revealed. Group headings come from the record
-`group` and `groupOrder` values.
+Records whose `advanced` flag is true are collected in a collapsed `Advanced`
+fold-out after the normal groups, matching the desktop expander. The
+`Show hidden` checkbox is separate: it reveals records and menus whose `hidden`
+flag is true, and hidden records keep their normal group when revealed. Group
+headings come from the record `group` and `groupOrder` values.
 
 ## Editing and staging
 
@@ -219,19 +219,20 @@ client apply queue runs one command at a time.
 ## Save and rebuild
 
 `Ctrl+S` or `Cmd+S` saves. `Ctrl+Shift+S` or `Cmd+Shift+S` saves and then calls
-`rebuild.run`. The toolbar Save & rebuild button starts it after a successful
+`rebuild.run`. The top-bar Save & rebuild button starts it after a successful
 save. Output lines stream into the Rebuild output panel, and Cancel is available
 while the command runs.
 
 `rebuild.run` runs `rebuild_command` from the shared config in the flake root,
 appending `mmsg dispatch reload_config` and `dms kill && mmsg dispatch spawn_shell,dms run`
 when the matching reload options are set. The command runs as the signed-in
-account, so the account's sudo configuration applies. There is no password
-re-entry and no `sudo -S`. The response also carries the full output after the
-command exits. The `terminal_command` config field is ignored by the web path.
+account, so the account's sudo configuration applies. An optional device password
+is fed to `sudo -S` when the command uses sudo. The `terminal_command` config
+field is ignored by the web path.
 
-Scan, save, and live apply send a single stage line to the status bar. They do
-not stream line-level output and have no Cancel action.
+Scan, save, apply, rebuild, Secure Boot rebuild, and update checks stream
+progress lines to the status bar or their panel. `job.cancel` terminates the
+worker for a running job; the in-process dev engine cannot cancel.
 
 ## Add file
 
@@ -287,8 +288,8 @@ The page has no channel scan or reference suggestion UI. `flake.channels` and
 
 ## Git
 
-The `Git` page calls `git.status` and renders the branch, upstream, dirty or
-clean state, ahead and behind counts, and the remote state. It offers:
+The `Git` page calls `git.status` and shows labelled facts for the branch,
+upstream, remote state, working tree, and ahead and behind counts. It offers:
 
 - `Refresh`, `Pull` (`git.pull --ff-only`), `Push` (`git.push`), and `Sync`
   (`git.sync`, which only commits and pushes when the branch is current);

@@ -31,7 +31,8 @@ pub struct PreviewEdit {
 impl SettingsSession {
     pub fn open(root: impl Into<String>) -> Result<Self, String> {
         let root = root.into();
-        let scanned = scan::scan_root(&root)?;
+        let mut scanned = scan::scan_root(&root)?;
+        scanned.menus.retain(|menu| menu.has_menu);
         let file_fingerprints = fingerprints(&scanned);
         Ok(Self {
             root,
@@ -46,7 +47,9 @@ impl SettingsSession {
     }
 
     pub fn reload(&mut self) -> Result<(), String> {
-        self.scanned = scan::scan_root(&self.root)?;
+        let mut scanned = scan::scan_root(&self.root)?;
+        scanned.menus.retain(|menu| menu.has_menu);
+        self.scanned = scanned;
         self.file_fingerprints = fingerprints(&self.scanned);
         self.target = None;
         self.target_checked = false;
@@ -1353,6 +1356,31 @@ fn split_path(path: &str) -> Option<(String, Vec<String>)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hides_files_without_a_menu_block() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-menu-filter-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(root.join("modules")).unwrap();
+        std::fs::write(
+            root.join("modules/page.nix"),
+            "/* @menu displayname = \"Page\"; */\n{ ... }: {\n  /* @option widget = \"text\"; label = \"Name\"; */\n  services.name = \"ok\";\n}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("modules/backend.nix"),
+            "{ ... }: {\n  /* @option widget = \"text\"; label = \"Hidden\"; */\n  services.hidden = \"no\";\n}\n",
+        )
+        .unwrap();
+        let session = SettingsSession::open(root.to_str().unwrap()).unwrap();
+        assert_eq!(session.menus().len(), 1);
+        assert_eq!(session.menus()[0].display_name(), "Page");
+        assert!(session.record("services.hidden").is_none());
+        let _ = std::fs::remove_dir_all(root);
+    }
 
     #[test]
     fn opens_and_reloads_a_fixture() {
