@@ -4,8 +4,6 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    # Release builds use the tagged revision of the upstream engine.
-    nix-settings-gui.url = "github:ojuny-project/nix-settings-gui/3f3a980d5186321ef4c01c8e064a17a0b5b10b5d";
   };
 
   outputs =
@@ -13,7 +11,6 @@
       self,
       nixpkgs,
       flake-utils,
-      nix-settings-gui,
     }:
     flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (
       system:
@@ -36,7 +33,6 @@
           pkgs.callPackage ./nix/package.nix {
             inherit pname withOjunyWidgets;
             frontend = pkgs.callPackage ./nix/frontend.nix { inherit withOjunyWidgets; };
-            nixSettingsGui = nix-settings-gui.outPath;
           };
       in
       {

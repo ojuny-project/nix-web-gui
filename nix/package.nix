@@ -11,7 +11,6 @@
   libadwaita,
   glib,
   frontend,
-  nixSettingsGui,
   withOjunyWidgets ? true,
   pname ? "nix-web-gui",
 }:
@@ -40,15 +39,14 @@ in
 rustPlatform.buildRustPackage {
   inherit pname;
   version = "0.1.0";
-  src = pkgs.runCommand "nix-web-gui-src" { } ''
-    mkdir -p $out/vendor
-    cp -r ${cleanSource}/. $out/
-    cp -r ${nixSettingsGui}/. $out/vendor/nix-settings-gui
-    chmod -R u+w $out
-    sed -i 's|path = "../../../nix-settings-gui"|path = "../vendor/nix-settings-gui"|' $out/engine/Cargo.toml
-  '';
+  src = cleanSource;
 
-  cargoLock.lockFile = ../Cargo.lock;
+  cargoLock = {
+    lockFile = ../Cargo.lock;
+    outputHashes = {
+      "nix-settings-gui-0.1.0" = "sha256-sx/9TIqdp4U/9ioECBB/mK3nWoVOlr0JZ8zfsuXqpC8=";
+    };
+  };
   cargoBuildFlags = [ "-p" "nix-web-gui-server" ]
     ++ lib.optionals (!withOjunyWidgets) [
       "--no-default-features"

@@ -1257,6 +1257,7 @@ dependencies = [
 [[package]]
 name = "nix-settings-gui"
 version = "0.1.0"
+source = "git+https://github.com/ojuny-project/nix-settings-gui?rev=e5ed47a48d311747cada08184e16997024c6a1f5#e5ed47a48d311747cada08184e16997024c6a1f5"
 dependencies = [
  "async-channel",
  "gtk4",

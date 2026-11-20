@@ -12,7 +12,7 @@ ojuny-widgets = ["nix-settings-gui/ojuny-widgets"]
 [dependencies]
 base64 = "0.22"
 libc = "0.2"
-nix-settings-gui = { path = "../../../nix-settings-gui", default-features = false }
+nix-settings-gui = { git = "https://github.com/ojuny-project/nix-settings-gui", rev = "e5ed47a48d311747cada08184e16997024c6a1f5", default-features = false }
 rnix = "0.11"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
