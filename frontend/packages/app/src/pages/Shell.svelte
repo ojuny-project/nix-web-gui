@@ -470,6 +470,7 @@
       detail?.params?.job === "save" ||
       detail?.params?.job === "apply"
     ) {
+      if (detail.params.job === "scan" && busy) return;
       status = detail.params.line ?? detail.params.job;
       return;
     }

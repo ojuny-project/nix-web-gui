@@ -90,7 +90,7 @@ await sleep(6000);
 const body = await evaluate(
   'document.body.innerText + "\\n" + [...document.querySelectorAll("input,textarea,select")].map((input) => input.value).join("\\n")',
 );
-for (const item of ['Users', 'alice', 'Add row', 'Binds', 'reload', 'Bar', 'clock', 'Monitors', 'eDP-1', 'Grid', 'clock', 'Hostname']) {
+for (const item of ['Users', 'alice', 'Add row', 'Add bind', 'Reload', 'Left widgets', 'Add monitor', '1920x1080', 'Add widget', 'Hostname']) {
   if (!body.includes(item)) {
     console.error(body.slice(0, 1500));
     throw new Error(`missing text: ${item}`);
@@ -250,7 +250,9 @@ if (fixture) {
     const panel = [...document.querySelectorAll('.panel')]
       .find((item) => item.querySelector('h2')?.textContent.trim() === 'Add file');
     if (!panel) throw new Error('add file panel missing');
-    const inputs = panel.querySelectorAll('input');
+    const inputs = [...panel.querySelectorAll('input')].filter(
+      (input) => input.type !== 'file',
+    );
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
     setter.call(inputs[0], ${JSON.stringify(`${fixture}/modules/extra.nix`)});
     inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
