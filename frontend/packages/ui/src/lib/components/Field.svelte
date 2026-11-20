@@ -4,13 +4,14 @@
   export let origin: string | null | undefined = undefined;
   export let htmlFor: string | undefined = undefined;
   export let expandDetails = false;
+  export let compact = false;
 
   let open = expandDetails;
   $: if (expandDetails) open = true;
   $: hasDetails = Boolean(description || origin);
 </script>
 
-<div class="field">
+<div class="field" class:compact>
   <label class="field-label" for={htmlFor}>{label}</label>
   {#if hasDetails}
     <button

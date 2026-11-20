@@ -75,6 +75,26 @@ pub fn write_new(root: &str, path: &str, body: &str) -> Result<PathBuf, String> 
     Ok(path)
 }
 
+pub fn read_source(root: &str, path: &str) -> Result<String, String> {
+    let path = paths::confine(Path::new(root), Path::new(path))
+        .map_err(|error| error.to_string())?;
+    if path.extension().and_then(|extension| extension.to_str()) != Some("nix") {
+        return Err("the editor only opens .nix files".to_string());
+    }
+    std::fs::read_to_string(&path)
+        .map_err(|error| format!("cannot read {}: {error}", path.display()))
+}
+
+pub fn write_source(root: &str, path: &str, text: &str) -> Result<(), String> {
+    let path = paths::confine(Path::new(root), Path::new(path))
+        .map_err(|error| error.to_string())?;
+    if path.extension().and_then(|extension| extension.to_str()) != Some("nix") {
+        return Err("the editor only writes .nix files".to_string());
+    }
+    std::fs::write(&path, text)
+        .map_err(|error| format!("cannot write {}: {error}", path.display()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,5 +124,27 @@ mod tests {
 
         let home = template_for("audio", "home", "shell", path);
         assert!(home.contains("flake.modules.homeManager.shell"));
+    }
+
+    #[test]
+    fn reads_and_writes_sources_inside_the_root() {
+        let root = std::env::temp_dir().join(format!(
+            "nix-web-gui-editor-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let file = root.join("module.nix");
+        std::fs::write(&file, "{ ... }: { }\n").unwrap();
+        let path = file.to_str().unwrap();
+        assert!(read_source(root.to_str().unwrap(), path)
+            .unwrap()
+            .contains("{ ... }"));
+        write_source(root.to_str().unwrap(), path, "{ ... }: { edited = true; }\n").unwrap();
+        assert!(read_source(root.to_str().unwrap(), path)
+            .unwrap()
+            .contains("edited"));
+        assert!(read_source(root.to_str().unwrap(), "/etc/passwd").is_err());
+        let _ = std::fs::remove_dir_all(root);
     }
 }

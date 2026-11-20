@@ -22,6 +22,7 @@
   export let value: ControlValue;
   export let onchange: ChangeHandler;
   export let expandDetails = false;
+  export let compact = false;
   export let onIconPick:
     | ((current: string) => Promise<string | null>)
     | undefined = undefined;
@@ -66,6 +67,7 @@
   description={descriptor.description}
   origin={descriptor.origin}
   {expandDetails}
+  {compact}
   htmlFor={id}
 >
   {#if descriptor.widget === "switch"}

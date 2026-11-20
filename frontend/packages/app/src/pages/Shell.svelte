@@ -11,6 +11,7 @@
     type ControlValue,
   } from "@nix-web-gui/ui";
   import CardCollection from "./CardCollection.svelte";
+  import FileEditor from "./FileEditor.svelte";
   import MediaPicker from "./MediaPicker.svelte";
   import SecureBootPanel from "./SecureBootPanel.svelte";
   import {
@@ -49,7 +50,8 @@
   let systemOnly = false;
   let selectedHost = "";
   let selected = 0;
-  let view: "settings" | "flake" | "git" | "config" = "settings";
+  let view: "settings" | "flake" | "git" | "config" | "editor" = "settings";
+  let editorFile = "";
   let popoutMode = false;
   let records: ScanRecord[] = [];
   let values: Record<string, ControlValue> = {};
@@ -115,6 +117,8 @@
   let addFileModuleName = "";
   let addFileTemplate: number | null = null;
   let addFilePlaceholders: Record<string, string> = {};
+  let addFileContent = "";
+  let addFileUploadName = "";
   let addFileBusy = false;
   let showAddOption = false;
   let optionPath = "";
@@ -253,13 +257,50 @@
       sortedMenus.find((menu) => !menu.hidden || showHidden) ?? candidate
     );
   })();
-  $: orderedRecords = [...visibleRecords].sort(
-    (left, right) =>
-      (left.groupOrder ?? 1e9) - (right.groupOrder ?? 1e9) ||
-      (left.group ?? "").localeCompare(right.group ?? "") ||
-      (left.order ?? 1e9) - (right.order ?? 1e9) ||
-      left.path.localeCompare(right.path),
-  );
+  $: groupRanks = (() => {
+    const info = new Map<string, { order: number | null; index: number }>();
+    records.forEach((record, index) => {
+      const group = record.group ?? "";
+      if (!group) return;
+      const entry = info.get(group) ?? { order: null, index };
+      if (record.groupOrder != null) {
+        entry.order =
+          entry.order == null
+            ? record.groupOrder
+            : Math.min(entry.order, record.groupOrder);
+      }
+      info.set(group, entry);
+    });
+    const groups = [...info.entries()].sort((left, right) => {
+      const [leftGroup, leftInfo] = left;
+      const [rightGroup, rightInfo] = right;
+      if (leftInfo.order != null && rightInfo.order != null) {
+        return (
+          leftInfo.order - rightInfo.order ||
+          leftInfo.index - rightInfo.index ||
+          leftGroup.localeCompare(rightGroup)
+        );
+      }
+      if (leftInfo.order != null) return -1;
+      if (rightInfo.order != null) return 1;
+      return leftInfo.index - rightInfo.index;
+    });
+    const ranks = new Map<string, number>([["", 0]]);
+    groups.forEach(([group], index) => ranks.set(group, index + 1));
+    return ranks;
+  })();
+  $: orderedRecords = [...visibleRecords].sort((left, right) => {
+    const rank =
+      (groupRanks.get(left.group ?? "") ?? Number.MAX_SAFE_INTEGER) -
+      (groupRanks.get(right.group ?? "") ?? Number.MAX_SAFE_INTEGER);
+    if (rank !== 0) return rank;
+    if (left.order != null && right.order != null && left.order !== right.order) {
+      return left.order - right.order;
+    }
+    if (left.order != null && right.order == null) return -1;
+    if (left.order == null && right.order != null) return 1;
+    return (left.sourceOrder ?? 0) - (right.sourceOrder ?? 0);
+  });
   $: groupedRecords = (() => {
     const normal = orderedRecords.filter((record) => !record.advanced);
     const advancedRecords = orderedRecords.filter((record) => record.advanced);
@@ -468,7 +509,7 @@
       showAddOption = false;
       structureTarget = null;
       insert = null;
-      if (view === "config") view = "settings";
+      if (view === "config" || view === "editor") view = "settings";
     }
   }
 
@@ -615,10 +656,31 @@
       addFileModuleName = "";
       addFilePath = `${root}/modules/module.nix`;
       addFilePlaceholders = {};
+      addFileContent = "";
+      addFileUploadName = "";
       showAddFile = true;
       scrollContentTop();
     } catch (cause) {
       error = cause instanceof Error ? cause.message : "Cannot read templates";
+    }
+  }
+
+  async function loadAddFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".nix")) {
+      error = "Upload a .nix file";
+      input.value = "";
+      return;
+    }
+    try {
+      addFileContent = await file.text();
+      addFileUploadName = file.name;
+      addFilePath = `${root}/modules/${file.name.split("/").at(-1)}`;
+      error = "";
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot read the file";
     }
   }
 
@@ -655,6 +717,7 @@
           moduleName: addFileModuleName,
           template: addFileTemplate,
           placeholders: addFilePlaceholders,
+          content: addFileContent || undefined,
         },
         user.csrf,
       );
@@ -753,6 +816,25 @@
     requestAnimationFrame(() => {
       document.querySelector<HTMLElement>(".content")?.scrollTo({ top: 0 });
     });
+  }
+
+  function openEditor() {
+    if (!currentMenu) return;
+    closeDialogs();
+    editorFile = currentMenu.file;
+    view = "editor";
+    scrollContentTop();
+  }
+
+  async function reloadAfterEditor() {
+    try {
+      const scanned = await rpc<ScanResult>("scan", {}, user.csrf);
+      menus = scanned.menus;
+      loadPage();
+      status = "File saved";
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : "Cannot reload after save";
+    }
   }
 
   async function openConfig() {
@@ -1560,10 +1642,16 @@
   function visibleWhenHolds(record: ScanRecord): boolean {
     const condition = record.visibleWhen;
     if (!condition) return true;
-    if (!records.some((candidate) => candidate.path === condition.path)) {
-      return true;
-    }
-    const current = literalOf(values[condition.path]).trim();
+    const governing =
+      records.find((candidate) => candidate.path === condition.path) ??
+      records.find((candidate) => candidate.path === `config.${condition.path}`) ??
+      records.find(
+        (candidate) =>
+          candidate.path.replace(/^config\./, "") ===
+          condition.path.replace(/^config\./, ""),
+      );
+    if (!governing) return true;
+    const current = literalOf(values[governing.path] ?? displayValue(governing)).trim();
     if (condition.equals != null) {
       return current === condition.equals.trim();
     }
@@ -2006,6 +2094,16 @@
     </div>
     <div class="topbar-actions">
       {#if view === "settings" && !dialogOpen && pageMenus.length}
+        <label class="inline">
+          <input
+            type="checkbox"
+            bind:checked={showHidden}
+            onchange={onHiddenToggle}
+          />
+          <span>Show hidden</span>
+        </label>
+        <button class="ghost" onclick={reloadFromDisk}>Reload</button>
+        <button class="ghost" onclick={openEditor}>Edit file</button>
         <button class="ghost" onclick={discard}>Discard</button>
         <button class="ghost" onclick={preview}>Diff</button>
         {#if rebuildRunning}
@@ -2357,6 +2455,13 @@
           <pre class="diff">{gitDiff}</pre>
         {/if}
       </Panel>
+    {:else if view === "editor"}
+      <FileEditor
+        file={editorFile}
+        csrf={user.csrf}
+        onclose={() => (view = "settings")}
+        onsaved={reloadAfterEditor}
+      />
     {:else if view === "config"}
       {#if config}
         <Panel title="Configure" description="The same config file as the desktop settings app.">
@@ -2423,20 +2528,6 @@
         title={currentMenu?.displayname ?? "Settings"}
         description={currentMenu?.description}
       >
-        <div class="toolbar">
-          <label class="inline">
-            <input
-              type="checkbox"
-              bind:checked={showHidden}
-              onchange={onHiddenToggle}
-            />
-            <span>Show hidden</span>
-          </label>
-          <span class="spacer"></span>
-          <button class="ghost" onclick={reloadFromDisk}>Reload</button>
-          <button class="ghost" onclick={openAddOption}>Add option</button>
-        </div>
-
         {#if visibleRecords.length === 0}
           <p class="muted">This menu has no controls.</p>
         {/if}
@@ -2523,6 +2614,7 @@
                   value={values[record.path]}
                   onchange={onChange}
                   expandDetails={expandDetailsDefault}
+                  compact={(record.depth ?? 0) > 0}
                   onIconPick={(current) => pickIcon(record, current)}
                   onIconPreview={(value) => previewIcon(record, value)}
                   onIconDelete={(value) => deleteIcon(record, value)}
@@ -2648,12 +2740,31 @@
             {/each}
           </div>
         {/if}
+
+        <div class="toolbar page-footer-actions">
+          <span class="spacer"></span>
+          <button class="ghost" onclick={openAddOption}>Add option</button>
+        </div>
       </Panel>
       {/if}
 
       {#if showAddFile}
         <Panel title="Add file" description="Create a module or render a template.">
           <form class="input-form" onsubmit={saveAddFile}>
+            <label>
+              <span>Upload a .nix file</span>
+              <input
+                type="file"
+                accept=".nix,text/plain"
+                onchange={loadAddFile}
+              />
+            </label>
+            {#if addFileUploadName}
+              <p class="muted small">
+                Loaded {addFileUploadName}. Its text is written to the file path
+                below.
+              </p>
+            {/if}
             <label>
               <span>Kind</span>
               <select bind:value={addFileKind} onchange={onFileKindChange}>

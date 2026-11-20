@@ -131,7 +131,9 @@ account's worker and reads that account's file instead.
 | `control.reset` | implemented |
 | `edits.preview` | implemented |
 | `edits.apply` | implemented, sends one progress line per written file |
-| `file.add` | implemented |
+| `file.add` | implemented; accepts optional `content` for uploads |
+| `file.read` | implemented; reads a `.nix` file inside the root |
+| `file.write` | implemented; writes a `.nix` file and reloads the session |
 | `file.templates` | implemented |
 | `option.add` | implemented |
 | `insert.apply` | implemented |

@@ -10,6 +10,10 @@
   export let disabled = false;
   export let onchange: (value: number) => void;
 
+  $: numeric = Number.isFinite(value) ? value : (min ?? 0);
+  $: display = digits != null ? numeric.toFixed(digits) : String(numeric);
+  $: sliderStep = step ?? (range ? "any" : digits === 0 ? 1 : "any");
+
   function parse(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     const next = Number(input.value);
@@ -17,18 +21,20 @@
   }
 </script>
 
-<div class="number-field">
+<div class="number-field" class:range>
   <input
     {id}
     type={range ? "range" : "number"}
-    {value}
+    value={numeric}
     {min}
     {max}
-    step={step ?? (digits === 0 ? 1 : "any")}
+    step={sliderStep}
     {disabled}
     oninput={parse}
   />
-  {#if unit}
+  {#if range}
+    <output for={id}>{display}{unit ? ` ${unit}` : ""}</output>
+  {:else if unit}
     <span class="unit">{unit}</span>
   {/if}
 </div>

@@ -356,6 +356,7 @@
               value={values[record.path]}
               onchange={onchange}
               {expandDetails}
+              compact={(record.depth ?? 0) > 0}
               onIconPick={(current) => onIconPick(record, current)}
               onIconPreview={(value) => onIconPreview(record, value)}
               csvList={isCsv(record)}

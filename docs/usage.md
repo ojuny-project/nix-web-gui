@@ -242,10 +242,18 @@ The panel creates a file from `file.templates` or from a built-in `raw`,
 - `path` defaults to `<root>/modules/module.nix`;
 - `moduleName` fills `flake.modules.<kind>.<name>`;
 - template placeholders are rendered before the write;
+- the upload field reads a local `.nix` file and sends its text as `content`;
 - `file.add` writes the file, reloads, and returns a reminder when `flake.nix`
   exists without `import-tree`.
 
 The sidebar `Add file` button opens the panel.
+
+## File editor
+
+`Edit file` in the top bar opens the current menu file in a raw editor. It calls
+`file.read`, highlights Nix syntax, shows line numbers, and writes through
+`file.write`. Saving reloads the session and rescans the page. Only `.nix` files
+inside the flake root are readable or writable.
 
 ## Add option
 

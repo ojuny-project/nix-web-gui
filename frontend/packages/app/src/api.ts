@@ -96,6 +96,7 @@ export type ScanRecord = {
   group?: string | null;
   groupOrder?: number | null;
   order?: number | null;
+  sourceOrder?: number | null;
   min?: number | null;
   max?: number | null;
   step?: number | null;

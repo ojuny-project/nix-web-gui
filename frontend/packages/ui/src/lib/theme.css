@@ -471,6 +471,26 @@ label {
   border-bottom: 0;
 }
 
+.field.compact {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  padding: 0.3rem 0;
+}
+
+.field.compact .field-label {
+  font-weight: 500;
+}
+
+.field.compact .field-control {
+  margin-top: 0;
+}
+
+.field.compact .field-help,
+.field.compact .details-toggle {
+  grid-column: 1 / -1;
+}
+
 .field-label {
   display: block;
   color: var(--text-strong);
@@ -560,6 +580,23 @@ label {
   gap: 0.5rem;
 }
 
+.number-field.range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.number-field.range input {
+  width: 100%;
+}
+
+.number-field output {
+  min-width: 4.5rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .number-field input[type="number"] {
   max-width: 12rem;
 }
@@ -638,6 +675,14 @@ label {
 
 .toolbar .spacer {
   flex: 1;
+}
+
+.page-footer-actions {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .inline {

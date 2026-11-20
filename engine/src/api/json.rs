@@ -20,6 +20,7 @@ pub fn record_json(record: &Record) -> Value {
         "group": record.spec.group,
         "groupOrder": record.spec.group_order,
         "order": record.spec.order,
+        "sourceOrder": record.byte_start,
         "min": record.spec.min,
         "max": record.spec.max,
         "step": record.spec.step,

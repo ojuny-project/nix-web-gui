@@ -611,7 +611,10 @@ pub fn handle_with_progress(
                 .unwrap_or_default();
 
             let template_ref = params.get("template");
-            let body = if let Some(index) = template_ref.and_then(Value::as_u64) {
+            let uploaded = params.get("content").and_then(Value::as_str);
+            let body = if let Some(content) = uploaded {
+                content.to_string()
+            } else if let Some(index) = template_ref.and_then(Value::as_u64) {
                 let templates = authoring::load_templates(&settings.root);
                 let template = templates
                     .get(index as usize)
@@ -645,6 +648,20 @@ pub fn handle_with_progress(
                 "path": written.display().to_string(),
                 "reminder": if reminder { "Add the module to the flake imports" } else { "" },
             }))
+        }),
+        "file.read" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            authoring::read_source(&settings.root, &path)
+                .map(|text| json!({ "text": text }))
+                .map_err(|error| (-32012, error))
+        }),
+        "file.write" => with_settings(session, |settings| {
+            let path = string_param(&params, "path");
+            let text = string_param(&params, "text");
+            authoring::write_source(&settings.root, &path, &text)
+                .map_err(|error| (-32012, error))?;
+            settings.reload().map_err(|error| (-32013, error))?;
+            Ok(json!({ "saved": true }))
         }),
         other => Err((-32601, format!("unknown method: {other}"))),
     };
