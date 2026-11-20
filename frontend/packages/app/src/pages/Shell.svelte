@@ -2764,6 +2764,16 @@
                 Loaded {addFileUploadName}. Its text is written to the file path
                 below.
               </p>
+              <button
+                type="button"
+                class="ghost"
+                onclick={() => {
+                  addFileContent = "";
+                  addFileUploadName = "";
+                }}
+              >
+                Use a template instead
+              </button>
             {/if}
             <label>
               <span>Kind</span>
