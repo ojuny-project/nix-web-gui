@@ -66,6 +66,8 @@ Implemented end to end:
 - Secure Boot status plus key creation, migration, enrollment, config writes,
   rebuild, and reboot from the root service account, each privileged action
   re-authenticated with the device password.
+- A PTY-backed command terminal with xterm.js output and keyboard input, run as
+  the signed-in account.
 - Default and minimal packages. The minimal UI hides the descendants of Ojuny
   records and shows the unavailable notice in their place.
 - `checks.parity`, `checks.boundaries`, `checks.minimal-flag`, and the NixOS

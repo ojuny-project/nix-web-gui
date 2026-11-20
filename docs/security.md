@@ -172,3 +172,12 @@ descent to the scanner. The enforcement test is
 `/home/den/repos/ojuny-future-repos/nix-web-gui/engine/src/session.rs`, using the
 `limitations` fixture. `docs/parity.md` calls the policy gate
 `gate-limitation-no-list-descent`.
+
+## Terminal
+
+`GET /api/terminal` upgrades to a WebSocket only with a valid session cookie and
+an allowed Origin. The PTY is started after the root parent drops to the
+authenticated device account, using the same uid, gid, groups, HOME, and XDG
+environment as a settings worker. Commands are not run as root. A command that
+needs root must use the account's `sudo` policy and prompt inside the terminal.
+Closing the socket kills the command.

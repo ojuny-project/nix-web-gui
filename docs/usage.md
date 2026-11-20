@@ -309,6 +309,26 @@ upstream, remote state, working tree, and ahead and behind counts. It offers:
 Automatic Git behaviour is config-driven: `git.pull` on open and
 commit-and-push after save when `auto_git_sync` is enabled.
 
+## Terminal
+
+The sidebar `Terminal` page opens an xterm.js terminal connected to
+`/api/terminal`. Enter a command and press Enter. The server runs it with
+`sh -lc` under a PTY as the signed-in device account and streams the raw output
+back, including full-screen programs such as `cfdisk` or `htop`. Keyboard input
+is forwarded to the command.
+
+Use `sudo` when the command needs root, for example:
+
+```sh
+sudo cfdisk /dev/nvme0n1
+```
+
+This is a command terminal, not a persistent shell. Closing the page or pressing
+Stop terminates the command. Commands run in the open flake directory, or the
+account home directory when no flake is open. In production the server parent
+drops to the session account before starting the PTY; it never starts a root
+shell.
+
 ## Media picker
 
 For a `wallpaper` or `file` record, a media grid is rendered under the control:

@@ -267,8 +267,10 @@ The remaining limits are about feedback, not reachability:
 - a scan sends a start line, the menu count, and one line per menu file; a save
   sends one line per written file; apply sends one command line per output line;
   `job.cancel` terminates the worker for any of them;
-- the config panel no longer shows `terminal_command`, because the web frontend
-  never opens a terminal. The stored value is preserved for the desktop app.
+- the config panel no longer shows `terminal_command`; that setting is for the
+  desktop terminal launcher. The Terminal page runs an explicit command through
+  a PTY as the signed-in account, so it is a command runner rather than a
+  persistent shell.
 
 ## Minimal variant behaviour
 
