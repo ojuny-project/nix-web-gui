@@ -385,8 +385,8 @@ panel.
 
 ## Secure Boot
 
-A `secureboot` record renders a raw Nix text box plus the Secure Boot panel. The
-panel reads `secureboot.status` and shows firmware mode, UEFI, setup mode,
+A `secureboot` or `secure-boot` record renders a switch plus the Secure Boot
+flow. The flow reads `secureboot.status` and shows firmware mode, UEFI, setup mode,
 sbctl, key bundle, keys present and enrolled, Lanzaboote state, signed and
 unsigned files, Windows, BitLocker, ESP free space, warnings, and the derived
 stage title and detail.

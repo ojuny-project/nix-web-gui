@@ -33,8 +33,8 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Theme | palette picker | `control.setTyped` | searchable swatch picker | yes | implemented |
 | Wallpaper | preview strip | `preview.*` | picker, preset tiles, Default preset, upload, delete | yes | implemented |
 | File and icon pickers | native file chooser | `preview.upload`, `preview.delete` | media picker and table icon picker with thumbnails | yes | implemented |
-| Keybinds | row editor | `control.setTyped`, `structure.*` | row cards with configurable schemas, CSV lists, previews, and sorting | yes | implemented |
-| Monitors | card editor | `control.setTyped`, `structure.*`, `monitor.detect` | output cards, drag canvas, output detection, disabled features | yes | implemented |
+| Keybinds | keybind editor | `control.setTyped`, `structure.*` | compact bind rows with title, description, preview, and a focused edit form | yes | implemented |
+| Monitors | monitor editor | `control.setTyped`, `structure.*`, `monitor.detect` | scaled canvas, selected-output details, primary marker, transform preview, feature groups | yes | implemented |
 | Users | expander editor | `control.setTyped`, `structure.*` | account cards, validation, password action, home-manager sync | yes | implemented |
 | Facter | hardware profile | `control.setTyped` | UI select with `profileCatalog` profiles | yes | implemented |
 | Secure Boot | stage dialog | `secureboot.*` | status panel plus setup actions | yes | partial |
@@ -53,9 +53,9 @@ The `Test` column states the implementation status: `implemented`, `partial`, or
 | Rebuild | terminal | `rebuild.run`, `job.cancel` | streamed output panel with Cancel | yes | implemented |
 | Menu | row editor | `control.setTyped`, `structure.*` | row cards with provider assistance and inline field help | no | implemented |
 | Plugins | plugin editor | `control.setTyped`, `structure.*`, `plugins.*` | row cards, registry add, and schema-driven settings controls | no | implemented |
-| Bar | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles, field edits, and list move | no | implemented |
-| Dock | tile editor | `control.setTyped`, `structure.*` | row cards; `@widget-preset` tiles, field edits, and list move | no | implemented |
-| Grid | card canvas | `control.setTyped`, `structure.*` | placement canvas with `gridRegistry` ids, drag, resize, catalog sizes, and profile columns | no | implemented |
+| Bar | tile editor | `control.setTyped`, `structure.*` | section tiles with enable switches, preset picker, drag reorder, and selected-tile settings | no | implemented |
+| Dock | tile editor | `control.setTyped`, `structure.*` | section tiles with enable switches, preset picker, drag reorder, and selected-tile settings | no | implemented |
+| Grid | card canvas | `control.setTyped`, `structure.*` | placement canvas with registry add flow, catalog sizes, profile columns, and selected-card settings | no | implemented |
 | Docker | row editor | `control.setTyped`, `structure.*` | row cards with configurable container field names | no | implemented |
 | Config and flake path | settings dialog | `config.get`, `config.set`, `config.remember` | sidebar Settings button and panel | yes | implemented |
 

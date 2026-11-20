@@ -42,7 +42,7 @@ Dispatch order in `Control.svelte`:
 
 `rawWidgets` contains `raw`, `submodule`, `horizontal-submodule`, `table-attrset`,
 `table-list`, `keybinds`, `monitors`, `users`, `secureboot`, `menu`, `plugins`,
-`bar`, `dock`, `grid-configuration`, and `docker`.
+`bar`, `dock`, `grid-configuration`, `docker`, and `mounts`.
 
 ## Widget table
 
@@ -64,25 +64,26 @@ Dispatch order in `Control.svelte`:
 | `Color` | `color` | `Color.svelte` |
 | `Submodule` | `submodule` | Generic child controls; textarea raw when it has no children |
 | `HorizontalSubmodule` | `horizontal-submodule` | Generic child controls; textarea raw when no children; `maxColumns` sets the card grid width |
-| `GridConfiguration` | `grid-configuration` | Placement canvas positioned by `col`, `row`, `w`, and `h`; drag and resize update those fields and `gridRegistry` ids seed new cards |
+| `GridConfiguration` | `grid-configuration` | `GridEditor.svelte`: canvas cards sized by `col`, `row`, `w`, and `h`, registry add flow, catalog sizes, and a selected-card settings panel |
 | `TableAttrset` | `table-attrset` | `Table.svelte` with raw-expression cells, icon delete, and typed columns |
 | `TableList` | `table-list` | `Table.svelte` with raw-expression cells, icon delete, and typed columns |
-| `Keybinds` | `keybinds` | Row cards; configurable `bindFields`, `bindFieldTypes`, `bindPreview`, `bindSort`, and `bindKeyField`; comma-separated list fields; add, remove, rename |
-| `Monitors` | `monitors` | Output cards on a draggable canvas that updates `xPos` and `yPos`; the add-row panel detects outputs and `disabledFeatures` hides fields |
+| `Keybinds` | `keybinds` | `BindsEditor.svelte`: one compact row per bind with title, description, preview, Edit, and Remove; a focused edit form for the configured bind fields |
+| `Monitors` | `monitors` | `DisplayEditor.svelte`: scaled canvas, selected-output details, primary marker, transform dropdown with rotated tile preview, grouped feature fields, and output detection |
 | `Theme` | `theme` | `ThemePicker.svelte` with search and swatches |
 | `Wallpaper` | `wallpaper` | `Text.svelte` plus `MediaPicker.svelte` with `presetSource`/`presetOption` presets, a Default preset, upload, and delete |
 | `File` | `file` | `Text.svelte` plus `MediaPicker.svelte` with upload and delete |
-| `Menu` | `menu` | Row cards with add, remove, rename, and field editing |
+| `Menu` | `menu` | `MenuEditor.svelte`: provider assistant, compact rows, inline field help, and selected-row editing |
 | `Plugins` | `plugins` | Row cards; the add dialog lists uninstalled DMS registry plugins; `plugins.settings` returns QML but no QML controls render |
-| `Bar` | `bar` | Row cards; `@widget-preset` tiles on each list section seed defaults, and list move/add/remove work |
-| `Dock` | `dock` | Row cards; `@widget-preset` tiles on each list section seed defaults, and list move/add/remove work |
+| `Bar` | `bar` | `BarDockEditor.svelte`: per-section tiles with enable switches, preset picker, drag reorder, and selected-tile settings |
+| `Dock` | `dock` | `BarDockEditor.svelte`: per-section tiles with enable switches, preset picker, drag reorder, and selected-tile settings |
 | `Font` | `font` | `Select.svelte` from `catalog.styles`; monospace filtering and a live font preview |
 | `IconTheme` | `icon-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails; variant filtering |
 | `CursorTheme` | `cursor-theme` | `Select.svelte` from `catalog.styles` plus preview thumbnails |
 | `Users` | `users` | Account cards with add, remove, rename, validation, password action, and `home-manager.users` sync |
 | `Facter` | `facter` | `Select.svelte` with `auto` plus profile choices read from `profileCatalog`, falling back to the built-in catalog |
 | `Docker` | `docker` | Row cards with configurable container field names; empty container fields are hidden and add, remove, and rename work |
-| `SecureBoot` | `secureboot` | `Textarea.svelte` plus `SecureBootPanel.svelte` with the setup actions |
+| `Mounts` | `mounts` | Row cards over a mountpoint-keyed `fileSystems` set; each row edits device, filesystem, options, and neededForBoot; add, remove, and rename work; protected and duplicate mountpoints are rejected on save |
+| `SecureBoot` | `secureboot` / `secure-boot` | `SecureBootFlow.svelte` with the full staged wizard, reauthentication, and streamed rebuild output |
 | `Raw` | `raw` | `Textarea.svelte` |
 
 There is no `Icon` widget kind. `icon` and `image` exist only as table column
@@ -122,7 +123,7 @@ The table keeps row order in the submitted array.
 structured list, up to depth 6. The composite kinds in
 `/home/den/repos/ojuny-future-repos/nix-web-gui/engine/src/session.rs`
 `is_composite_widget` are `Submodule`, `HorizontalSubmodule`, `Users`,
-`Monitors`, `Docker`, `Menu`, `Bar`, `Dock`, `GridConfiguration`, `Plugins`, and
+`Monitors`, `Docker`, `Mounts`, `Menu`, `Bar`, `Dock`, `GridConfiguration`, `Plugins`, and
 `Keybinds`.
 
 `is_structured_list` adds children for a `list` whose elements include an
@@ -136,8 +137,8 @@ ordinary controls. For the other composite kinds:
 
 - the parent heading, then one row card per child, with the child's own widget
   kind for each field;
-- `Add row` when the parent is `users`, `keybinds`, `monitors`, `docker`, `menu`,
-  `horizontal-submodule`, `grid-configuration`, or a structured `list` section;
+- `Add row` when the parent is `users`, `keybinds`, `monitors`, `docker`, `mounts`,
+  `menu`, `horizontal-submodule`, `grid-configuration`, or a structured `list` section;
 - `Rename` on a row whose parent is one of those widgets, except
   `horizontal-submodule`;
 - `Remove` on a row whose parent is one of those widgets, `submodule`, or a
