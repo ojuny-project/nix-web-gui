@@ -62,6 +62,12 @@
   /* @option widget = "text"; label = "Hostname"; */
   networking.hostName = "nixos";
 
+  /* @option widget = "switch"; label = "Show extra"; */
+  services.showExtra = false;
+
+  /* @option widget = "text"; label = "Conditional value"; visibleWhen.path = "config.services.showExtra"; visibleWhen.equals = true; */
+  services.conditional = "hidden";
+
   /* @option widget = "file"; label = "Background"; fileDir = "./assets"; fileExtensions = [ "png" ]; */
   services.background = "old.png";
 

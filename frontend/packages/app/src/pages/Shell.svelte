@@ -168,6 +168,7 @@
     "users",
     "facter",
     "docker",
+    "mounts",
     "raw",
   ];
 
@@ -237,17 +238,38 @@
       )
       .flatMap((record) => descendantPaths(record)),
   );
-  $: visibleRecords = records.filter((record) => {
-    if (!OJUNY_WIDGETS && ojunyPaths.some((path) => record.path.startsWith(`${path}.`))) {
-      return false;
-    }
-    if (cardPaths.has(record.path)) return false;
-    if (disabledByAncestor(record)) return false;
-    if (record.hidden && !showHidden) return false;
-    if (!visibleWhenHolds(record)) return false;
-    if (!searchTerm) return true;
-    return subtreeMatches(record, searchTerm);
-  });
+  $: visibleRecords = filterVisibleRecords(
+    records,
+    values,
+    showHidden,
+    searchTerm,
+    cardPaths,
+    ojunyPaths,
+  );
+
+  function filterVisibleRecords(
+    all: ScanRecord[],
+    currentValues: Record<string, ControlValue>,
+    showHiddenFlag: boolean,
+    term: string,
+    cards: Set<string>,
+    ojuny: string[],
+  ): ScanRecord[] {
+    return all.filter((record) => {
+      if (
+        !OJUNY_WIDGETS &&
+        ojuny.some((path) => record.path.startsWith(`${path}.`))
+      ) {
+        return false;
+      }
+      if (cards.has(record.path)) return false;
+      if (disabledByAncestor(record, all)) return false;
+      if (record.hidden && !showHiddenFlag) return false;
+      if (!visibleWhenHolds(record, all, currentValues)) return false;
+      if (!term) return true;
+      return subtreeMatches(record, term);
+    });
+  }
   $: currentMenu = (() => {
     const candidate = sortedMenus[selected];
     if (candidate && (!candidate.hidden || showHidden)) return candidate;
@@ -374,8 +396,11 @@
     return (record.children ?? []).some((child) => subtreeMatches(child, term));
   }
 
-  function disabledByAncestor(record: ScanRecord): boolean {
-    return records.some((candidate) => {
+  function disabledByAncestor(
+    record: ScanRecord,
+    all: ScanRecord[] = records,
+  ): boolean {
+    return all.some((candidate) => {
       if (!candidate.disabledFeatures?.length) return false;
       const prefix = `${candidate.path}.`;
       if (!record.path.startsWith(prefix)) return false;
@@ -1310,6 +1335,7 @@
     "keybinds",
     "monitors",
     "docker",
+    "mounts",
     "menu",
     "plugins",
     "bar",
@@ -1324,6 +1350,7 @@
     "keybinds",
     "monitors",
     "docker",
+    "mounts",
     "menu",
     "plugins",
     "bar",
@@ -1725,19 +1752,25 @@
     return JSON.stringify(String(value ?? ""));
   }
 
-  function visibleWhenHolds(record: ScanRecord): boolean {
+  function visibleWhenHolds(
+    record: ScanRecord,
+    all: ScanRecord[] = records,
+    currentValues: Record<string, ControlValue> = values,
+  ): boolean {
     const condition = record.visibleWhen;
     if (!condition) return true;
     const governing =
-      records.find((candidate) => candidate.path === condition.path) ??
-      records.find((candidate) => candidate.path === `config.${condition.path}`) ??
-      records.find(
+      all.find((candidate) => candidate.path === condition.path) ??
+      all.find((candidate) => candidate.path === `config.${condition.path}`) ??
+      all.find(
         (candidate) =>
           candidate.path.replace(/^config\./, "") ===
           condition.path.replace(/^config\./, ""),
       );
     if (!governing) return true;
-    const current = literalOf(values[governing.path] ?? displayValue(governing)).trim();
+    const current = literalOf(
+      currentValues[governing.path] ?? displayValue(governing),
+    ).trim();
     if (condition.equals != null) {
       return current === condition.equals.trim();
     }

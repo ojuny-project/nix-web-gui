@@ -96,6 +96,26 @@ for (const item of ['Users', 'alice', 'Add row', 'Add bind', 'Reload', 'Left wid
     throw new Error(`missing text: ${item}`);
   }
 }
+const hiddenInitially = await evaluate(
+  'document.body.innerText.includes("Conditional value")',
+);
+if (hiddenInitially) throw new Error('visibleWhen control rendered while false');
+await evaluate('document.getElementById("control-services-showExtra").click()');
+await sleep(500);
+const shownAfterToggle = await evaluate(
+  'document.body.innerText.includes("Conditional value")',
+);
+
+if (!shownAfterToggle) throw new Error('visibleWhen control did not appear');
+await evaluate(`(() => {
+  const button = [...document.querySelectorAll('button')].find(
+    (item) => item.textContent.trim() === 'Discard',
+  );
+  if (!button) throw new Error('Discard button missing');
+  button.click();
+})()`);
+await sleep(500);
+
 const cards = await evaluate('document.querySelectorAll(".row-card").length');
 const monitorTiles = await evaluate('document.querySelectorAll(".monitor-tile").length');
 const gridHandles = await evaluate('document.querySelectorAll(".grid-handle").length');
@@ -281,5 +301,5 @@ const flakeBody = await evaluate('document.body.innerText');
 if (!flakeBody.includes('Add input')) throw new Error('flake inputs view did not open');
 
 if (errors.length) throw new Error(errors.join('\n'));
-console.log(JSON.stringify({ cards, monitorTiles, gridHandles, dragged: true, gridDragged: true, add: true, rename: true, remove: true, diff: true, save: true, media: true, apply: true, addOption: true, addFile: true, rebuild: true, flakeInputs: true, bindFields }));
+console.log(JSON.stringify({ cards, monitorTiles, gridHandles, dragged: true, gridDragged: true, add: true, rename: true, remove: true, diff: true, save: true, media: true, apply: true, addOption: true, addFile: true, rebuild: true, flakeInputs: true, bindFields, visibleWhen: true }));
 socket.close();
